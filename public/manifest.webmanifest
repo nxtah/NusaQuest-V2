@@ -1,0 +1,6 @@
+{
+  "name": "NusaQuest",
+  "short_name": "NusaQuest",
+  "start_url": "/",
+  "display": "standalone"
+}
