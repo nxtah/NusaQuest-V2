@@ -6,11 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "rtdb:backfill:dry": "node scripts/rtdb-backfill.mjs --input scripts/legacy-export.sample.json --dry-run",
+    "rtdb:backfill": "node scripts/rtdb-backfill.mjs --input scripts/legacy-export.sample.json",
+    "rtdb:parity": "node scripts/rtdb-parity-check.mjs"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",
     "firebase": "^12.11.0",
+    "firebase-admin": "^13.7.0",
     "next": "16.1.6",
     "next-cloudinary": "^6.17.5",
     "react": "19.2.3",

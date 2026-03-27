@@ -2,13 +2,25 @@
 import { CldImageProps } from 'next-cloudinary';
 
 export function getCloudinaryUrl(publicId: string, options?: Partial<CldImageProps>): string {
-  // Basic URL builder for Cloudinary assets
-  // You can expand this for transformations, etc.
-  const baseUrl = 'https://res.cloudinary.com/dprxjzfxp/image/upload/';
-  // Add transformation string if needed
-  // Example: options?.width, options?.height, etc.
-  // For advanced usage, use next-cloudinary's CldImage component
-  return `${baseUrl}${publicId}`;
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  if (!cloudName) {
+    throw new Error('Missing NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME');
+  }
+
+  const transforms: string[] = [];
+  if (options?.width) {
+    transforms.push(`w_${options.width}`);
+  }
+  if (options?.height) {
+    transforms.push(`h_${options.height}`);
+  }
+  if (options?.crop) {
+    transforms.push(`c_${options.crop}`);
+  }
+
+  const transformPath = transforms.length > 0 ? `${transforms.join(',')}/` : '';
+
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${transformPath}${publicId}`;
 }
 
 // Example usage:
