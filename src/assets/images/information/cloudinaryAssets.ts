@@ -8,6 +8,8 @@ export const information = {
 	rumput: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370173/rumput_yq8ec5.webp',
 	tanaman1: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370077/tanaman-1_byedew.webp',
 	tanaman2: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370075/tanaman-2_bzxsip.webp',
+	tanamankiri:'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774535531/tanaman-kiri_rpyqus.webp',
+	tanamankanan:'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774536119/tanaman-kanan_ozzohx.webp',
 	teratai: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370059/teratai_xgpfvi.webp',
 } as const;
 
