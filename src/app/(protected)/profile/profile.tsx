@@ -26,7 +26,7 @@ export default function Profile() {
             <ProfileCard
               username="Nusa Player"
               email="nusa.player@mail.com"
-              avatarSrc={information.imagePopup}
+              avatarSrc={information.kertas}
               woodSrc={background.kayu}
             />
           </div>
