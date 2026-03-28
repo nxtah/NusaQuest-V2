@@ -1,12 +1,24 @@
+/* =============================================
+   PROFILE SCENE
+   ============================================= */
+body {
+  margin: 0;
+}
 .profile-scene {
-  min-height: 100vh;
+  min-height: 100dvh;
+  display: block;
   width: 100%;
+  position: relative;
+  background-color: #4ab8d4;
+  overflow: hidden;
 }
 
 .profile-bg-layer {
   z-index: 1;
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .profile-land-layer {
@@ -23,56 +35,60 @@
   object-fit: cover;
 }
 
+/* =============================================
+   UI LAYER
+   ============================================= */
+
 .profile-ui-layer {
   z-index: 25;
-  padding: 0;
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   pointer-events: auto;
+  overflow-y: auto;
+  padding: 0 1rem 3rem;
 }
 
+/* =============================================
+   MAIN LAYOUT
+   ============================================= */
+
 .profile-main-layout {
-  --profile-left-col: 30%;
-  --profile-right-col: 70%;
-  --profile-gap: clamp(1rem, 2vw, 2rem);
-  width: min(1100px, 92vw);
-  min-height: clamp(520px, 70vh, 760px);
-  max-height: 90vh;
-  gap: var(--profile-gap);
+  width: min(1100px, 100%);
   display: flex;
+  flex-direction: row;
   align-items: stretch;
-  justify-content: space-between;
-  margin-top: 3rem;
+  /* kiri & kanan sama tinggi */
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  margin-top: clamp(2rem, 5vh, 3.5rem);
 }
 
 .profile-left-region {
-  flex: 0 1 var(--profile-left-col);
-  max-width: var(--profile-left-col);
-  min-width: 200px;
+  flex: 0 0 clamp(200px, 28%, 320px);
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: clamp(420px, 60vh, 640px);
 }
 
 .profile-right-region {
-  flex: 1 1 var(--profile-right-col);
-  max-width: var(--profile-right-col);
+  flex: 1 1 0;
   min-width: 0;
-  position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: clamp(570px, 60vh, 640px);
+  gap: 0;
 }
+
+
+/* =============================================
+   PROFILE CARD (kiri)
+   ============================================= */
 
 .profile-card {
   position: relative;
   width: 100%;
-  height: 100%;
+  flex: 1;
+  /* mengisi tinggi penuh kolom kiri */
   border-radius: 25px;
   overflow: hidden;
 }
@@ -94,13 +110,13 @@
   border-radius: 25px;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .profile-card-content {
   position: relative;
   z-index: 1;
-  height: 100%;
-  min-height: 0;
+  flex: 1;
   padding: 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
@@ -115,19 +131,29 @@
 
 .profile-avatar-wrap {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: clamp(80px, 12vw, 150px);
+  height: clamp(80px, 12vw, 150px);
   border-radius: 1000px;
   overflow: hidden;
   border: 3px solid #f4e8c6;
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
   margin-top: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Wrapper teks nama+email (dipakai di mobile untuk layout horizontal) */
+.profile-card-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
 }
 
 .profile-name {
   margin: 0;
   color: #fff7df;
-  font-size: 1.65rem;
+  font-size: clamp(1rem, 2.5vw, 1.65rem);
   line-height: 1.2;
   font-weight: 800;
   text-shadow: 0 3px 0 rgba(70, 35, 9, 0.7);
@@ -137,15 +163,17 @@
 .profile-email {
   margin: 0;
   color: #f9f1dd;
-  font-size: 0.95rem;
+  font-size: clamp(0.72rem, 1.5vw, 0.95rem);
   font-weight: 600;
   text-align: center;
   word-break: break-word;
 }
 
+/* Tombol di bawah — margin-top: auto mendorong ke bawah secara alami */
 .profile-card-actions {
   width: 100%;
-  margin-top: 160px;
+  margin-top: auto;
+  padding-top: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
@@ -155,7 +183,7 @@
   width: 100%;
   border: 2px solid transparent;
   border-radius: 12px;
-  font-size: 1rem;
+  font-size: clamp(0.7rem, 1.5vw, 1rem);
   font-weight: 700;
   line-height: 1;
   padding: 0.8rem 0.75rem;
@@ -181,26 +209,35 @@
   box-shadow: 0 6px 0 #e61515;
 }
 
+/* =============================================
+   PROFILE PANEL (kanan)
+   overflow: visible agar tanaman header tidak terpotong
+   ============================================= */
+
 .profile-panel {
   position: relative;
   width: 100%;
-  height: 100%;
-  border-radius: 25px;
-  overflow: hidden;
   flex: 1;
+  /* mengisi tinggi penuh kolom kanan */
+  border-radius: 25px;
+  overflow: visible;
+  /* PENTING: tanaman boleh keluar batas panel */
   display: flex;
   flex-direction: column;
-  z-index: 2;
 }
 
 .profile-panel-bg {
   position: absolute;
   inset: 0;
   z-index: 1;
+  border-radius: 25px;
+  overflow: hidden;
+  /* bg tetap terpotong rapi */
 }
 
 .profile-panel-shell {
-  position: absolute;
+  position: relative;
+  height: 100%;
   z-index: 2;
   width: 100%;
   height: 100%;
@@ -209,80 +246,127 @@
   border-radius: 25px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
+.profile-main-layout {
+  width: min(1100px, 100%);
+  display: flex;
+  align-items: stretch;
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  margin-top: clamp(2rem, 5vh, 3.5rem);
+}
 
-.profile-header-floating {
-  position: absolute;
-  top: 70px;
-  left: 50%;
-  transform: translate(-50%, -62%);
-  width: clamp(150px, 60%, 520px);
-  height: clamp(110px, 24vw, 180px);
-  z-index: 3;
+/* KUNCI */
+.profile-left-region,
+.profile-right-region {
+  display: flex;
+}
+
+.profile-left-region {
+  flex: 0 0 clamp(200px, 28%, 320px);
+  flex-direction: column;
+}
+
+.profile-right-region {
+  flex: 1;
+  flex-direction: column;
+}
+
+/* KUNCI BANGET */
+.profile-card,
+.profile-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* DALAMNYA HARUS NGIKUT */
+.profile-card-shell,
+.profile-panel-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-card-content,
+.profile-panel-content {
+  flex: 1;
+}
+
+/* =============================================
+   PROFILE HEADER — wrapper baru (bukan floating)
+   ============================================= */
+
+.profile-header-wrapper {
+  position: relative;
+  width: 100%;
+  height: clamp(90px, 13vw, 140px);
+  margin-bottom: -8px;
+  /* panel naik sedikit agar tidak ada celah */
+  z-index: 30;
   pointer-events: none;
+  overflow: visible;
+  /* tanaman boleh keluar atas */
+  
 }
 
 .profile-header-branch {
   position: absolute;
-  left: 50%;
-  top: clamp(-15px, -7vw, -10px);
-  width: clamp(260px, 36%, 120px);
-  height: clamp(50px, 18vw, 118px);
-  z-index: 1;
+  top: clamp(10px, 3vw, 25px);
+  /* disamain arah turun */
+  width: clamp(90px, 16vw, 160px);
+  height: clamp(70px, 13vw, 130px);
 }
 
 .profile-header-branch-left {
-  transform: translate(-125%, -5%);
+  left: clamp(24px, 6%, 90px);
+  transform: translateX(8px);
+  /* geser dikit ke dalam */
 }
 
 .profile-header-branch-right {
-  transform: translate(18%, -5%);
+  right: clamp(24px, 6%, 90px);
+  transform: translateX(-8px);
 }
 
 .profile-header-board {
   position: absolute;
   left: 50%;
-  bottom: clamp(30px, 7vw, 60px);
+  top: clamp(-100px, 6vw, 60px);
+  /* INI KUNCI */
   transform: translateX(-50%);
-  width: clamp(260px, 70%, 360px);
-  height: clamp(70px, 16vw, 104px);
+  width: clamp(200px, 80%, 370px);
+  height: clamp(60px, 50vw, 120px);
   border-radius: 24px;
   overflow: hidden;
-  z-index: 5;
+  z-index: 32;
 }
-
-/* .profile-header-plant-base {
-  position: absolute;
-  left: 100%;
-  bottom: 56px;
-  transform: translateX(-50%);
-  width: min(360px, 74%);
-  height: 152px;
-  z-index: 8;
-} */
 
 .profile-header-title {
   position: absolute;
   left: 50%;
-  bottom: clamp(120px, 7vw, 62px);
-  transform: translate(-50%, 0);
+  bottom: clamp(85px, 6vw, 58px);
+  transform: translateX(-50%);
   margin: 0;
   color: #1c0e03;
-  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  font-size: clamp(1rem, 2vw, 2rem);
   font-weight: 900;
   letter-spacing: 0.02em;
   line-height: 1;
-  z-index: 9;
+  z-index: 33;
   white-space: nowrap;
 }
+
+/* =============================================
+   PANEL CONTENT
+   ============================================= */
 
 .profile-panel-content {
   position: relative;
   z-index: 1;
-  height: 100%;
-  min-height: 0;
-  padding: clamp(1.5rem, 7vw, 1.5rem) 1rem 1rem;
+  flex: 1;
+  padding: 1.25rem 1rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -310,6 +394,10 @@
   border-radius: 999px;
 }
 
+/* =============================================
+   SECTIONS
+   ============================================= */
+
 .profile-section {
   border-radius: 16px;
   padding: 0.95rem 1rem;
@@ -318,15 +406,16 @@
 .profile-section-title {
   margin: 0 0 0.8rem;
   color: #ffffff;
-  font-size: 1.15rem;
+  font-size: clamp(0.9rem, 2vw, 1.15rem);
   font-weight: 900;
 }
 
 .badge-row {
   display: flex;
-  justify-content: left;
-  align-items: left;
-  gap: 1rem;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .badge-icon {
@@ -334,9 +423,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 90px;
-  height: 90px;
+  width: clamp(44px, 7vw, 90px);
+  height: clamp(44px, 7vw, 90px);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .badge-icon-image {
@@ -351,10 +441,11 @@
 
 .attribute-icon {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: clamp(36px, 6vw, 80px);
+  height: clamp(36px, 6vw, 80px);
   border-radius: 14px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .attribute-icon img,
@@ -365,35 +456,35 @@
 .attribute-count {
   margin: 0;
   color: #ffffff;
-  font-size: 1.2rem;
+  font-size: clamp(0.95rem, 2vw, 1.2rem);
   font-weight: 900;
 }
 
 .achievement-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.85rem;
 }
 
 .achievement-card {
   background: #1f78d8;
   border: 3px solid #ffe470;
   border-radius: 15px;
-  padding: 0.5rem 0.5rem;
+  padding: 0.5rem;
   color: #fff6cf;
-  font-size: 1rem;
+  font-size: clamp(0.72rem, 1.5vw, 1rem);
   font-weight: 600;
-  line-height: 1;
-  min-height: 70px;
+  line-height: 1.3;
+  min-height: 60px;
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 0.75rem;
 }
 
 .achievement-icon {
   position: relative;
-  width: 60px;
-  height: 60px;
+  width: clamp(40px, 6vw, 60px);
+  height: clamp(40px, 6vw, 60px);
   flex-shrink: 0;
 }
 
@@ -406,111 +497,107 @@
   margin: 0;
 }
 
-@media (max-width: 1100px) {
-  .profile-main-layout {
-    --profile-left-col: 35%;
-    --profile-right-col: 65%;
-    width: min(940px, 96vw);
-    min-height: clamp(500px, 72vh, 700px);
-    gap: clamp(0.85rem, 2vw, 1.5rem);
-    margin-top: 2rem;
-  }
-
-  .profile-left-region {
-    min-width: 180px;
-  }
-
-
-}
+/* =============================================
+   TABLET — max 820px
+   ============================================= */
 
 @media (max-width: 820px) {
+  .profile-ui-layer {
+    padding: 0 0.85rem 2.5rem;
+  }
+
   .profile-main-layout {
-    --profile-left-col: 40%;
-    --profile-right-col: 60%;
-    width: min(800px, 97vw);
-    min-height: clamp(460px, 78vh, 640px);
-    gap: clamp(0.65rem, 1.8vw, 1.1rem);
+    gap: 0.75rem;
+    margin-top: clamp(1.5rem, 4vh, 2.5rem);
+    
   }
 
   .profile-left-region {
-    min-width: 150px;
-  }
-
-  .profile-panel-content {
-    padding: 3rem 0.85rem 0.85rem;
-    gap: 0.75rem;
-  }
-
-  .profile-section {
-    padding: 0.75rem;
-  }
-
-  .profile-section-title {
-    font-size: 1rem;
-  }
-
-
-  .achievement-card {
-    max-width: 100%;
+    flex: 0 0 clamp(160px, 35%, 260px);
   }
 }
 
-@media (max-width: 640px) {
+/* =============================================
+   MOBILE — max 600px — satu kolom vertikal
+   ============================================= */
+
+@media (max-width: 600px) {
   .profile-ui-layer {
-    padding: 0.8rem;
+    padding: 0 0.75rem 2rem;
   }
 
   .profile-main-layout {
-    width: min(720px, 98vw);
-    min-height: clamp(420px, 85vh, 600px);
-    gap: clamp(0.45rem, 1.5vw, 0.8rem);
-    margin-top: 0.8rem;
-    --profile-left-col: 40%;
-    --profile-right-col: 60%;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: clamp(1rem, 3vh, 1.5rem);
+    width: 100%;
   }
 
   .profile-left-region {
-    min-width: 140px;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  /* Card horizontal di mobile */
+  .profile-card-content {
+    flex-direction: row;
+    align-items: center;
+    padding: 1rem;
+    gap: 0.85rem;
+    flex-wrap: wrap;
   }
 
   .profile-avatar-wrap {
-    width: 100px;
-    height: 100px;
+    width: 72px;
+    height: 72px;
+    margin-top: 0;
+  }
+
+  .profile-card-info {
+    flex: 1;
+    min-width: 0;
+    align-items: flex-start;
   }
 
   .profile-name {
     font-size: 1rem;
+    text-align: left;
   }
 
   .profile-email {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
+    text-align: left;
+  }
+
+  .profile-card-actions {
+    flex: 0 0 100%;
+    width: 100%;
+    margin-top: 0;
+    padding-top: 0.5rem;
+    flex-direction: row;
+    gap: 0.5rem;
   }
 
   .profile-action-btn {
-    font-size: 0.7rem;
-    padding: 0.58rem 0.5rem;
+    flex: 1;
+    font-size: 0.72rem;
+    padding: 0.65rem 0.5rem;
   }
 
-  .profile-panel-content {
-    padding: 1.8rem 0.6rem 0.65rem;
+  .profile-right-region {
+    width: 100%;
   }
 
-  .profile-section {
-    padding: 0.6rem;
+  .profile-header-wrapper {
+    height: clamp(70px, 22vw, 100px);
   }
 
-  .badge-icon {
-    width: 38px;
-    height: 38px;
+  .profile-header-branch {
+    width: clamp(65px, 20vw, 110px);
+    height: clamp(55px, 17vw, 90px);
   }
 
-  .attribute-icon {
-    width: 34px;
-    height: 34px;
-  }
-
-  .achievement-card {
-    min-height: 58px;
-    font-size: 0.7rem;
+  .achievement-grid {
+    grid-template-columns: 1fr;
   }
 }

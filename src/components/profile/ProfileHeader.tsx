@@ -8,9 +8,14 @@ type ProfileHeaderProps = {
   title: string;
 };
 
-export default function ProfileHeader({ boardSrc, branchLeftSrc, branchRightSrc, plantSrc, title }: ProfileHeaderProps) {
+export default function ProfileHeader({
+  boardSrc,
+  branchLeftSrc,
+  branchRightSrc,
+  title,
+}: ProfileHeaderProps) {
   return (
-    <div className="profile-header-floating">
+    <div className="profile-header-wrapper">
       <div className="profile-header-branch profile-header-branch-left">
         <Image src={branchLeftSrc} alt="Dekorasi kiri" fill className="profile-image" />
       </div>

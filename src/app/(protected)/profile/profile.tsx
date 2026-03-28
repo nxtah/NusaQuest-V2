@@ -11,17 +11,36 @@ import ProfilePanel from '../../../components/profile/ProfilePanel';
 
 export default function Profile() {
   return (
-    <div className="profile-scene relative w-full h-screen overflow-hidden">
+    <div className="profile-scene">
+      {/* Background laut — sizes="100vw" agar Next.js load ukuran penuh, tidak ada putih */}
       <div className="profile-bg-layer">
-        <Image src={background.laut} alt="Laut" fill className="profile-image" priority />
+        <Image
+          src={background.laut}
+          alt="Laut"
+          fill
+          sizes="100vw"
+          className="profile-image"
+          priority
+        />
       </div>
 
+      {/* Daratan bawah */}
       <div className="profile-land-layer">
-        <Image src={background.landprofile} alt="Land" fill className="profile-image" priority />
+        <Image
+          src={background.landprofile}
+          alt="Land"
+          fill
+          sizes="100vw"
+          className="profile-image"
+          priority
+        />
       </div>
 
+      {/* UI Layer */}
       <div className="profile-ui-layer">
-        <div className="profile-main-layout flex items-stretch justify-between">
+        <div className="profile-main-layout">
+
+          {/* Kolom kiri: kartu profil */}
           <div className="profile-left-region">
             <ProfileCard
               username="Nusa Player"
@@ -31,6 +50,7 @@ export default function Profile() {
             />
           </div>
 
+          {/* Kolom kanan: header dekorasi + panel konten */}
           <div className="profile-right-region">
             <ProfileHeader
               boardSrc={information.board1}
@@ -45,6 +65,7 @@ export default function Profile() {
               <AchievementSection />
             </ProfilePanel>
           </div>
+
         </div>
       </div>
     </div>

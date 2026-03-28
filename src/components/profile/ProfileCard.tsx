@@ -20,8 +20,10 @@ export default function ProfileCard({ username, email, avatarSrc, woodSrc }: Pro
             <Image src={avatarSrc} alt="Avatar pengguna" fill className="profile-image" />
           </div>
 
-          <h2 className="profile-name">{username}</h2>
-          <p className="profile-email">{email}</p>
+          <div className="profile-card-info">
+            <h2 className="profile-name">{username}</h2>
+            <p className="profile-email">{email}</p>
+          </div>
 
           <div className="profile-card-actions">
             <button type="button" className="profile-action-btn edit">
