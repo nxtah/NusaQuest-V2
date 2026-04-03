@@ -28,9 +28,9 @@ export default function NavBar() {
 
     return (
         <div
-            className={`flex flex-row items-center justify-between w-full px-8 py-2 lg:py-3 gap-2 lg:gap-0 z-20 relative ${poppins.className}`}
+            className={`flex flex-row items-center justify-between w-full lg:px-8 sm:p-4 py-2 lg:py-3 gap-2 lg:gap-0 z-20 relative ${poppins.className}`}
         >
-            <div className="flex items-center gap-1.5 lg:gap-4 w-full min-w-0 flex-1 lg:pr-4">
+            <div className="flex items-center gap-1.5 lg:gap-4 shrink-0 lg:flex-1 lg:min-w-0 lg:pr-4">
                 {/* Tombol Kembali */}
                 <Link
                     href="/home"
@@ -73,7 +73,7 @@ export default function NavBar() {
             </div>
 
             {/* Search Bar */}
-            <div className="relative w-[100px] sm:w-[112px] lg:w-auto shrink-0 mt-0">
+            <div className="relative flex-1 lg:flex-none min-w-[100px] sm:min-w-[120px] max-w-[160px] sm:max-w-[220px] lg:max-w-none lg:w-auto shrink-0 mt-0">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
