@@ -48,6 +48,11 @@ Tujuannya agar semua anggota tim cepat paham "file ini buat apa" sebelum mulai c
 ### `public/audio/**`
 - Menyimpan audio game (SFX/BGM).
 
+### `public/fonts/**`
+- Menyimpan font custom project.
+- Font sudah di-setup otomatis via `src/styles/fonts.css`.
+- Cara pakai: tinggal tambahkan `className="font-xxxx"` di component atau CSS dengan nama font di Tailwind config.
+
 ### `public/icons/**`
 - Icon favicon/PWA.
 
