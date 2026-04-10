@@ -42,6 +42,10 @@ body {
     font-family: 'Bauhaus', sans-serif;
   }
 
+  .font-bauhaus {
+    font-family: 'Bauhaus', sans-serif;
+  }
+  
   .poppins-bold {
     font-family: var(--font-poppins-bold), sans-serif;
     font-weight: 700;

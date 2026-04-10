@@ -66,7 +66,7 @@ export default function RoomSelect({ topicID, gameID, onSelect }: RoomSelectProp
 
           <div className="papan-hiasan">
             <img src={getInformationImage('board1')} className="board-img" alt="board" />
-            <span className="font-irish text-board">Select Room</span>
+            <span className="font-bauhaus text-board">Select Room</span>
           </div>
         </div>
       </div>
