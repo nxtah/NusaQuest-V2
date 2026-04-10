@@ -47,7 +47,7 @@ export default function ProfileHeader({
       </div>
 
       {/* Judul di tengah board */}
-      <h1 className="profile-header-title">{title}</h1>
+      <h1 className="profile-header-title profiletitle">{title}</h1>
     </div>
   );
 }

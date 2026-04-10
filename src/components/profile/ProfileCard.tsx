@@ -29,19 +29,19 @@ export default function ProfileCard({ username, email, avatarSrc, woodSrc }: Pro
             </div>
 
             <div className="profile-card-info">
-              <h2 className="profile-name">{username}</h2>
-              <p className="profile-email">{email}</p>
+              <h2 className="profile-name poppins-bold">{username}</h2>
+              <p className="profile-email poppins-bold">{email}</p>
             </div>
 
             <div className="profile-card-actions">
               <button
                 type="button"
-                className="profile-action-btn edit"
+                className="profile-action-btn edit poppins-bold"
                 onClick={() => setIsEditOpen(true)}
               >
                 Edit Profile
               </button>
-              <button type="button" className="profile-action-btn logout">
+              <button type="button" className="profile-action-btn logout poppins-bold">
                 Logout
               </button>
             </div>

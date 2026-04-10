@@ -18,7 +18,7 @@ const achievementIconKey: AchievementsImageKey = 'achievements1';
 export default function AchievementSection() {
   return (
     <section className="profile-section">
-      <h3 className="profile-section-title">Achievement</h3>
+      <h3 className="profile-section-title poppins-bold">Achievement</h3>
       <div className="achievement-grid">
         {achievementItems.map((item) => (
           <article className="achievement-card" key={item.id}>

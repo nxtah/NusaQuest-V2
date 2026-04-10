@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Irish_Grover, Geist, Geist_Mono } from "next/font/google";
+import { Irish_Grover, Geist, Geist_Mono, Poppins } from "next/font/google"; 
 import React from 'react';
 import "./globals.css";
 
@@ -19,6 +19,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const poppinsBold = Poppins({
+  subsets: ['latin'],
+  weight: ['700'],
+  variable: '--font-poppins-bold',
+});
+
 export const metadata: Metadata = {
   title: "NusaQuest",
   description: "Educational Adventure Game",
@@ -31,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${irishGrover.variable} antialiased overflow-hidden m-0 p-0`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${irishGrover.variable} ${poppinsBold.variable} antialiased overflow-hidden m-0 p-0`}>
         {children}
       </body>
     </html>

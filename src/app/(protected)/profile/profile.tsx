@@ -12,7 +12,6 @@ import ProfilePanel from '../../../components/profile/ProfilePanel';
 export default function Profile() {
   return (
     <div className="profile-scene">
-      {/* Background laut — sizes="100vw" agar Next.js load ukuran penuh, tidak ada putih */}
       <div className="profile-bg-layer">
         <Image
           src={background.laut}
