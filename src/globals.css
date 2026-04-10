@@ -5,7 +5,8 @@
 @tailwind utilities;
 
 :root {
-color-scheme: light;
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
 
