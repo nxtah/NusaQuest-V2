@@ -1,15 +1,15 @@
 import Image from "next/image";
 import { information } from "../../assets/images/information/cloudinaryAssets";
-import { Irish_Grover } from "next/font/google";
+import localFont from "next/font/local";
 
 interface PageHeaderProps {
     title: string;
 }
 
-const irishGrover = Irish_Grover({
-    subsets: ["latin"],
-    weight: "400",
-});
+const bauhausLace = localFont({
+    src: "../../../public/fonts/Bauhaus.otf",
+    variable: "--font-bauhaus-lace",
+})
 
 export default function PageHeader({ title }: PageHeaderProps) {
     return (
@@ -41,7 +41,7 @@ export default function PageHeader({ title }: PageHeaderProps) {
                     className="w-full h-auto object-contain drop-shadow-lg"
                 />
                 <h1
-                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-black font-bold text-base sm:text-2xl lg:text-4xl tracking-wider text-center w-[90%] ${irishGrover.className}`}
+                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-black font-bold text-base sm:text-2xl lg:text-3xl tracking-wider text-center w-[90%] ${bauhausLace.className}`}
                 >
                     {title}
                 </h1>

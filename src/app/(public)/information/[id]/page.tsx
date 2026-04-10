@@ -96,9 +96,9 @@ export default async function InformationPicturePage({
             </div>
 
             {/* Content */}
-            <div className="relative w-full h-[80vh] flex items-center justify-center border-2 border-black p-8 rounded-3xl">
+            <div className="relative w-full h-[70vh] sm:h-[80vh] flex items-center justify-center border-2 border-black p-2 sm:p-4 lg:p-8 rounded-3xl">
                 {/* Image Container */}
-                <div className="relative w-full max-w-full max-h-full aspect-[2.2/1] flex items-center justify-center">
+                <div className="relative sm:w-[90%] lg:w-full max-w-full max-h-full aspect-[2.2/1] flex items-center justify-center">
                     <div 
                         className="absolute inset-0 z-10" 
                         style={{
@@ -128,7 +128,7 @@ export default async function InformationPicturePage({
                     {/* Tombol Kembali */}
                     <Link
                         href="/information"
-                        className="absolute left-[1%] top-[9%] w-[6%] md:w-[5%] aspect-square flex items-center justify-center rounded-full border-2 border-white/80 text-white/80 hover:bg-white/20 transition all z-30"
+                        className="absolute left-[1%] sm:top-[5%] lg:top-[9%] sm:w-[6%] lg:w-[5%] aspect-square flex items-center justify-center rounded-full border sm:border-2 border-white/80 text-white/80 hover:bg-white/20 transition-all z-30"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -136,7 +136,7 @@ export default async function InformationPicturePage({
                             viewBox="0 0 24 24"
                             strokeWidth="1.5"
                             stroke="currentColor"
-                            className="w-[60%] h-[60%]"
+                            className="w-[50%] h-[50%] sm:w-[60%] sm:h-[60%]"
                         >
                             <path
                                 strokeLinecap="round"
@@ -149,7 +149,7 @@ export default async function InformationPicturePage({
                     {/* Tombol Selanjutnya */}
                     <Link
                         href={`/information/${currentId}/detail`}
-                        className="absolute right-[1%] top-[9%] w-[6%] md:w-[5%] aspect-square flex items-center justify-center rounded-full border-2 border-white/80 text-white/80 hover:bg-white/20 transition-all z-30"
+                        className="absolute right-[1%] sm:top-[5%] lg:top-[9%] sm:w-[6%] lg:w-[5%] aspect-square flex items-center justify-center rounded-full border sm:border-2 border-white/80 text-white/80 hover:bg-white/20 transition-all z-30"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -157,7 +157,7 @@ export default async function InformationPicturePage({
                             viewBox="0 0 24 24"
                             strokeWidth="1.5"
                             stroke="currentColor"
-                            className="w-[60%] h-[60%]"
+                            className="w-[50%] h-[50%] sm:w-[60%] sm:h-[60%]"
                         >
                             <path
                                 strokeLinecap="round"
@@ -168,7 +168,7 @@ export default async function InformationPicturePage({
                     </Link>
 
                     {/* Dekorasi Bunga Melati */}
-                    <div className="absolute bottom-[5%] -left-[1%] w-[12%] md:w-[10%] aspect-square z-30 pointer-events-none">
+                    <div className="absolute sm:bottom-[2%] lg:bottom-[5%] -left-[1%] w-[15%] sm:w-[10%] lg:w-[10%] aspect-square z-30 pointer-events-none">
                         <Image
                             src={information.melati}
                             alt="Bunga Melati"
@@ -176,7 +176,7 @@ export default async function InformationPicturePage({
                             className="object-contain -rotate-[135deg]"
                         />
                     </div>
-                    <div className="absolute bottom-[5%] -right-[1%] w-[12%] md:w-[10%] aspect-square z-30 pointer-events-none">
+                    <div className="absolute sm:bottom-[2%] lg:bottom-[5%] -right-[1%] w-[15%] sm:w-[10%] lg:w-[10%] aspect-square z-30 pointer-events-none">
                         <Image
                             src={information.melati}
                             alt="Bunga Melati"

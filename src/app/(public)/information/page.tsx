@@ -77,12 +77,12 @@ export default async function InformationPage({ searchParams }: { searchParams: 
             <RotateDeviceOverlay />
 
             {/* Background Image */}
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[100vh] -z-10">
+            <div className="fixed -inset-16 md:-inset-10 -z-10 bg-[#59a87d]">
                 <Image
                     src={background.bgNusa}
                     alt="Background"
                     fill
-                    className="object-cover scale-125 blur-xl"
+                    className="object-cover blur-xl"
                     priority
                 />
                 <div className="absolute inset-0 z-10 bg-black/10"></div>

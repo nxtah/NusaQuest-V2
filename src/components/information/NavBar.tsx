@@ -53,7 +53,7 @@ export default function NavBar() {
                 </Link>
 
                 {/* List Menu Kategori */}
-                <div className="flex gap-1 lg:gap-2 overflow-x-auto scrollbar-hide w-full items-center">
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide w-full items-center">
                     {categories.map((category) => (
                         <button
                             key={category}

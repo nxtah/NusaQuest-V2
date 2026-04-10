@@ -4,17 +4,17 @@ import { information } from "../../../../../assets/images/information/cloudinary
 import { background } from "../../../../../assets/images/background/cloudinaryAssets";
 import RotateDeviceOverlay from "../../../../../components/information/RotateDeviceOverlay";
 import { Poppins } from "next/font/google";
-import { Irish_Grover } from "next/font/google";
+import localFont from "next/font/local";
 
 const poppins = Poppins({
     subsets: ["latin"],
     weight: "400",
 });
 
-const irishGrover = Irish_Grover({
-    subsets: ["latin"],
-    weight: "400",
-});
+const bauhausLace = localFont({
+    src: "../../../../../../public/fonts/Bauhaus.otf",
+    variable: "--font-bauhaus-lace",
+})
 
 const dummyDatabase: Record<string, { subCategory: string; items: any[] }[]> = {
     Daerah: [
@@ -109,9 +109,9 @@ export default async function InformationPicturePage({
             </div>
 
             {/* Content */}
-            <div className="relative w-full h-[80vh] flex items-center justify-center border-2 border-black p-8 rounded-3xl">
+            <div className="relative w-full h-[70vh] sm:h-[80vh] flex items-center justify-center border-2 border-black p-2 sm:p-4 lg:p-8 rounded-3xl">
                 {/* Description Container */}
-                <div className="relative w-full max-w-full max-h-full aspect-[2.2/1] flex items-center justify-center">
+                <div className="relative sm:w-[90%] lg:w-full max-w-full max-h-full aspect-[2.2/1] flex items-center justify-center">
                     <Image
                         src={information.textPopup}
                         alt="Text Container"
@@ -121,7 +121,7 @@ export default async function InformationPicturePage({
 
                     {/* Judul dan Deskripsi */}
                     <div className="absolute z-40 w-[80%] md:w-[75%] h-[65%] flex flex-col items-center justify-center overflow-y-auto">
-                        <h1 className={`text-[4.5vw] md:text-[3vw] lg:text-[2.2vw] text-black font-bold mb-4 tracking-wide text-center ${irishGrover.className}`}>
+                        <h1 className={`text-[4.5vw] md:text-[3vw] lg:text-[2.2vw] text-black font-bold mb-4 tracking-wide text-center ${bauhausLace.className}`}>
                             {title}
                         </h1>
                         <p className={`text-[2.5vw] md:text-[1.5vw] lg:text-[1.1vw] text-black/80 font-normal leading-relaxed text-center px-2 md:px-8 ${poppins.className}`}>
@@ -132,7 +132,7 @@ export default async function InformationPicturePage({
                     {/* Tombol Kembali */}
                     <Link
                         href={`/information/${currentItem ? currentItem.id : ""}`}
-                        className="absolute left-[1%] top-[9%] w-[6%] md:w-[5%] aspect-square flex items-center justify-center rounded-full border-2 border-white/80 text-white/80 hover:bg-white/20 transition all z-30"
+                        className="absolute left-[1%] sm:top-[5%] lg:top-[9%] sm:w-[6%] lg:w-[5%] aspect-square flex items-center justify-center rounded-full border sm:border-2 border-white/80 text-white/80 hover:bg-white/20 transition-all z-30"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -151,7 +151,7 @@ export default async function InformationPicturePage({
                     </Link>
 
                     {/* Dekorasi Bunga Melati */}
-                    <div className="absolute top-[5%] -right-[1%] w-[12%] md:w-[10%] aspect-square z-30 pointer-events-none">
+                    <div className="absolute sm:top-[2%] lg:top-[5%] -right-[1%] w-[15%] sm:w-[10%] lg:w-[10%] aspect-square z-30 pointer-events-none">
                         <Image
                             src={information.melati}
                             alt="Bunga Melati"
@@ -159,7 +159,7 @@ export default async function InformationPicturePage({
                             className="object-contain rotate-[45deg]"
                         />
                     </div>
-                    <div className="absolute bottom-[5%] -left-[1%] w-[12%] md:w-[10%] aspect-square z-30 pointer-events-none">
+                    <div className="absolute sm:bottom-[2%] lg:bottom-[5%] -left-[1%] w-[15%] sm:w-[10%] lg:w-[10%] aspect-square z-30 pointer-events-none">
                         <Image
                             src={information.melati}
                             alt="Bunga Melati"
@@ -167,7 +167,7 @@ export default async function InformationPicturePage({
                             className="object-contain -rotate-[135deg]"
                         />
                     </div>
-                    <div className="absolute bottom-[5%] -right-[1%] w-[12%] md:w-[10%] aspect-square z-30 pointer-events-none">
+                    <div className="absolute sm:bottom-[2%] lg:bottom-[5%] -right-[1%] w-[15%] sm:w-[10%] lg:w-[10%] aspect-square z-30 pointer-events-none">
                         <Image
                             src={information.melati}
                             alt="Bunga Melati"
