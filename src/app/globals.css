@@ -33,6 +33,12 @@
 
 body {
   margin: 0;
+}:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
 }
 
 html, body {

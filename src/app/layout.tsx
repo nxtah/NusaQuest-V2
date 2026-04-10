@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Irish_Grover, Geist, Geist_Mono } from "next/font/google";
+import React from 'react';
 import "./globals.css";
 
 const irishGrover = Irish_Grover({
