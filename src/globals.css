@@ -5,9 +5,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+color-scheme: light;
 }
+
 
 @theme inline {
   --color-background: var(--background);
