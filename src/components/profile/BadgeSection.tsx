@@ -7,7 +7,7 @@ const featuredBadges: BadgeImageKey[] = ['bronze3', 'silver3', 'gold3'];
 export default function BadgeSection() {
   return (
     <section className="profile-section">
-      <h3 className="profile-section-title">Badge</h3>
+      <h3 className="profile-section-title poppins-bold">Badge</h3>
       <div className="badge-row">
         {featuredBadges.map((key) => (
           <span className="badge-icon" key={key}>
