@@ -11,6 +11,9 @@ export const information = {
 	tanamankiri:'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774535531/tanaman-kiri_rpyqus.webp',
 	tanamankanan:'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774536119/tanaman-kanan_ozzohx.webp',
 	teratai: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370059/teratai_xgpfvi.webp',
+	informationCard: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774917531/information_1_1_gioxap.webp',
+	imagePopupMask: 'https://res.cloudinary.com/dprxjzfxp/image/upload/q_auto/f_auto/v1775105711/Vector_1_qn0ynm.webp',
+	textPopup: 'https://res.cloudinary.com/dprxjzfxp/image/upload/q_auto/f_auto/v1775173162/Rectangle_ogad0m.webp',
 } as const;
 
 export type InformationImageKey = keyof typeof information;
