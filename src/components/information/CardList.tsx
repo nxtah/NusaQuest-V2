@@ -1,17 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Poppins } from "next/font/google";
-import { Irish_Grover } from "next/font/google";
 import { information } from "../../assets/images/information/cloudinaryAssets";
 
 const poppins = Poppins({
     subsets: ["latin"],
     weight: "600",
-});
-
-const irishGrover = Irish_Grover({
-    subsets: ["latin"],
-    weight: "400",
 });
 
 interface CardItem {
@@ -60,7 +54,7 @@ export default function CardList({ subCategoryTitle, items }: CardListProps) {
                         </div>
 
                         {/* Title Section */}
-                        <h3 className={`text-white text-center text-[10px] sm:text-xs lg:text-base tracking-wide ${irishGrover.className}`}>
+                        <h3 className={`text-white text-center text-[10px] sm:text-xs lg:text-base tracking-wide font-bold ${poppins.className}`}>
                             {item.title}
                         </h3>
                     </Link>
