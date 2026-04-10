@@ -41,7 +41,7 @@ export default function PageHeader({ title }: PageHeaderProps) {
                     className="w-full h-auto object-contain drop-shadow-lg"
                 />
                 <h1
-                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-black font-bold text-base sm:text-2xl lg:text-3xl tracking-wider text-center w-[90%] ${bauhausLace.className}`}
+                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-black font-bold text-base sm:text-xl lg:text-3xl tracking-wider text-center w-[90%] ${bauhausLace.className}`}
                 >
                     {title}
                 </h1>
