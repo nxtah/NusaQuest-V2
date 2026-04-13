@@ -45,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${irishGrover.variable} ${poppinsBold.variable} antialiased overflow-hidden m-0 p-0`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${irishGrover.variable} ${poppinsBold.variable} antialiased overflow-auto m-0 p-0`}>
         {children}
       </body>
     </html>

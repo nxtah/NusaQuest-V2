@@ -2,6 +2,7 @@ import Image from 'next/image';
 
 import { background } from '../../../assets/images/background/cloudinaryAssets';
 import { information } from '../../../assets/images/information/cloudinaryAssets';
+import BackButton from '../../../components/ui/BackButton';
 import AchievementSection from '../../../components/profile/AchievementSection';
 import AttributeSection from '../../../components/profile/AttributeSection';
 import BadgeSection from '../../../components/profile/BadgeSection';
@@ -14,8 +15,8 @@ export default function Profile() {
     <div className="profile-scene">
       <div className="profile-bg-layer">
         <Image
-          src={background.laut}
-          alt="Laut"
+          src={background.langit}
+          alt="Langit"
           fill
           sizes="100vw"
           className="profile-image"
@@ -37,6 +38,9 @@ export default function Profile() {
 
       {/* UI Layer */}
       <div className="profile-ui-layer">
+        <div style={{ position: 'absolute', top: '2rem', left: '3rem', zIndex: 50, pointerEvents: 'auto' }}>
+          <BackButton href="/home" />
+        </div>
         <div className="profile-main-layout">
 
           {/* Kolom kiri: kartu profil */}

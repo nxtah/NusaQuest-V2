@@ -23,6 +23,7 @@ export const pulau = {
   pulau1: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1773464922/NQM4_1_dkiuuv.webp',
   pulau2: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774362912/pulau-2_mqld23.webp',
   pulau3: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774362913/pulau-3_uotkir.webp',
+  pulau4: 'https://res.cloudinary.com/dprxjzfxp/image/upload/q_auto/f_auto/v1776075647/pulau-4_kvqdrn.webp',
   mercusuar: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774362913/mercusuar_s7fw5p.webp',
   papan1: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774363085/papan-1_gzqa2m.webp',
 } as const;
