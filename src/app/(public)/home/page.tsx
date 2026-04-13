@@ -1,11 +1,56 @@
-import { pulau } from '../../../assets/images/home/cloudinaryAssets';
-import './home.css';
+import { pulau, getAwanImage, logo } from '../../../assets/images/home/cloudinaryAssets';
+import { background } from '../../../assets/images/background/cloudinaryAssets';
 
 export default function HomePage() {
   return (
     <main className="home-container">
       {/* Background */}
       <div className="home-bg"></div>
+
+      {/* Langit - Sky Background from Top to Middle */}
+      <div className="home-langit">
+        <img
+          src={background.langit}
+          alt="Langit"
+          className="langit-image"
+        />
+      </div>
+
+      {/* Laut - Sea Background from Middle to Bottom */}
+      <div className="home-laut">
+        <img
+          src={background.laut}
+          alt="Laut"
+          className="laut-image"
+        />
+      </div>
+
+      {/* Awan 1 - Cloud Top Left */}
+      <div className="awan-item awan-1">
+        <img
+          src={getAwanImage('awan1')}
+          alt="Awan 1"
+          className="awan-image"
+        />
+      </div>
+
+      {/* Awan 2 - Cloud Top Right */}
+      <div className="awan-item awan-2">
+        <img
+          src={getAwanImage('awan2')}
+          alt="Awan 2"
+          className="awan-image"
+        />
+      </div>
+
+      {/* Logo - Top Center */}
+      <div className="logo-wrapper">
+        <img
+          src={logo.nusaquest}
+          alt="Nusaquest Logo"
+          className="logo-image"
+        />
+      </div>
 
       {/* Content Grid */}
       <div className="home-content">
@@ -59,6 +104,24 @@ export default function HomePage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Pulau 5 - Bottom Right Corner */}
+      <div className="island-item island-br-corner">
+        <img
+          src={pulau.pulau5}
+          alt="Pulau 5"
+          className="island-image"
+        />
+      </div>
+
+      {/* Papan 1 - Floating Board */}
+      <div className="papan1-wrapper">
+        <img
+          src={pulau.papan1}
+          alt="Papan 1"
+          className="papan1-image"
+        />
       </div>
     </main>
   );

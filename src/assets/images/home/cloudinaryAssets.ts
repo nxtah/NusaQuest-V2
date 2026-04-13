@@ -24,6 +24,7 @@ export const pulau = {
   pulau2: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774362912/pulau-2_mqld23.webp',
   pulau3: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774362913/pulau-3_uotkir.webp',
   pulau4: 'https://res.cloudinary.com/dprxjzfxp/image/upload/q_auto/f_auto/v1776075647/pulau-4_kvqdrn.webp',
+  pulau5: 'https://res.cloudinary.com/dprxjzfxp/image/upload/q_auto/f_auto/v1776080091/pulau-5_unbmsp.webp',
   mercusuar: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774362913/mercusuar_s7fw5p.webp',
   papan1: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774363085/papan-1_gzqa2m.webp',
 } as const;
@@ -38,9 +39,14 @@ export const popup = {
   ularTanggaIcon: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774506238/ulartangga-icon_pyrz7v.webp',
 } as const;
 
+export const logo = {
+  nusaquest: 'https://res.cloudinary.com/dprxjzfxp/image/upload/q_auto/f_auto/v1776085647/logo_ywb81o.webp',
+} as const;
+
 export type PulauImageKey = keyof typeof pulau;
 export type AwanImageKey = keyof typeof awan;
 export type PopupImageKey = keyof typeof popup;
+export type LogoImageKey = keyof typeof logo;
 
 export function getPulauImage(key: PulauImageKey): string {
   return pulau[key];
@@ -52,4 +58,8 @@ export function getAwanImage(key: AwanImageKey): string {
 
 export function getPopupImage(key: PopupImageKey): string {
   return popup[key];
+}
+
+export function getLogoImage(key: LogoImageKey): string {
+  return logo[key];
 }

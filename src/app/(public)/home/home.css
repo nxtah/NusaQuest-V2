@@ -18,6 +18,78 @@
   z-index: 0;
 }
 
+/* Laut - Sea Background */
+.home-laut {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.laut-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+/* Langit - Sky Background */
+.home-langit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.langit-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: bottom;
+}
+
+/* ==================== AWAN - CLOUDS ==================== */
+.awan-item {
+  position: absolute;
+  width: clamp(100px, 20vw, 280px);
+  height: auto;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.awan-image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* Awan 1 - Top Left */
+.awan-1 {
+  top: clamp(1rem, 5vh, 2rem);
+  left: clamp(1rem, 5vw, 2rem);
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Awan 2 - Top Right */
+.awan-2 {
+  top: clamp(3rem, 10vh, 4rem);
+  right: clamp(1rem, 5vw, 2rem);
+  animation: float 8s ease-in-out infinite 2s;
+}
+
+/* Float Animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
 /* ==================== CONTENT WRAPPER ==================== */
 .home-content {
   position: relative;
@@ -134,6 +206,60 @@
 .island-br .island-image {
   max-width: 80%;
   transform: scale(1.2) translateX(32%) translateY(-7%);
+}
+
+/* Bottom Right Corner - Pulau 5 */
+.island-br-corner {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+}
+
+.island-br-corner .island-image {
+  object-fit: contain;
+  object-position: center;
+  transform: scale(0.4) translateX(80%) translateY(100%);
+}
+
+/* ==================== PAPAN 1 - FLOATING BOARD ==================== */
+/* Papan1 positioned at bottom-right as decorative element */
+.papan1-wrapper {
+  position: absolute;
+  bottom: clamp(-0.5rem, 0.5vh, 0.5rem);
+  right: clamp(5rem, 15vw, 8rem);
+  width: clamp(80px, 13vw, 160px);
+  height: auto;
+  z-index: 20;
+  pointer-events: auto;
+}
+
+.papan1-image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 0.3rem 0.8rem rgba(0, 0, 0, 0.15));
+  transform: rotate(-8deg);
+}
+
+/* ==================== LOGO ==================== */
+.logo-wrapper {
+  position: absolute;
+  top: clamp(1.5rem, 3vh, 3rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  pointer-events: none;
+}
+
+.logo-image {
+  width: clamp(80px, 12vw, 140px);
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 0.2rem 0.5rem rgba(0, 0, 0, 0.1));
 }
 
 /* ==================== RESPONSIVE ==================== */
