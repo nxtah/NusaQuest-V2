@@ -1,10 +1,7 @@
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+/**
+ * @file middleware.ts
+ * @description Next.js Middleware — entry point untuk route protection.
+ * Mendelegasikan logika ke proxy.ts yang menggunakan Edge-compatible session reader.
+ */
 
-export function middleware(_request: NextRequest) {
-	return NextResponse.next();
-}
-
-export const config = {
-	matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-};
+export { proxy as middleware, config } from './proxy';
