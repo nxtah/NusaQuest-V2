@@ -1,0 +1,222 @@
+@keyframes fadeInLobby {
+  from { opacity: 0; transform: scale(1.05); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes moveCloud {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(2vw); }
+}
+
+.font-irish { font-family: 'Irish Grover', cursive; }
+
+/* ─── CONTAINER ─────────────────────────────────────────── */
+.lobby-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #7dd3fc;
+  animation: fadeInLobby 0.8s ease-out forwards;
+}
+
+/* ─── BACKGROUND ─────────────────────────────────────────── */
+.bg-langit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.land-image {
+  position: absolute;
+  bottom: -15%;
+  left: -15%;
+  width: 130%;
+  max-width: none;
+  height: auto;
+  z-index: 10;
+}
+
+/* ─── AWAN ───────────────────────────────────────────────── */
+.animate-cloud { animation: moveCloud 6s ease-in-out infinite; }
+
+.cloud-1 {
+  position: absolute;
+  top: 2%;
+  left: -5%;
+  width: clamp(220px, 154vw, 330px);
+  opacity: 0.95;
+  z-index: 10;
+}
+
+.cloud-2 {
+  position: absolute;
+  top: 2%;
+  right: -5%;
+  width: clamp(220px, 154vw, 330px);
+  z-index: 10;
+  animation-delay: 2s;
+}
+
+/* ─── RUMAH ──────────────────────────────────────────────── */
+.rumah-button {
+  position: absolute;
+  left:   var(--l);
+  right:  var(--r);
+  bottom: var(--b);
+  width:  var(--w);
+  z-index: var(--z);
+
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.rumah-img-content {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0.8vh 1.5vh rgba(0,0,0,0.4));
+  transition: all 0.3s ease;
+}
+
+.rumah-button:hover {
+  z-index: 60 !important;
+}
+
+.rumah-button:hover .rumah-img-content {
+  transform: scale(1.1) translateY(-1vh);
+  filter: drop-shadow(0 1.5vh 2.5vh rgba(0,0,0,0.6)) brightness(0.85);
+}
+
+.rumah-button:active .rumah-img-content {
+  transform: scale(0.95);
+  filter: brightness(0.7);
+}
+
+/* ─── ORNAMEN ────────────────────────────────────────────── */
+.ornament-layer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.tanaman-kiri {
+  position: absolute;
+  bottom: -4%;
+  left: -2%;
+  width: clamp(120px, 26vw, 380px);
+}
+
+.tanaman-kanan {
+  position: absolute;
+  bottom: -4%;
+  right: -2%;
+  width: clamp(120px, 26vw, 380px);
+  transform: scaleX(-1);
+}
+
+.melati-kiri {
+  position: absolute;
+  bottom: 6%;
+  left: clamp(20px, 7vw, 100px);
+  width: clamp(16px, 4vw, 50px);
+}
+
+.melati-kanan {
+  position: absolute;
+  bottom: 6%;
+  right: clamp(20px, 7vw, 100px);
+  width: clamp(16px, 4vw, 50px);
+}
+
+/* ─── PAPAN SELECT ROOM ──────────────────────────────────── */
+.papan-hiasan {
+  position: absolute;
+  bottom: -1%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(170px, 36vw, 390px);
+  pointer-events: auto;
+}
+
+.board-img {
+  width: 100%;
+  filter: drop-shadow(0 1vh 1.5vh rgba(0,0,0,0.5));
+}
+
+.text-board {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #1a1a1a;
+  font-size: clamp(10px, 2vw, 28px);
+  font-weight: bold;
+  padding-bottom: 14%;
+  text-align: center;
+}
+
+/* ─── BACK BUTTON ────────────────────────────────────────── */
+.btn-back {
+  position: absolute;
+  top: clamp(12px, 3vh, 40px);
+  left: clamp(12px, 3vw, 40px);
+  z-index: 100; 
+  width: clamp(45px, 6vw, 100px); 
+  height: clamp(45px, 6vw, 100px);
+  color: white;
+  border-radius: 15px; 
+  border: none;
+  cursor: pointer;
+  font-size: clamp(18px, 3vw, 40px);
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.btn-back:hover {
+  background: rgba(255, 255, 255, 0.6);
+  transform: scale(1.1);
+}
+
+/* ─── LANDSCAPE MOBILE ───────────────────────────────────── */
+@media (max-height: 500px) and (orientation: landscape) {
+  .land-image {
+    bottom: -20%;
+  }
+
+  .tanaman-kiri,
+  .tanaman-kanan {
+    width: clamp(100px, 22vw, 280px);
+    bottom: -6%;
+  }
+
+  .papan-hiasan {
+    bottom: -4%;
+    width: clamp(140px, 32vw, 310px);
+  }
+
+  .cloud-1 {
+    width: clamp(160px, 110vw, 260px);
+    left: -5%; 
+  }
+
+  .cloud-2 {
+    width: clamp(160px, 110vw, 260px);
+    right: -5%; 
+  }
+}
