@@ -126,13 +126,19 @@ export default function Pion({
         snakesDown,
     ]);
 
+    const aspectRatio = image.width / image.height;
+    const pionHeight = cellSize * 0.8; 
+    const pionWidth = pionHeight * aspectRatio;
+    const offsetX = cellSize * 0.35;
+    const offsetY = cellSize * 0.1;
+
     return (
         <KonvaImage
             ref={imageRef}
-            x={getPosition(positionIndex).x}
-            y={getPosition(positionIndex).y}
-            width={cellSize - 10}
-            height={cellSize - 10}
+            x={getPosition(positionIndex).x + offsetX}
+            y={getPosition(positionIndex).y + offsetY}
+            width={pionWidth}
+            height={pionHeight}
             image={image}
             draggable={false}
         />

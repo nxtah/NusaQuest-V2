@@ -6,7 +6,7 @@ import { ularTangga } from "../../../../src/assets/images/ular-tangga/cloudinary
 import Pion from "./Pion";
 
 export default function Board({
-    pionPositionIndexes = [0, 0, 0, 0],
+    pionPositionIndexes = [-1, -1, -1, -1],
     tanggaUp = [] as { start: number; end: number }[],
     snakesDown = [] as { start: number; end: number }[],
     isCorrect = false,
@@ -33,10 +33,10 @@ export default function Board({
                 setCellSize(newCellSize);
             }
         };
-    
+
         window.addEventListener("resize", updateSize);
         updateSize();
-    
+
         return () => window.removeEventListener("resize", updateSize);
     }, []);
 
@@ -76,7 +76,7 @@ export default function Board({
                         x={j * cellSize + cellSize / 2}
                         y={i * cellSize + cellSize / 2}
                         text={number.toString()}
-                        fontSize={Math.max(cellSize / 5, 10)}
+                        fontSize={Math.max(cellSize / 7, 8)}
                         fill="black"
                         align="center"
                         verticalAlign="middle"
@@ -97,7 +97,7 @@ export default function Board({
                 img.src = src;
                 img.onload = () => resolve(img);
             });
-    
+
         const loadAllImages = async () => {
             const snakeSrcs = [
                 ularTangga.ular1,
@@ -118,6 +118,7 @@ export default function Board({
                 ularTangga.tangga6,
                 ularTangga.tangga7,
                 ularTangga.tangga8,
+                ularTangga.tangga1,
             ];
             const pionSrcs = [
                 ularTangga.pion1,
@@ -125,16 +126,16 @@ export default function Board({
                 ularTangga.pion3,
                 ularTangga.pion4,
             ];
-        
+
             const loadedSnakes = await Promise.all(snakeSrcs.map(loadImage));
             const loadedTanggas = await Promise.all(tanggaSrcs.map(loadImage));
             const loadedPions = await Promise.all(pionSrcs.map(loadImage));
-        
+
             setSnakeImages(loadedSnakes);
             setTanggaImages(loadedTanggas);
             setPionImages(loadedPions);
         };
-    
+
         loadAllImages();
     }, []);
 
@@ -155,78 +156,97 @@ export default function Board({
     );
 
     return (
-        <div ref={stageRef} className="relative flex items-center justify-center w-full h-full p-4 md:p-8 z-20">
-            <div className="bg-[#602919] p-6 rounded-xl shadow-2xl">
-                {/* Stage adalah pembungkus utama Canvas Konva */}
+        <div
+            ref={stageRef}
+            className="relative flex items-center justify-center w-full h-full p-4 md:p-8 z-20"
+        >
+            <div className="relative bg-[#602919] p-6 rounded-xl shadow-2xl">
+                {/* Kontainer pion yang belum berjalan */}
+                <div className="absolute bottom-3 left-0 -translate-x-[110%] md:-translate-x-[120%] grid grid-cols-2 gap-1 md:gap-2 z-30">
+                    {pionImages.map((img, index) => {
+                        if (img && pionPositionIndexes[index] === -1) {
+                            return (
+                                <img
+                                    key={`idle-pion-${index}`}
+                                    src={img.src}
+                                    alt={`Pion ${index}`}
+                                    className="w-4 md:w-6 object-contain transition-transform hover:scale-110 drop-shadow-[2px_4px_6px_rgba(0,0,0,0.6)]"
+                                />
+                            );
+                        }
+                        return null;
+                    })}
+                </div>
+
                 <Stage width={stageSize.width} height={stageSize.height}>
                     <Layer>
                         {drawBoard()}
-                        
+
                         {/* Gambar Ular */}
                         {snakeImages.map((img, index) => {
                             if (!img) return null;
                             const positions = [
-                            {
-                                x: 1.2 * cellSize,
-                                y: 7.3 * cellSize,
-                                height: 2.3 * cellSize,
-                            },
-                            {
-                                x: 6.2 * cellSize,
-                                y: 0.5 * cellSize,
-                                height: 2.8 * cellSize,
-                            },
-                            {
-                                x: 8.3 * cellSize,
-                                y: 0.5 * cellSize,
-                                height: 5 * cellSize,
-                            },
-                            {
-                                x: 3.5 * cellSize,
-                                y: 3.4 * cellSize,
-                                height: 2.2 * cellSize,
-                            },
-                            {
-                                x: 6.3 * cellSize,
-                                y: 3.5 * cellSize,
-                                height: 5.1 * cellSize,
-                            },
-                            {
-                                x: 8.4 * cellSize,
-                                y: 7.4 * cellSize,
-                                height: 2.3 * cellSize,
-                            },
-                            {
-                                x: 1.5 * cellSize,
-                                y: 0.5 * cellSize,
-                                height: 2.3 * cellSize,
-                            },
-                            {
-                                x: 1.4 * cellSize,
-                                y: 4.4 * cellSize,
-                                height: 2.2 * cellSize,
-                            },
+                                {
+                                    x: 1.2 * cellSize,
+                                    y: 7.3 * cellSize,
+                                    height: 2.3 * cellSize,
+                                },
+                                {
+                                    x: 6.2 * cellSize,
+                                    y: 0.5 * cellSize,
+                                    height: 2.8 * cellSize,
+                                },
+                                {
+                                    x: 8.3 * cellSize,
+                                    y: 0.5 * cellSize,
+                                    height: 4.8 * cellSize,
+                                },
+                                {
+                                    x: 3.5 * cellSize,
+                                    y: 3.4 * cellSize,
+                                    height: 2.2 * cellSize,
+                                },
+                                {
+                                    x: 6.3 * cellSize,
+                                    y: 3.5 * cellSize,
+                                    height: 5.1 * cellSize,
+                                },
+                                {
+                                    x: 8.4 * cellSize,
+                                    y: 7.4 * cellSize,
+                                    height: 2.3 * cellSize,
+                                },
+                                {
+                                    x: 1.5 * cellSize,
+                                    y: 0.5 * cellSize,
+                                    height: 2.3 * cellSize,
+                                },
+                                {
+                                    x: 1.4 * cellSize,
+                                    y: 4.4 * cellSize,
+                                    height: 2.2 * cellSize,
+                                },
                             ];
 
                             const pos = positions[index] || {
-                            x: 0,
-                            y: 0,
-                            width: cellSize,
-                            height: cellSize,
+                                x: 0,
+                                y: 0,
+                                width: cellSize,
+                                height: cellSize,
                             };
 
                             const aspectRatio = img.width / img.height;
                             const calculatedWidth = pos.height * aspectRatio;
 
                             return (
-                            <KonvaImage
-                                key={`snake-${index}`}
-                                x={pos.x}
-                                y={pos.y}
-                                width={calculatedWidth}
-                                height={pos.height}
-                                image={img}
-                            />
+                                <KonvaImage
+                                    key={`snake-${index}`}
+                                    x={pos.x}
+                                    y={pos.y}
+                                    width={calculatedWidth}
+                                    height={pos.height}
+                                    image={img}
+                                />
                             );
                         })}
 
@@ -234,91 +254,97 @@ export default function Board({
                         {tanggaImages.map((img, index) => {
                             if (!img) return null;
                             const positions = [
-                            {
-                                x: 0.2 * cellSize,
-                                y: 1.6 * cellSize,
-                                height: 2 * cellSize,
-                            },
-                            {
-                                x: 4.3 * cellSize,
-                                y: 7.2 * cellSize,
-                                height: 2.5 * cellSize,
-                            },
-                            {
-                                x: 5.5 * cellSize,
-                                y: 4 * cellSize,
-                                height: 5 * cellSize,
-                            },
-                            {
-                                x: 3 * cellSize,
-                                y: 3 * cellSize,
-                                height: 6 * cellSize,
-                            },
-                            {
-                                x: 9.1 * cellSize,
-                                y: 3.2 * cellSize,
-                                height: 3 * cellSize,
-                            },
-                            {
-                                x: 4.1 * cellSize,
-                                y: 2 * cellSize,
-                                height: 2 * cellSize,
-                            },
-                            {
-                                x: 0 * cellSize,
-                                y: 1.1 * cellSize,
-                                height: 3 * cellSize,
-                            },
-                            {
-                                x: 5.5 * cellSize,
-                                y: 0 * cellSize,
-                                height: 4 * cellSize,
-                            },
-                            {
-                                x: 3 * cellSize,
-                                y: 0 * cellSize,
-                                height: 3 * cellSize,
-                            },
+                                {
+                                    x: 0.2 * cellSize,
+                                    y: 1.6 * cellSize,
+                                    height: 2 * cellSize,
+                                },
+                                {
+                                    x: 0.3 * cellSize,
+                                    y: 4.4 * cellSize,
+                                    height: 5 * cellSize,
+                                },
+                                {
+                                    x: 9.3 * cellSize,
+                                    y: 3.3 * cellSize,
+                                    height: 2.4 * cellSize,
+                                },
+                                {
+                                    x: 3.1 * cellSize,
+                                    y: 3.5 * cellSize,
+                                    height: 5 * cellSize,
+                                },
+                                {
+                                    x: 5.3 * cellSize,
+                                    y: 0.1 * cellSize,
+                                    height: 1.7 * cellSize,
+                                },
+                                {
+                                    x: 7.2 * cellSize,
+                                    y: 5.5 * cellSize,
+                                    height: 2 * cellSize,
+                                },
+                                {
+                                    x: 4.3 * cellSize,
+                                    y: 2.2 * cellSize,
+                                    height: 1.7 * cellSize,
+                                },
+                                {
+                                    x: 7.2 * cellSize,
+                                    y: 1.3 * cellSize,
+                                    height: 1.5 * cellSize,
+                                },
+                                {
+                                    x: 4.3 * cellSize,
+                                    y: 7.8 * cellSize,
+                                    height: 2 * cellSize,
+                                },
                             ];
 
                             const pos = positions[index] || {
-                            x: 0,
-                            y: 0,
-                            width: cellSize,
-                            height: cellSize,
+                                x: 0,
+                                y: 0,
+                                width: cellSize,
+                                height: cellSize,
                             };
 
                             const aspectRatio = img.width / img.height;
                             const calculatedWidth = pos.height * aspectRatio;
 
                             return (
-                            <KonvaImage
-                                key={`tangga-${index}`}
-                                x={pos.x}
-                                y={pos.y}
-                                width={calculatedWidth}
-                                height={pos.height}
-                                image={img}
-                            />
+                                <KonvaImage
+                                    key={`tangga-${index}`}
+                                    x={pos.x}
+                                    y={pos.y}
+                                    width={calculatedWidth}
+                                    height={pos.height}
+                                    image={img}
+                                />
                             );
                         })}
 
-                        {/* Tambahkan gambar pion */}
+                        {/* Gambar Pion */}
                         {pionImages.map((img, index) => {
-                            if (!img || pionPositionIndexes[index] === undefined) return null; // Ensure pion position and image are defined
+                            if (
+                                !img ||
+                                pionPositionIndexes[index] === undefined ||
+                                pionPositionIndexes[index] < 0
+                            )
+                                return null;
+
                             return (
-                            <Pion
-                                key={`pion-${index}`}
-                                desiredIndex={pionPositionIndexes[index]}
-                                cellSize={cellSize}
-                                getPosition={getPosition}
-                                image={img}
-                                index={index}
-                                onAnimationComplete={() => { }} // Handle any callback after animation if needed
-                                tanggaUp={tanggaUp}
-                                snakesDown={snakesDown}
-                                isCorrect={isCorrect}
-                            />
+                                <Pion
+                                    key={`pion-${index}`}
+                                    desiredIndex={pionPositionIndexes[index]}
+                                    cellSize={cellSize}
+                                    getPosition={getPosition}
+                                    image={img}
+                                    index={index}
+                                    onAnimationComplete={() => {}}
+                                    tanggaUp={tanggaUp}
+                                    snakesDown={snakesDown}
+                                    isCorrect={isCorrect}
+                                />
                             );
                         })}
                     </Layer>
