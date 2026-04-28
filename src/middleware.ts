@@ -1,24 +1,14 @@
 import type {NextRequest} from 'next/server';
 import {NextResponse} from 'next/server';
+import {
+  ADMIN_PATH_PREFIXES,
+  PROTECTED_API_PREFIXES,
+  PROTECTED_PATH_PREFIXES,
+  PUBLIC_PATH_PREFIXES,
+  SESSION_COOKIE_NAME,
+} from '@/src/lib/constants/auth-security';
 
-const SESSION_COOKIE_NAME = 'nq_session';
-
-const PROTECTED_PATH_PREFIXES = ['/profile', '/lobby', '/room', '/play'];
-const ADMIN_PATH_PREFIXES = ['/admin'];
-const PROTECTED_API_PREFIXES = ['/api/admin', '/api/upload/signature'];
-
-const PUBLIC_PATH_PREFIXES = [
-  '/login',
-  '/home',
-  '/information',
-  '/destination',
-  '/credit',
-  '/api/auth/session',
-  '/api/auth',
-  '/',
-];
-
-function pathStartsWith(pathname: string, prefixes: string[]): boolean {
+function pathStartsWith(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
@@ -38,26 +28,85 @@ function isPublicPath(pathname: string): boolean {
   return pathStartsWith(pathname, PUBLIC_PATH_PREFIXES);
 }
 
-export function middleware(request: NextRequest) {
+async function getSessionState(request: NextRequest): Promise<{
+  authenticated: boolean;
+  role?: 'user' | 'admin';
+}> {
+  const cookieHeader = request.headers.get('cookie') ?? '';
+
+  try {
+    const response = await fetch(`${request.nextUrl.origin}/api/auth/session`, {
+      method: 'GET',
+      headers: {
+        cookie: cookieHeader,
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return {authenticated: false};
+    }
+
+    const payload = (await response.json()) as {
+      authenticated?: boolean;
+      user?: {role?: 'user' | 'admin'};
+    };
+
+    return {
+      authenticated: payload.authenticated === true,
+      role: payload.user?.role,
+    };
+  } catch {
+    return {authenticated: false};
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const {pathname} = request.nextUrl;
   const hasSession = Boolean(request.cookies.get(SESSION_COOKIE_NAME)?.value);
+  const needsSession = isProtectedPath(pathname) || isAdminPath(pathname) || isProtectedApiPath(pathname);
 
-  if ((isProtectedPath(pathname) || isAdminPath(pathname)) && !hasSession) {
+  if (!needsSession) {
+    if (pathname === '/login' && hasSession) {
+      const session = await getSessionState(request);
+      if (session.authenticated) {
+        return NextResponse.redirect(new URL('/home', request.url));
+      }
+    }
+
+    return NextResponse.next();
+  }
+
+  if (!hasSession) {
+    if (isProtectedApiPath(pathname)) {
+      return NextResponse.json({ok: false, error: 'Unauthorized'}, {status: 401});
+    }
+
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isProtectedApiPath(pathname) && !hasSession) {
-    return NextResponse.json({ok: false, error: 'Unauthorized'}, {status: 401});
+  const session = await getSessionState(request);
+
+  if (!session.authenticated) {
+    if (isProtectedApiPath(pathname)) {
+      return NextResponse.json({ok: false, error: 'Unauthorized'}, {status: 401});
+    }
+
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete(SESSION_COOKIE_NAME);
+    return response;
   }
 
-  if (pathname === '/login' && hasSession) {
+  if (isAdminPath(pathname) && session.role !== 'admin') {
+    if (isProtectedApiPath(pathname)) {
+      return NextResponse.json({ok: false, error: 'Forbidden'}, {status: 403});
+    }
+
     return NextResponse.redirect(new URL('/home', request.url));
-  }
-
-  if (!isPublicPath(pathname) && !isProtectedPath(pathname) && !isAdminPath(pathname) && !isProtectedApiPath(pathname)) {
-    return NextResponse.next();
   }
 
   return NextResponse.next();

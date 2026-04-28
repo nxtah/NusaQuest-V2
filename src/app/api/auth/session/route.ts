@@ -2,11 +2,13 @@ import {NextResponse, type NextRequest} from 'next/server';
 import {sessionTokenSchema} from '@/src/lib/schemas/auth.schema';
 import {getFirebaseAdminAuth} from '@/src/lib/firebase/admin';
 import {
+  SESSION_MAX_AGE_MS,
+  SESSION_MAX_AGE_SECONDS,
+} from '@/src/lib/constants/auth-security';
+import {
   SESSION_COOKIE_NAME,
   verifySessionToken,
 } from '@/src/lib/utils/auth-api';
-
-const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 
 export const runtime = 'nodejs';
 
@@ -38,8 +40,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const adminAuth = getFirebaseAdminAuth();
     const payload = sessionTokenSchema.parse(await request.json());
-    const decoded = await getFirebaseAdminAuth().verifyIdToken(payload.idToken, true);
+    const decoded = await adminAuth.verifyIdToken(payload.idToken, true);
+    const sessionCookie = await adminAuth.createSessionCookie(payload.idToken, {
+      expiresIn: SESSION_MAX_AGE_MS,
+    });
 
     const response = NextResponse.json({
       ok: true,
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set({
       name: SESSION_COOKIE_NAME,
-      value: payload.idToken,
+      value: sessionCookie,
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',

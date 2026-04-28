@@ -1,4 +1,4 @@
-const DEFAULT_SESSION_TIMEOUT_MS = 8 * 60 * 60 * 1000;
+import {DEFAULT_SESSION_TIMEOUT_MS} from '@/src/lib/constants/auth-security';
 
 type TimeoutHandle = ReturnType<typeof setTimeout>;
 

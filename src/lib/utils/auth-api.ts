@@ -2,8 +2,9 @@ import type {DecodedIdToken} from 'firebase-admin/auth';
 import {NextResponse, type NextRequest} from 'next/server';
 import type {AuthClaims, UserRole} from '@/src/types/auth';
 import {getFirebaseAdminAuth} from '@/src/lib/firebase/admin';
+import {SESSION_COOKIE_NAME} from '@/src/lib/constants/auth-security';
 
-export const SESSION_COOKIE_NAME = 'nq_session';
+export {SESSION_COOKIE_NAME};
 
 export interface AuthContext {
   token: string;
@@ -55,7 +56,16 @@ export function extractTokenFromRequest(request: NextRequest): string | null {
 
 export async function verifySessionToken(token: string): Promise<AuthContext | null> {
   try {
-    const decodedToken = await getFirebaseAdminAuth().verifyIdToken(token, true);
+    const adminAuth = getFirebaseAdminAuth();
+
+    let decodedToken: DecodedIdToken;
+    try {
+      decodedToken = await adminAuth.verifySessionCookie(token, true);
+    } catch {
+      // Backward compatibility for old cookies still carrying raw ID token.
+      decodedToken = await adminAuth.verifyIdToken(token, true);
+    }
+
     const claims = toClaims(decodedToken);
     const role = getRoleFromClaims(claims);
 
