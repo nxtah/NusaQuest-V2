@@ -22,6 +22,8 @@ export const ularTangga = {
     pion2: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1777302496/jffto9jcauke6bc5m3ex_vsyivv.webp',
     pion3: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1777302495/tdfw3ulgngqsdgq94lhq_zmgmwp.webp',
     pion4: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1777302497/jaxw9e7y5mbn0ttj8xj6_lupfvy.webp',
+    kertas: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1777425296/kertas_dkkqen.webp',
+
 } as const;
 
 export type UlarTanggaImageKey = keyof typeof ularTangga;
