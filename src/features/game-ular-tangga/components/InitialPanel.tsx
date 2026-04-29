@@ -16,7 +16,7 @@ export default function InitialPanel({ focusedName = null }: InitialPanelProps) 
 
         <div className="absolute inset-0 flex items-center justify-center px-6 py-6 sm:px-8 sm:py-8 md:px-12 md:py-10">
           <p className="max-w-[85%] text-center text-xs sm:text-sm font-semibold leading-snug text-gray-800 md:text-lg md:leading-relaxed">
-            {focusedName ? `🎮 ${focusedName} sedang melempar dadu...` : '🎲 Putar dadu untuk memulai permainan!'}
+            {focusedName ? `${focusedName} sedang melempar dadu...` : '🎲 Putar dadu untuk memulai permainan!'}
           </p>
         </div>
       </div>

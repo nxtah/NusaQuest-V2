@@ -65,22 +65,28 @@ const DiceFace: React.FC<{ number: number }> = ({ number }) => {
 
   return (
     <div
-      className="absolute w-full h-full bg-white border-2 border-gray-300 flex items-center justify-center"
+      className="absolute bg-white flex items-center justify-center rounded-md"
       style={{
         backfaceVisibility: 'hidden',
+        width: 'calc(100% + 4px)',
+        height: 'calc(100% + 4px)',
+        margin: '-2px',
+        border: '2px solid #141414',
+        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.6), 0 3px 6px rgba(0,0,0,0.2)',
       }}
     >
       <div className="relative w-full h-full">
         {pips[number]?.map((pip, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-gray-700"
+            className="absolute rounded-full bg-gray-900"
             style={{
-              width: '16%',
-              height: '16%',
+              width: '18%',
+              height: '18%',
               left: `${pip[0]}%`,
               top: `${pip[1]}%`,
               transform: 'translate(-50%, -50%)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
             }}
           />
         ))}
@@ -102,7 +108,7 @@ export default function Dice({
   const diceRef = useRef<HTMLDivElement | null>(null);
   const animationRef = useRef<gsap.core.Tween | null>(null);
 
-  const DICE_SIZE = 56; // Reduced to fit in w-12 h-12 / w-14 h-14
+  const DICE_SIZE = 44; // Smaller dice size
 
   // Handle external dice state change (multiplayer sync)
   useEffect(() => {
@@ -182,7 +188,7 @@ export default function Dice({
       {/* Dice Container - Smaller Compact Size */}
       <div
         style={{
-          perspective: '1000px',
+          perspective: '1200px',
           width: DICE_SIZE,
           height: DICE_SIZE,
         }}
@@ -195,16 +201,18 @@ export default function Dice({
             height: '100%',
             transformStyle: 'preserve-3d',
             position: 'relative',
+            transformOrigin: '50% 50% 0',
           }}
         >
           {/* Face 1 - Front */}
           <div
             style={{
               position: 'absolute',
-              width: '100%',
-              height: '100%',
+              width: 'calc(100% + 4px)',
+              height: 'calc(100% + 4px)',
+              margin: '-2px',
               transformStyle: 'preserve-3d',
-              transform: `translateZ(${DICE_SIZE / 2}px)`,
+              transform: `translateZ(${DICE_SIZE / 2 + 2}px)`,
             }}
           >
             <DiceFace number={1} />
@@ -214,10 +222,11 @@ export default function Dice({
           <div
             style={{
               position: 'absolute',
-              width: '100%',
-              height: '100%',
+              width: 'calc(100% + 4px)',
+              height: 'calc(100% + 4px)',
+              margin: '-2px',
               transformStyle: 'preserve-3d',
-              transform: `rotateY(180deg) translateZ(${DICE_SIZE / 2}px)`,
+              transform: `rotateY(180deg) translateZ(${DICE_SIZE / 2 + 2}px)`,
             }}
           >
             <DiceFace number={2} />
@@ -227,10 +236,11 @@ export default function Dice({
           <div
             style={{
               position: 'absolute',
-              width: '100%',
-              height: '100%',
+              width: 'calc(100% + 4px)',
+              height: 'calc(100% + 4px)',
+              margin: '-2px',
               transformStyle: 'preserve-3d',
-              transform: `rotateY(90deg) translateZ(${DICE_SIZE / 2}px)`,
+              transform: `rotateY(90deg) translateZ(${DICE_SIZE / 2 + 2}px)`,
             }}
           >
             <DiceFace number={3} />
@@ -240,10 +250,11 @@ export default function Dice({
           <div
             style={{
               position: 'absolute',
-              width: '100%',
-              height: '100%',
+              width: 'calc(100% + 4px)',
+              height: 'calc(100% + 4px)',
+              margin: '-2px',
               transformStyle: 'preserve-3d',
-              transform: `rotateY(-90deg) translateZ(${DICE_SIZE / 2}px)`,
+              transform: `rotateY(-90deg) translateZ(${DICE_SIZE / 2 + 2}px)`,
             }}
           >
             <DiceFace number={4} />
@@ -253,10 +264,11 @@ export default function Dice({
           <div
             style={{
               position: 'absolute',
-              width: '100%',
-              height: '100%',
+              width: 'calc(100% + 4px)',
+              height: 'calc(100% + 4px)',
+              margin: '-2px',
               transformStyle: 'preserve-3d',
-              transform: `rotateX(90deg) translateZ(${DICE_SIZE / 2}px)`,
+              transform: `rotateX(90deg) translateZ(${DICE_SIZE / 2 + 2}px)`,
             }}
           >
             <DiceFace number={5} />
@@ -266,10 +278,11 @@ export default function Dice({
           <div
             style={{
               position: 'absolute',
-              width: '100%',
-              height: '100%',
+              width: 'calc(100% + 4px)',
+              height: 'calc(100% + 4px)',
+              margin: '-2px',
               transformStyle: 'preserve-3d',
-              transform: `rotateX(-90deg) translateZ(${DICE_SIZE / 2}px)`,
+              transform: `rotateX(-90deg) translateZ(${DICE_SIZE / 2 + 2}px)`,
             }}
           >
             <DiceFace number={6} />
@@ -298,7 +311,7 @@ export default function Dice({
           <button
             onClick={handleRollClick}
             disabled={disabled || isLocalRolling}
-            className="px-5 py-2.5 md:px-7 md:py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold text-sm md:text-base rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:cursor-not-allowed"
+            className="px-3 py-2 md:px-5 md:py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold text-xs md:text-sm rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:cursor-not-allowed"
           >
             {isLocalRolling ? 'Rolling...' : 'Roll'}
           </button>
