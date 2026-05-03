@@ -27,13 +27,16 @@ export default function Pion({
         gsap.killTweensOf(node);
         isAnimating.current = true;
 
+        const offsetX = cellSize * 0.35;
+        const offsetY = cellSize * 0.1;
+
         const moveToIndex = (targetIndex) => {
             const targetPos = getPosition(targetIndex);
 
             if (tanggaUp[positionIndex] && isCorrect) {
                 gsap.to(node, {
-                    x: targetPos.x,
-                    y: targetPos.y,
+                    x: targetPos.x + offsetX,
+                    y: targetPos.y + offsetY,
                     duration: 0.5,
                     ease: "power1.out",
                     onComplete: () => {
@@ -46,8 +49,8 @@ export default function Pion({
                 });
             } else if (snakesDown[positionIndex]) {
                 gsap.to(node, {
-                    x: targetPos.x,
-                    y: targetPos.y,
+                    x: targetPos.x + offsetX,
+                    y: targetPos.y + offsetY,
                     duration: 0.5,
                     ease: "power1.out",
                     onComplete: () => {
@@ -60,8 +63,8 @@ export default function Pion({
                 });
             } else {
                 gsap.to(node, {
-                    x: targetPos.x,
-                    y: targetPos.y, 
+                    x: targetPos.x + offsetX,
+                    y: targetPos.y + offsetY, 
                     duration: 0.3,
                     ease: "none",
                     onComplete: () => { 
@@ -96,12 +99,12 @@ export default function Pion({
                 const targetPos = getPosition(intermediateIndex);
 
                 gsap.to(node, {
-                    y: targetPos.y - 20,
+                    y: targetPos.y + offsetY - (cellSize * 0.3),
                     duration: 0.22,
                     onComplete: () => {
                         gsap.to(node, {
-                            x: targetPos.x,
-                            y: targetPos.y,
+                            x: targetPos.x + offsetX,
+                            y: targetPos.y + offsetY,
                             duration: 0.15,
                             ease: "power1.out",
                             onComplete: () => {
@@ -129,8 +132,6 @@ export default function Pion({
     const aspectRatio = image.width / image.height;
     const pionHeight = cellSize * 0.8; 
     const pionWidth = pionHeight * aspectRatio;
-    const offsetX = cellSize * 0.35;
-    const offsetY = cellSize * 0.1;
 
     return (
         <KonvaImage

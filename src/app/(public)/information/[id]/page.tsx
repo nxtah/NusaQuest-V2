@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { information } from "../../../../assets/images/information/cloudinaryAssets";
 import { background } from "../../../../assets/images/background/cloudinaryAssets";
-import RotateDeviceOverlay from "../../../../components/information/RotateDeviceOverlay";
+import RotateDeviceOverlay from "../../../../components/layout/RotateDeviceOverlay";
 
 const dummyDatabase: Record<string, { subCategory: string; items: any[] }[]> = {
     Daerah: [
@@ -82,7 +82,7 @@ export default async function InformationPicturePage({
         <main className="relative flex items-center justify-center h-[100dvh] w-full p-8 overflow-hidden">
             {/* Overlay untuk Rotasi Perangkat */}
             <RotateDeviceOverlay />
-            
+
             {/* Background Image */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[100dvw] h-[100dvh] -z-10">
                 <Image
@@ -99,8 +99,8 @@ export default async function InformationPicturePage({
             <div className="relative w-full h-[70vh] sm:h-[80vh] flex items-center justify-center border-2 border-black p-2 sm:p-4 lg:p-8 rounded-3xl">
                 {/* Image Container */}
                 <div className="relative sm:w-[90%] lg:w-full max-w-full max-h-full aspect-[2.2/1] flex items-center justify-center">
-                    <div 
-                        className="absolute inset-0 z-10" 
+                    <div
+                        className="absolute inset-0 z-10"
                         style={{
                             WebkitMaskImage: `url(${information.imagePopupMask})`,
                             WebkitMaskRepeat: "no-repeat",

@@ -3,7 +3,7 @@ import Image from "next/image";
 import PageHeader from "../../../components/information/PageHeader";
 import NavBar from "../../../components/information/NavBar";
 import CardList from "../../../components/information/CardList";
-import RotateDeviceOverlay from "../../../components/information/RotateDeviceOverlay"
+import RotateDeviceOverlay from "../../../components/layout/RotateDeviceOverlay";
 
 const dummyDatabase: Record<string, { subCategory: string; items: any[] }[]> = {
     Daerah: [
@@ -29,9 +29,9 @@ const dummyDatabase: Record<string, { subCategory: string; items: any[] }[]> = {
             items: [
                 {
                     id: 3,
-                    title: "Gedung Sate", 
-                    imageUrl: 
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80"
+                    title: "Gedung Sate",
+                    imageUrl:
+                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
                 },
             ],
         },
@@ -57,7 +57,11 @@ const dummyDatabase: Record<string, { subCategory: string; items: any[] }[]> = {
     ],
 };
 
-export default async function InformationPage({ searchParams }: { searchParams: Promise<{ category?: string; search?:string }>;}) {
+export default async function InformationPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ category?: string; search?: string }>;
+}) {
     const params = await searchParams;
     const currentCategory = params.category || "Daerah";
     const searchQuery = params.search?.toLowerCase() || "";
@@ -65,7 +69,7 @@ export default async function InformationPage({ searchParams }: { searchParams: 
     const filteredData = categoryData
         .map((section) => ({
             ...section,
-            items:section.items.filter((item) =>
+            items: section.items.filter((item) =>
                 item.title.toLowerCase().includes(searchQuery)
             ),
         }))
@@ -97,15 +101,17 @@ export default async function InformationPage({ searchParams }: { searchParams: 
                 <div className="w-full mt-4 md:mt-8 flex flex-col gap-4 md:gap-6 z-20 relative">
                     {filteredData.length > 0 ? (
                         filteredData.map((section, index) => (
-                        <CardList
-                            key={index}
-                            subCategoryTitle={section.subCategory}
-                            items={section.items}
-                        />
+                            <CardList
+                                key={index}
+                                subCategoryTitle={section.subCategory}
+                                items={section.items}
+                            />
                         ))
                     ) : (
                         <p className="text-white text-center text-xl mt-10">
-                            {searchQuery ? `Hasil pencarian ${params.search} tidak ditemukan.` : `Data untuk kategori ${currentCategory} belum tersedia.`}
+                            {searchQuery
+                                ? `Hasil pencarian ${params.search} tidak ditemukan.`
+                                : `Data untuk kategori ${currentCategory} belum tersedia.`}
                         </p>
                     )}
                 </div>

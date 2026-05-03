@@ -108,7 +108,22 @@ export default function Dice({
   const diceRef = useRef<HTMLDivElement | null>(null);
   const animationRef = useRef<gsap.core.Tween | null>(null);
 
-  const DICE_SIZE = 44; // Smaller dice size
+  const [DICE_SIZE, setDiceSize] = useState(44);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerHeight < 600 || window.innerWidth < 1024) {
+        setDiceSize(28);
+      } else {
+        setDiceSize(44);
+      }
+    };
+
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Handle external dice state change (multiplayer sync)
   useEffect(() => {
@@ -184,7 +199,7 @@ export default function Dice({
   const isNotMyTurn = !isMyTurn;
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full">
+    <div className="flex flex-col items-center gap-1 md:gap-4 w-full">
       {/* Dice Container - Smaller Compact Size */}
       <div
         style={{
@@ -291,17 +306,17 @@ export default function Dice({
       </div>
 
       {/* Status & Button - Only show when appropriate */}
-      <div className="flex flex-col items-center gap-3 w-full">
+      <div className="flex flex-col items-center gap-1 lg:gap-3 w-full">
         {/* Other player rolling status */}
         {isOtherPlayerRolling && (
-          <p className="text-xs md:text-sm font-semibold text-gray-700 text-center px-2">
+          <p className="text-[10px] lg:text-sm font-semibold text-gray-700 text-center px-2">
             🎲 Sedang melempar dadu...
           </p>
         )}
 
         {/* Not my turn status - show when it's someone else's turn */}
         {isNotMyTurn && !isOtherPlayerRolling && (
-          <p className="text-xs md:text-sm font-semibold text-gray-600 text-center px-2">
+          <p className="text-[10px] lg:text-sm font-semibold text-gray-600 text-center px-2">
             ⏳ Tunggu giliran pemain lain...
           </p>
         )}
@@ -311,7 +326,7 @@ export default function Dice({
           <button
             onClick={handleRollClick}
             disabled={disabled || isLocalRolling}
-            className="px-3 py-2 md:px-5 md:py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold text-xs md:text-sm rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:cursor-not-allowed"
+            className="px-3 py-1 lg:px-5 lg:py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold text-[12px] lg:text-sm rounded lg:rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:cursor-not-allowed"
           >
             {isLocalRolling ? 'Rolling...' : 'Roll'}
           </button>

@@ -47,8 +47,8 @@ export default function PlayerTurnBox({
   myPlayerId,
 }: PlayerTurnBoxProps) {
   return (
-    <div className="absolute right-0 top-0 h-full w-1/2 overflow-hidden px-3 py-3 md:px-6 md:py-6 flex justify-center">
-      <div className="flex h-full w-full max-w-[620px] flex-col items-center justify-between gap-3 md:gap-4">
+    <div className="w-full flex justify-center">
+      <div className="flex w-full max-w-[620px] flex-col items-center justify-center gap-0 lg:gap-8">
         {/* Question or Initial Panel */}
         <div className="w-full flex justify-center shrink-0">
           {showQuestion && question ? (
@@ -65,7 +65,7 @@ export default function PlayerTurnBox({
         </div>
 
         {/* Dice Component */}
-        <div className="flex shrink-0 items-center justify-center">
+        <div className="flex shrink-0 items-center justify-center relative z-10 lg:mt-0">
           <Dice
             onRollComplete={onDiceRollComplete ?? (() => {})}
             diceState={diceState}
@@ -76,7 +76,7 @@ export default function PlayerTurnBox({
         </div>
 
         {/* Players Section */}
-        <div className="shrink-0 w-full flex items-center justify-center pb-1 md:pb-2">
+        <div className="shrink-0 w-full flex items-center justify-center pb-1 lg:pb-2 relative z-20 lg:mt-0">
           {children ?? (
             <PlayerList
               players={players}

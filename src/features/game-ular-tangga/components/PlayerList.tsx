@@ -34,13 +34,13 @@ export default function PlayerList({
   const rightPlayers = players.slice(2);
 
   const getAvatarClass = (index: number) =>
-    `relative w-12 h-12 rounded-full border-2 overflow-hidden transition-transform ${
+    `relative w-8 h-8 md:w-12 md:h-12 rounded-full border-2 overflow-hidden transition-transform ${
       index === currentPlayerIndex ? 'border-yellow-400 ring-2 ring-yellow-300' : 'border-gray-300'
     } ${index === focusedPlayerIndex ? 'translate-y-[-10px] scale-110' : ''}`;
 
   return (
-    <div className="flex w-full items-center justify-center gap-2 md:gap-3">
-      <div className="flex items-center gap-2 md:gap-3">
+    <div className="flex w-full items-center justify-center gap-1 md:gap-3">
+      <div className="flex items-center gap-1 md:gap-3">
         {leftPlayers.map((player, index) => (
           <div key={player.id} className={getAvatarClass(index)}>
             <img src={player.avatar} alt={`Player ${player.id}`} className="w-full h-full object-cover" />
@@ -48,11 +48,11 @@ export default function PlayerList({
         ))}
       </div>
 
-      <p className="min-w-fit px-2 text-center text-sm font-semibold whitespace-nowrap text-white md:px-3">
+      <p className="min-w-fit px-1 text-center text-xs md:text-sm font-semibold whitespace-nowrap text-white md:px-3">
         {focusedName ?? turnText}
       </p>
 
-      <div className="flex items-center gap-2 md:gap-3">
+      <div className="flex items-center gap-1 md:gap-3">
         {rightPlayers.map((player, index) => {
           const playerIndex = index + leftPlayers.length;
 

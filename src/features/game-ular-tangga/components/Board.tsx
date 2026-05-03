@@ -27,7 +27,10 @@ export default function Board({
             if (stageRef.current) {
                 const containerWidth = stageRef.current.offsetWidth;
                 const containerHeight = stageRef.current.offsetHeight;
-                const newStageSize = Math.min(containerWidth, containerHeight);
+                const safeOffset = containerHeight < 500 ? 20 : 120;
+                const newStageSize = Math.max(
+                    Math.min(containerWidth, containerHeight) - safeOffset, 100
+                )
                 setStageSize({ width: newStageSize, height: newStageSize });
                 const newCellSize = newStageSize / numRowsCols;
                 setCellSize(newCellSize);
@@ -80,8 +83,8 @@ export default function Board({
                         fill="black"
                         align="center"
                         verticalAlign="middle"
-                        offsetX={cellSize / 2}
-                        offsetY={cellSize / 2}
+                        offsetX={cellSize / 2.5}
+                        offsetY={cellSize / 2.5}
                     />
                 );
                 number++;
@@ -158,19 +161,28 @@ export default function Board({
     return (
         <div
             ref={stageRef}
-            className="relative flex items-center justify-center w-full h-full p-4 md:p-8 z-20"
+            className="relative flex items-center justify-center w-full h-full px-2 md:xp-8 z-20"
         >
-            <div className="relative bg-[#602919] p-6 rounded-xl shadow-2xl">
+            <div className="relative bg-[#602919] p-[3vmin] rounded-[3vmin] shadow-2xl -translate-x-4 md:translate-x-0">
                 {/* Kontainer pion yang belum berjalan */}
                 <div className="absolute bottom-3 left-0 -translate-x-[110%] md:-translate-x-[120%] grid grid-cols-2 gap-1 md:gap-2 z-30">
                     {pionImages.map((img, index) => {
                         if (img && pionPositionIndexes[index] === -1) {
+                            
+                            const aspectRatio = img.width / img.height;
+                            const pionHeight = cellSize * 0.7;
+                            const pionWidth = pionHeight * aspectRatio;
+
                             return (
                                 <img
                                     key={`idle-pion-${index}`}
                                     src={img.src}
                                     alt={`Pion ${index}`}
-                                    className="w-4 md:w-6 object-contain transition-transform hover:scale-110 drop-shadow-[2px_4px_6px_rgba(0,0,0,0.6)]"
+                                    className="object-contain transition-transform hover:scale-110 drop-shadow-[2px_4px_6px_rgba(0,0,0,0.6)]"
+                                    style={{
+                                        width: pionWidth,
+                                        height: pionHeight,
+                                    }}
                                 />
                             );
                         }

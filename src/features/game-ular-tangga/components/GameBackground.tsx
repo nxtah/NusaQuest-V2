@@ -18,12 +18,12 @@ export default function GameBackground() {
             <img
                 src={ularTangga.tanaman}
                 alt="Game Background"
-                className="absolute -left-[16%] -top-[25%] w-[50%] rotate-[20deg] object-cover z-20"
+                className="absolute left-[5%] -top-[10%] w-[40%] lg:-left-[2%] lg:-top-[10%] lg:w-[50%] rotate-[20deg] object-cover z-20"
             />
             <img
                 src={ularTangga.tanaman}
                 alt="Game Background"
-                className="absolute left-8 -bottom-[20%] w-[45%] rotate-[350deg] object-cover -scale-x-100 z-20"
+                className="absolute left-[8%] -bottom-[28%] w-[40%] lg:-left-[2%] lg:-bottom-[20%] lg:w-[50%] rotate-[350deg] object-cover -scale-x-100 z-20"
             />
         </div>
     );
