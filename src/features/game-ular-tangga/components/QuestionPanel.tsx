@@ -47,11 +47,11 @@ export default function QuestionPanel({
                   type="button"
                   onClick={() => onSelectOption?.(index)}
                   disabled={selectedIndex !== null}
-                  className={`w-full rounded-full border px-3 py-1.5 text-[11px] font-medium leading-tight transition-all sm:px-4 sm:py-2 sm:text-xs md:px-5 md:py-2.5 md:text-sm disabled:cursor-not-allowed disabled:opacity-100 ${
+                  className={`w-full rounded-full border px-3 py-1.5 text-[10px] font-medium leading-tight transition-all sm:px-4 sm:py-2 sm:text-xs md:px-5 md:py-2.5 md:text-sm disabled:cursor-not-allowed disabled:opacity-100 ${
                     isGreen
-                      ? 'border-lime-500 bg-lime-400 text-gray-900 font-bold scale-[1.02]'
+                      ? 'border-lime-500 bg-lime-400 text-gray-900 font-bold scale-[1.0]'
                       : isWrong
-                        ? 'border-red-600 bg-red-500 text-white font-bold scale-[1.02]'
+                        ? 'border-red-600 bg-red-500 text-white font-bold scale-[1.0]'
                         : isAnswered
                           ? 'border-gray-300 bg-gray-100 text-gray-600'
                           : 'border-gray-400 bg-transparent text-gray-900 hover:bg-black/5 active:bg-black/10'
