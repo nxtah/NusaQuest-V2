@@ -58,3 +58,25 @@ export function getFirebaseAdminAuth() {
 export function getFirebaseAdminDb() {
   return getDatabase(getFirebaseAdminApp());
 }
+
+// Backward-compatible aliases used by server/session utilities.
+export function getAdminAuth() {
+  return getFirebaseAdminAuth();
+}
+
+export async function getUserRoleClaim(uid: string): Promise<'user' | 'admin'> {
+  const user = await getFirebaseAdminAuth().getUser(uid);
+  return user.customClaims?.role === 'admin' ? 'admin' : 'user';
+}
+
+export async function updateUserRoleClaim(uid: string, role: 'user' | 'admin'): Promise<void> {
+  const auth = getFirebaseAdminAuth();
+  const user = await auth.getUser(uid);
+  const existingClaims = user.customClaims ?? {};
+
+  await auth.setCustomUserClaims(uid, {
+    ...existingClaims,
+    role,
+    admin: role === 'admin',
+  });
+}

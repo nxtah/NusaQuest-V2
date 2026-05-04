@@ -2,7 +2,15 @@ import {DEFAULT_SESSION_TIMEOUT_MS} from '@/src/lib/constants/auth-security';
 
 type TimeoutHandle = ReturnType<typeof setTimeout>;
 
+export type SessionRole = 'guest' | 'user' | 'admin';
+
 let sessionTimeoutRef: TimeoutHandle | null = null;
+
+export function normalizeRole(value: string | null | undefined): SessionRole {
+  if (value === 'admin') return 'admin';
+  if (value === 'user') return 'user';
+  return 'guest';
+}
 
 export function startSessionTimeout(
   onExpire: () => void,
