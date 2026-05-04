@@ -12,7 +12,30 @@ import {
   playerJoinRoom,
   playerLeaveRoom,
   subscribeToGameStart,
+  startGameInRoom,
+  type RoomData,
+  type RoomPlayer,
 } from '@/src/features/lobby/services/lobby.service';
+
+function resolveGameRoute(gameID: string, topicID: string, roomID: string): string {
+  if (gameID === 'nusa-card' || gameID === 'card') {
+    return `/play/${gameID}/${topicID}/${roomID}/nusa-card`;
+  }
+
+  if (gameID === 'nusa-card-vs-ai' || gameID === 'card-vs-ai') {
+    return `/play/${gameID}/${topicID}/${roomID}/nusa-card-vs-ai`;
+  }
+
+  if (gameID === 'ular-tangga' || gameID === 'snake-ladder') {
+    return `/play/${gameID}/${topicID}/${roomID}/ular-tangga`;
+  }
+
+  if (gameID === 'ular-tangga-vs-ai' || gameID === 'snake-ladder-vs-ai') {
+    return `/play/${gameID}/${topicID}/${roomID}/ular-tangga-vs-ai`;
+  }
+
+  return `/lobby/${topicID}/${gameID}`;
+}
 
 export default function RoomPage() {
   const params = useParams();
@@ -23,8 +46,8 @@ export default function RoomPage() {
   const topicID = params.topicID as string;
   const roomID = params.roomID as string;
 
-  const [roomData, setRoomData] = useState<any>(null);
-  const [players, setPlayers] = useState<any[]>([]);
+  const [roomData, setRoomData] = useState<RoomData | null>(null);
+  const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFirstPlayer, setIsFirstPlayer] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
@@ -51,9 +74,10 @@ export default function RoomPage() {
     const checkAndJoin = async () => {
       try {
         const {exists, isSinglePlayer} = await checkRoomType(topicID, gameID, roomID);
+        const nextGameRoute = resolveGameRoute(gameID, topicID, roomID);
 
         if (isSinglePlayer) {
-          router.push(`/play/${gameID}/${topicID}/${roomID}/game`);
+          router.push(nextGameRoute);
           return;
         }
 
@@ -64,7 +88,14 @@ export default function RoomPage() {
 
         // Join room if not already joined
         if (!hasJoined) {
-          await playerJoinRoom(topicID, gameID, roomID, user.uid, user.displayName || 'Player', (user.googlePhotoURL || user.firebasePhotoURL) as string | undefined);
+          await playerJoinRoom(
+            topicID,
+            gameID,
+            roomID,
+            user.uid,
+            user.displayName || 'Player',
+            user.googlePhotoURL || user.firebasePhotoURL || undefined,
+          );
           setHasJoined(true);
         }
       } catch (error) {
@@ -98,7 +129,7 @@ export default function RoomPage() {
 
     const unsubGameStart = subscribeToGameStart(topicID, gameID, roomID, (gameStarted) => {
       if (gameStarted) {
-        router.push(`/play/${gameID}/${topicID}/${roomID}/game`);
+        router.push(resolveGameRoute(gameID, topicID, roomID));
       }
     });
 
@@ -109,7 +140,7 @@ export default function RoomPage() {
   useEffect(() => {
     return () => {
       if (hasJoined && user?.uid) {
-        playerLeaveRoom(topicID, gameID, roomID, user.uid);
+        void playerLeaveRoom(topicID, gameID, roomID, user.uid);
       }
     };
   }, [topicID, gameID, roomID, user?.uid, hasJoined]);
@@ -152,8 +183,13 @@ export default function RoomPage() {
             <p className="text-muted">Waiting for players...</p>
             <button
               className="btn btn-primary"
-              onClick={() => {
-                // Start game logic here
+              onClick={async () => {
+                try {
+                  await startGameInRoom(topicID, gameID, roomID);
+                  router.push(resolveGameRoute(gameID, topicID, roomID));
+                } catch (error) {
+                  console.error('Error starting room game:', error);
+                }
               }}
               disabled={players.length < 2}
             >

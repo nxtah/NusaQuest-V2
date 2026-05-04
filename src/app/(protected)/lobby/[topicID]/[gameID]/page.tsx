@@ -15,6 +15,18 @@ const TOPIC_NAMES: Record<string, string> = {
   'permainan_daerah': 'Permainan Daerah',
 };
 
+function resolveVsAiRoute(gameID: string, topicID: string): string {
+  if (gameID === 'nusa-card' || gameID === 'card') {
+    return `/play/${gameID}/${topicID}/room5/nusa-card-vs-ai`;
+  }
+
+  if (gameID === 'ular-tangga' || gameID === 'snake-ladder') {
+    return `/play/${gameID}/${topicID}/room5/ular-tangga-vs-ai`;
+  }
+
+  return `/play/${gameID}/${topicID}/room5/nusa-card-vs-ai`;
+}
+
 export default function LobbyPage() {
   const params = useParams();
   const router = useRouter();
@@ -48,7 +60,7 @@ export default function LobbyPage() {
   const handleRoomSelect = async (roomNumber: number) => {
     if (roomNumber === 5) {
       // VS AI room
-      router.push(`/play/${gameID}/${topicID}/room${roomNumber}/game`);
+      router.push(resolveVsAiRoute(gameID, topicID));
       return;
     }
 

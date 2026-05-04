@@ -5,80 +5,132 @@ import {useParams, useRouter} from 'next/navigation';
 import Header from '@/src/components/layout/Header';
 import Footer from '@/src/components/layout/Footer';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
+import {useGameBootstrap} from '@/src/features/game/hooks/useGameBootstrap';
 import {getCurrentPlayers} from '@/src/features/lobby/services/lobby.service';
+import {useGameLifecycle} from '@/src/features/game/hooks/useGameLifecycle';
 import {
+  advanceGameTurn,
   getQuestions,
   shuffle,
   initializeUlarTanggaGameState,
-  subscribeToGameState,
+  finishGame,
   updateGameState,
+  updatePionPositions,
+  subscribeToTypedGameState,
   setGameStatus,
   cleanupGame,
 } from '@/src/features/game/services/game.service';
-import type {GamePlayer} from '@/src/features/game/services/game.service';
+import type {GamePlayer, UlarTanggaGameState} from '@/src/features/game/services/game.service';
+import type {AppUser} from '@/src/types/auth';
+
+const BOARD_LIMIT = 30;
 
 export default function UlarTanggaPage() {
   const params = useParams();
   const router = useRouter();
-  const {user} = useAuth();
+  const {user, isInitialized} = useAuth();
 
   const gameID = params.gameID as string;
   const topicID = params.topicID as string;
   const roomID = params.roomID as string;
 
-  const [players, setPlayers] = useState<GamePlayer[]>([]);
-  const [gameState, setGameStateData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [gameState, setGameStateData] = useState<UlarTanggaGameState | null>(null);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [pionPositions, setPionPositions] = useState<number[]>([]);
+  const [isRolling, setIsRolling] = useState(false);
 
-  // Initialize game
-  useEffect(() => {
-    const initGame = async () => {
-      try {
-        const playersData = await getCurrentPlayers(topicID, gameID, roomID);
-        setPlayers(playersData);
-        setPionPositions(new Array(playersData.length).fill(0));
+  const {players, loading, gameError} = useGameBootstrap({
+    isInitialized,
+    user,
+    router,
+    lobbyPath: `/lobby/${topicID}/${gameID}`,
+    errorMessage: 'Gagal memulai game Ular Tangga.',
+    onBootstrapped: (nextPlayers: GamePlayer[]) => {
+      setPionPositions(new Array(nextPlayers.length).fill(0));
+    },
+    bootstrap: async (currentUser: AppUser) => {
+      const playersData = await getCurrentPlayers(topicID, gameID, roomID);
 
-        // Get questions and initialize game state
-        const questions = await getQuestions(topicID);
-        const shuffledQuestions = shuffle(questions);
-
-        await initializeUlarTanggaGameState(topicID, gameID, roomID, playersData, shuffledQuestions);
-        await setGameStatus(topicID, gameID, roomID, 'playing');
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error initializing Ular Tangga game:', error);
-        router.push(`/lobby/${topicID}/${gameID}`);
+      if (!playersData.length) {
+        throw new Error('Room kosong atau data pemain belum tersedia.');
       }
-    };
 
-    initGame();
-  }, [gameID, topicID, roomID, router]);
+      const questions = await getQuestions(topicID);
+      const shuffledQuestions = shuffle(questions);
+
+      await initializeUlarTanggaGameState(topicID, gameID, roomID, playersData, shuffledQuestions);
+      await setGameStatus(topicID, gameID, roomID, 'playing');
+
+      return playersData;
+    },
+  });
 
   // Subscribe to game state
   useEffect(() => {
-    if (loading) return;
+    if (loading || !isInitialized) return;
 
-    const unsubscribe = subscribeToGameState(topicID, gameID, roomID, (state) => {
+    const unsubscribe = subscribeToTypedGameState<UlarTanggaGameState>(topicID, gameID, roomID, (state) => {
       if (state) {
         setGameStateData(state);
         setCurrentPlayerIndex(state.currentPlayerIndex || 0);
-        setPionPositions(state.pionPositions || new Array(players.length).fill(0));
+        const activePlayers = state.players || players;
+        setPionPositions(state.pionPositions || new Array(activePlayers.length).fill(0));
 
         // Check if it's my turn
-        if (players[state.currentPlayerIndex]?.uid === user?.uid) {
-          setIsMyTurn(true);
-        } else {
-          setIsMyTurn(false);
-        }
+        setIsMyTurn((state.players || players)[state.currentPlayerIndex]?.uid === user?.uid);
       }
     });
 
     return () => unsubscribe();
-  }, [loading, topicID, gameID, roomID, players, user?.uid]);
+  }, [gameID, isInitialized, loading, players, roomID, topicID, user?.uid]);
+
+  useGameLifecycle({
+    topicID,
+    gameID,
+    roomID,
+    gameStatus: gameState?.gameStatus,
+    router,
+  });
+
+  const finishAndCleanup = async (winner?: GamePlayer) => {
+    await finishGame(topicID, gameID, roomID, winner ? {uid: winner.uid, displayName: winner.name} : undefined);
+    await cleanupGame(topicID, gameID, roomID);
+    router.push(`/lobby/${topicID}/${gameID}`);
+  };
+
+  const handleRollDice = async () => {
+    if (!isMyTurn || isRolling || !gameState || !currentPlayer) return;
+
+    const roll = Math.floor(Math.random() * 6) + 1;
+    const nextPositions = [...(gameState.pionPositions || pionPositions)];
+    const nextPosition = Math.min((nextPositions[currentPlayerIndex] || 0) + roll, BOARD_LIMIT);
+
+    setIsRolling(true);
+    try {
+      nextPositions[currentPlayerIndex] = nextPosition;
+
+      await updatePionPositions(topicID, gameID, roomID, nextPositions);
+      await updateGameState(topicID, gameID, roomID, {
+        lastDiceRoll: roll,
+        lastMovedByUID: currentPlayer.uid,
+        lastMovedAt: new Date().toISOString(),
+        turnPhase: 'moved',
+      });
+
+      if (nextPosition >= BOARD_LIMIT) {
+        await finishAndCleanup(currentPlayer);
+        return;
+      }
+
+      await advanceGameTurn(topicID, gameID, roomID);
+    } finally {
+      setIsRolling(false);
+    }
+  };
+
+  const activePlayers = gameState?.players || players;
+  const currentPlayer = activePlayers[currentPlayerIndex];
 
   if (loading) {
     return (
@@ -95,9 +147,18 @@ export default function UlarTanggaPage() {
       <Header showBackIcon />
       <div className="container py-5">
         <h2>Ular Tangga</h2>
-        <p>Current Player: {players[currentPlayerIndex]?.name}</p>
+        {gameError && <div className="alert alert-warning">{gameError}</div>}
+        <p>Game Status: {gameState?.gameStatus || 'unknown'}</p>
+        <p>Current Player: {currentPlayer?.name || 'Unknown'}</p>
         <p>My Turn: {isMyTurn ? 'Yes' : 'No'}</p>
-        <p>Total Players: {players.length}</p>
+        <p>Total Players: {activePlayers.length}</p>
+        <p>Total Questions: {gameState?.questions?.length || 0}</p>
+        <p>Board Progress: {pionPositions.join(', ') || '0'}</p>
+        <p>Last Dice Roll: {gameState?.lastDiceRoll || '-'}</p>
+
+        <button className="btn btn-primary mt-3" onClick={() => void handleRollDice()} disabled={!isMyTurn || isRolling}>
+          Roll Dice
+        </button>
 
         {/* Game board and components will be rendered here */}
         <div className="alert alert-info mt-4">

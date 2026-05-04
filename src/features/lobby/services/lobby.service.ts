@@ -1,5 +1,5 @@
 import {firebaseDb} from '@/src/lib/firebase/client';
-import {ref, onValue, get, set, remove, push, update} from 'firebase/database';
+import {ref, onValue, get, runTransaction, set, remove, push, update} from 'firebase/database';
 
 export interface LobbyData {
   id: string;
@@ -8,8 +8,45 @@ export interface LobbyData {
   instructions: string[];
 }
 
+export interface RoomPlayer {
+  uid: string;
+  name: string;
+  photoURL?: string;
+  joinedAt: string;
+}
+
+export interface RoomData {
+  isSinglePlayer?: boolean;
+  capacity?: number;
+  currentPlayers?: number;
+  gameStatus?: 'waiting' | 'playing' | 'finished';
+  gameState?: Record<string, unknown> | null;
+  players?: Record<string, RoomPlayer>;
+  startedAt?: string;
+  lastResetAt?: string;
+}
+
 const LOBBIES_PATH = 'lobbies';
 const ROOMS_PATH = 'rooms';
+
+export async function startGameInRoom(
+  topicID: string,
+  gameID: string,
+  roomID: string,
+): Promise<void> {
+  if (!firebaseDb) return;
+
+  try {
+    const roomRef = ref(firebaseDb, `${ROOMS_PATH}/${topicID}/${gameID}/${roomID}`);
+    await update(roomRef, {
+      gameStatus: 'playing',
+      startedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error starting game in room:', error);
+    throw error;
+  }
+}
 
 export function subscribeLobbyData(
   gameID: string,
@@ -38,7 +75,7 @@ export function subscribeLobbyData(
 export function subscribeRooms(
   topicID: string,
   gameID: string,
-  callback: (rooms: Record<string, any>) => void,
+  callback: (rooms: Record<string, RoomData>) => void,
 ): () => void {
   if (!firebaseDb) {
     callback({});
@@ -79,7 +116,7 @@ export async function getCurrentPlayers(
   topicID: string,
   gameID: string,
   roomID: string,
-): Promise<any[]> {
+): Promise<RoomPlayer[]> {
   if (!firebaseDb) return [];
 
   try {
@@ -111,42 +148,49 @@ export async function playerJoinRoom(
 
     if (!roomSnapshot.exists()) throw new Error('Room tidak ada');
 
-    const roomData = roomSnapshot.val();
+    const roomData = roomSnapshot.val() as RoomData;
     if (roomData.isSinglePlayer) return;
 
-    const playersRef = ref(firebaseDb, `${roomPath}/players`);
-    const playersSnapshot = await get(playersRef);
-    const playersData = playersSnapshot.val() || {};
+    const transactionResult = await runTransaction(roomRef, (currentRoomData: RoomData | null) => {
+      if (!currentRoomData) return currentRoomData;
 
-    const playerCount = Object.keys(playersData).length;
-    const capacity = roomData.capacity || 4;
+      const currentPlayersData = currentRoomData.players || {};
+      const capacity = currentRoomData.capacity || 4;
 
-    if (playerCount >= capacity) throw new Error('Room penuh');
-
-    // Find available player slot
-    let playerKey = null;
-    for (let i = 1; i <= capacity; i++) {
-      const key = `player-${i}`;
-      if (!playersData[key]) {
-        playerKey = key;
-        break;
+      if (Object.keys(currentPlayersData).length >= capacity) {
+        return currentRoomData;
       }
+
+      let playerKey: string | null = null;
+      for (let i = 1; i <= capacity; i++) {
+        const nextKey = `player-${i}`;
+        if (!currentPlayersData[nextKey]) {
+          playerKey = nextKey;
+          break;
+        }
+      }
+
+      if (!playerKey) {
+        return currentRoomData;
+      }
+
+      currentPlayersData[playerKey] = {
+        uid: userId,
+        name: userName,
+        photoURL: userPhoto,
+        joinedAt: new Date().toISOString(),
+      };
+
+      return {
+        ...currentRoomData,
+        players: currentPlayersData,
+        currentPlayers: Object.keys(currentPlayersData).length,
+      };
+    });
+
+    if (!transactionResult.committed) {
+      throw new Error('Room penuh');
     }
-
-    if (!playerKey) throw new Error('Tidak ada slot pemain yang tersedia');
-
-    // Join room
-    await set(ref(firebaseDb, `${roomPath}/players/${playerKey}`), {
-      uid: userId,
-      name: userName,
-      photoURL: userPhoto,
-      joinedAt: new Date().toISOString(),
-    });
-
-    // Update current players count
-    await update(ref(firebaseDb, roomPath), {
-      currentPlayers: playerCount + 1,
-    });
   } catch (error) {
     console.error('Error joining room:', error);
     throw error;
@@ -167,7 +211,7 @@ export async function playerLeaveRoom(
     const playersSnapshot = await get(playersRef);
 
     if (playersSnapshot.exists()) {
-      const playersData = playersSnapshot.val();
+      const playersData = playersSnapshot.val() as Record<string, RoomPlayer>;
       const playerKey = Object.keys(playersData).find(
         (key) => playersData[key].uid === userId,
       );
@@ -176,9 +220,16 @@ export async function playerLeaveRoom(
         await remove(ref(firebaseDb, `${roomPath}/players/${playerKey}`));
 
         const remainingPlayers = Object.keys(playersData).length - 1;
-        await update(ref(firebaseDb, roomPath), {
+        const roomUpdates: Partial<RoomData> = {
           currentPlayers: Math.max(0, remainingPlayers),
-        });
+        };
+
+        if (remainingPlayers <= 0) {
+          roomUpdates.gameStatus = 'waiting';
+          roomUpdates.gameState = null;
+        }
+
+        await update(ref(firebaseDb, roomPath), roomUpdates);
       }
     }
   } catch (error) {
