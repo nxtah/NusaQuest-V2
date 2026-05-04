@@ -1,14 +1,25 @@
-import { pulau } from '../../../assets/images/hero/cloudinaryAssets';
+'use client';
+
+import {useState} from 'react';
+import NusaMaps from '@/src/features/destination/components/NusaMaps';
+import ModalGame from '@/src/features/destination/components/ModalGame';
+import Header from '@/src/components/layout/Header';
+import Footer from '@/src/components/layout/Footer';
 
 export default function HomePage() {
+  const [showModal, setShowModal] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+
   return (
-    <main>
-      <h1>Home</h1>
-      <img
-        src={pulau.pulau1}
-        alt="Pulau 1"
-        style={{ width: '100%', maxWidth: 640, height: 'auto', display: 'block' }}
+    <main className="home-container">
+      <Header />
+      <NusaMaps setShowModal={setShowModal} setSelectedTopic={setSelectedTopic} />
+      <ModalGame
+        show={showModal}
+        onHide={() => setShowModal(false)}
+        selectedTopic={selectedTopic}
       />
+      <Footer />
     </main>
   );
 }

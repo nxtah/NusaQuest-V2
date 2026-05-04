@@ -1,8 +1,24 @@
-import { ref } from 'firebase/storage';
+import {
+  deleteObject,
+  getDownloadURL,
+  ref,
+  uploadBytes,
+  type StorageReference,
+} from 'firebase/storage';
+import {
+  assertFirebaseClientConfigured,
+  firebaseStorage,
+} from '@/src/lib/firebase/client';
 
-import { storage } from './client';
-import { normalizeFirebasePath } from './db';
-
-export function storageRef(path: string) {
-	return ref(storage, normalizeFirebasePath(path));
+export function getFirebaseStorage() {
+  assertFirebaseClientConfigured();
+  return firebaseStorage!;
 }
+
+export function storageRef(path: string): StorageReference {
+  return ref(getFirebaseStorage(), path);
+}
+
+export const storageUploadBytes = uploadBytes;
+export const storageGetDownloadUrl = getDownloadURL;
+export const storageDeleteObject = deleteObject;

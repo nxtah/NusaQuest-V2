@@ -1,53 +1,44 @@
-/**
- * @file session.ts
- * @description Session utilities untuk edge/middleware layer.
- * Digunakan oleh proxy.ts untuk membaca session dari cookies.
- * Catatan: Ini berjalan di Edge Runtime, tidak bisa menggunakan firebase-admin.
- */
+import {DEFAULT_SESSION_TIMEOUT_MS} from '@/src/lib/constants/auth-security';
 
-import type { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies';
-import { AUTH_COOKIE_NAME } from '../constants/routes';
+type TimeoutHandle = ReturnType<typeof setTimeout>;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+let sessionTimeoutRef: TimeoutHandle | null = null;
 
-export type SessionRole = 'admin' | 'user' | 'guest';
-
-export type EdgeSession = {
-  authenticated: boolean;
-  role:          SessionRole;
-  token:         string | null;
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Normalize role string dari token claim ke SessionRole yang valid.
- * Fallback ke 'user' jika nilai tidak dikenal.
- */
-export function normalizeRole(role: string): SessionRole {
-  if (role === 'admin') return 'admin';
-  if (role === 'user')  return 'user';
-  return 'guest';
+export function startSessionTimeout(
+  onExpire: () => void,
+  timeoutMs: number = DEFAULT_SESSION_TIMEOUT_MS,
+): void {
+  clearSessionTimeout();
+  sessionTimeoutRef = setTimeout(onExpire, timeoutMs);
 }
 
-/**
- * Baca session dari cookies di Edge Runtime (middleware/proxy).
- * Hanya membaca token — TIDAK memverifikasi ke Firebase Admin (bukan Edge-compatible).
- * Verifikasi penuh dilakukan di server-session.ts untuk API routes.
- *
- * @param cookies - RequestCookies dari NextRequest
- * @returns EdgeSession berisi status auth dan token mentah
- */
-export function readSessionFromCookies(
-  cookies: RequestCookies | { get(name: string): { value: string } | undefined }
-): EdgeSession {
-  const token = cookies.get(AUTH_COOKIE_NAME)?.value ?? null;
+export function resetSessionTimeout(
+  onExpire: () => void,
+  timeoutMs: number = DEFAULT_SESSION_TIMEOUT_MS,
+): void {
+  startSessionTimeout(onExpire, timeoutMs);
+}
 
-  if (!token) {
-    return { authenticated: false, role: 'guest', token: null };
+export function clearSessionTimeout(): void {
+  if (sessionTimeoutRef) {
+    clearTimeout(sessionTimeoutRef);
+    sessionTimeoutRef = null;
+  }
+}
+
+export function bindSessionActivityEvents(onActivity: () => void): () => void {
+  if (typeof window === 'undefined') {
+    return () => undefined;
   }
 
-  // Di Edge Runtime kita tidak bisa verify token ke Firebase Admin.
-  // Kita hanya cek keberadaan token — verifikasi aktual di server-session.ts.
-  return { authenticated: true, role: 'user', token };
+  const events = ['mousemove', 'mousedown', 'keydown', 'touchstart'];
+  events.forEach((eventName) => {
+    window.addEventListener(eventName, onActivity);
+  });
+
+  return () => {
+    events.forEach((eventName) => {
+      window.removeEventListener(eventName, onActivity);
+    });
+  };
 }

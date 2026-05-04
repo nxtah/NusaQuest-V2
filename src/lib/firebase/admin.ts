@@ -1,92 +1,60 @@
-import 'server-only';
+import {cert, getApps, initializeApp, type App} from 'firebase-admin/app';
+import {getAuth} from 'firebase-admin/auth';
+import {getDatabase} from 'firebase-admin/database';
 
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getDatabase } from 'firebase-admin/database';
+function readServiceAccountFromEnv() {
+  const base64 = process.env.FIREBASE_ADMIN_SDK_BASE64;
+  if (base64) {
+    const raw = Buffer.from(base64, 'base64').toString('utf-8');
+    return JSON.parse(raw) as {
+      project_id: string;
+      client_email: string;
+      private_key: string;
+    };
+  }
 
-type AdminEnv = {
-	projectId: string;
-	clientEmail: string;
-	privateKey: string;
-	databaseURL: string;
-};
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(
+    /\\n/g,
+    '\n',
+  );
 
-function getAdminEnv(): AdminEnv {
-	const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-	const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-	const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
-	const databaseURL = process.env.FIREBASE_ADMIN_DATABASE_URL;
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      'Firebase Admin is not configured. Set FIREBASE_ADMIN_SDK_BASE64 or FIREBASE_ADMIN_PROJECT_ID/FIREBASE_ADMIN_CLIENT_EMAIL/FIREBASE_ADMIN_PRIVATE_KEY.',
+    );
+  }
 
-	const missing: string[] = [];
-
-	if (!projectId) {
-		missing.push('FIREBASE_ADMIN_PROJECT_ID');
-	}
-	if (!clientEmail) {
-		missing.push('FIREBASE_ADMIN_CLIENT_EMAIL');
-	}
-	if (!privateKey) {
-		missing.push('FIREBASE_ADMIN_PRIVATE_KEY');
-	}
-	if (!databaseURL) {
-		missing.push('FIREBASE_ADMIN_DATABASE_URL');
-	}
-
-	if (missing.length > 0) {
-		throw new Error(`Missing Firebase Admin env keys: ${missing.join(', ')}`);
-	}
-
-	return {
-		projectId: projectId as string,
-		clientEmail: clientEmail as string,
-		privateKey: privateKey as string,
-		databaseURL: databaseURL as string,
-	};
+  return {
+    project_id: projectId,
+    client_email: clientEmail,
+    private_key: privateKey,
+  };
 }
 
-function getAdminApp() {
-	const env = getAdminEnv();
+function getFirebaseAdminApp(): App {
+  if (getApps().length > 0) {
+    return getApps()[0]!;
+  }
 
-	return getApps().length > 0
-		? getApps()[0]
-		: initializeApp({
-				credential: cert({
-					projectId: env.projectId,
-					clientEmail: env.clientEmail,
-					privateKey: env.privateKey,
-				}),
-				databaseURL: env.databaseURL,
-			});
+  const serviceAccount = readServiceAccountFromEnv();
+  const databaseURL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
+
+  return initializeApp({
+    credential: cert({
+      projectId: serviceAccount.project_id,
+      clientEmail: serviceAccount.client_email,
+      privateKey: serviceAccount.private_key,
+    }),
+    ...(databaseURL ? {databaseURL} : {}),
+  });
 }
 
-export function getAdminAuth() {
-	return getAuth(getAdminApp());
+export function getFirebaseAdminAuth() {
+  return getAuth(getFirebaseAdminApp());
 }
 
-export function getAdminDb() {
-	return getDatabase(getAdminApp());
-}
-
-export async function setUserRoleClaim(uid: string, role: 'admin' | 'user') {
-	await getAdminAuth().setCustomUserClaims(uid, { role });
-}
-
-export async function clearUserRoleClaim(uid: string) {
-	await getAdminAuth().setCustomUserClaims(uid, {});
-}
-
-export async function updateUserRoleClaim(uid: string, role: 'admin' | 'user') {
-	await setUserRoleClaim(uid, role);
-	await getAdminAuth().revokeRefreshTokens(uid);
-}
-
-export async function getUserRoleClaim(uid: string): Promise<'admin' | 'user'> {
-	const userRecord = await getAdminAuth().getUser(uid);
-	const roleClaim = userRecord.customClaims?.role;
-
-	if (roleClaim === 'admin') {
-		return 'admin';
-	}
-
-	return 'user';
+export function getFirebaseAdminDb() {
+  return getDatabase(getFirebaseAdminApp());
 }
