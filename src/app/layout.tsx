@@ -3,7 +3,6 @@ import {Geist, Geist_Mono, Irish_Grover, Poppins} from 'next/font/google';
 import React from 'react';
 import Providers from '@/src/app/providers';
 import './globals.css';
-
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,

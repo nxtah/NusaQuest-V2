@@ -1,171 +1,85 @@
-'use client';
+"use client";
 
-import {useEffect, useState} from 'react';
-import {useParams, useRouter} from 'next/navigation';
-import Header from '@/src/components/layout/Header';
-import Footer from '@/src/components/layout/Footer';
-import {useAuth} from '@/src/features/auth/hooks/useAuth';
-import {useGameBootstrap} from '@/src/features/game/hooks/useGameBootstrap';
-import {getCurrentPlayers} from '@/src/features/lobby/services/lobby.service';
-import {useGameLifecycle} from '@/src/features/game/hooks/useGameLifecycle';
-import {
-  advanceGameTurn,
-  getQuestions,
-  shuffle,
-  initializeUlarTanggaGameState,
-  finishGame,
-  updateGameState,
-  updatePionPositions,
-  subscribeToTypedGameState,
-  setGameStatus,
-  cleanupGame,
-} from '@/src/features/game/services/game.service';
-import type {GamePlayer, UlarTanggaGameState} from '@/src/features/game/services/game.service';
-import type {AppUser} from '@/src/types/auth';
+import React, { useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import GameBackground from '../../../../../../../features/game-ular-tangga/components/GameBackground';
+import Board from '../../../../../../../features/game-ular-tangga/components/Board';
+import PlayerTurnBox from '../../../../../../../features/game-ular-tangga/components/PlayerTurnBox';
+import { ularTangga } from '../../../../../../../assets/images/ular-tangga/cloudinaryAssets';
+import RotateDeviceOverlay from '../../../../../../../components/layout/RotateDeviceOverlay';
+import PauseModal from "../../../../../../../features/game-ular-tangga/components/PauseModal";
+import SettingButton from "../../../../../../../features/game-ular-tangga/components/SettingButton";
 
-const BOARD_LIMIT = 30;
-
-export default function UlarTanggaPage() {
-  const params = useParams();
+export default function Page() {
   const router = useRouter();
-  const {user, isInitialized} = useAuth();
+  const params = useParams();
 
-  const gameID = params.gameID as string;
-  const topicID = params.topicID as string;
-  const roomID = params.roomID as string;
+  const [isPaused, setIsPaused] = useState(false);
+  const players = [
+    { id: 1, avatar: ularTangga.pion1, name: 'Pemain 1' },
+    { id: 2, avatar: ularTangga.pion2, name: 'Pemain 2' },
+    { id: 3, avatar: ularTangga.pion3, name: 'Pemain 3' },
+    { id: 4, avatar: ularTangga.pion4, name: 'Pemain 4' },
+  ];
 
-  const [gameState, setGameStateData] = useState<UlarTanggaGameState | null>(null);
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
-  const [isMyTurn, setIsMyTurn] = useState(false);
-  const [pionPositions, setPionPositions] = useState<number[]>([]);
-  const [isRolling, setIsRolling] = useState(false);
-
-  const {players, loading, gameError} = useGameBootstrap({
-    isInitialized,
-    user,
-    router,
-    lobbyPath: `/lobby/${topicID}/${gameID}`,
-    errorMessage: 'Gagal memulai game Ular Tangga.',
-    onBootstrapped: (nextPlayers: GamePlayer[]) => {
-      setPionPositions(new Array(nextPlayers.length).fill(0));
-    },
-    bootstrap: async (currentUser: AppUser) => {
-      const playersData = await getCurrentPlayers(topicID, gameID, roomID);
-
-      if (!playersData.length) {
-        throw new Error('Room kosong atau data pemain belum tersedia.');
-      }
-
-      const questions = await getQuestions(topicID);
-      const shuffledQuestions = shuffle(questions);
-
-      await initializeUlarTanggaGameState(topicID, gameID, roomID, playersData, shuffledQuestions);
-      await setGameStatus(topicID, gameID, roomID, 'playing');
-
-      return playersData;
-    },
-  });
-
-  // Subscribe to game state
-  useEffect(() => {
-    if (loading || !isInitialized) return;
-
-    const unsubscribe = subscribeToTypedGameState<UlarTanggaGameState>(topicID, gameID, roomID, (state) => {
-      if (state) {
-        setGameStateData(state);
-        setCurrentPlayerIndex(state.currentPlayerIndex || 0);
-        const activePlayers = state.players || players;
-        setPionPositions(state.pionPositions || new Array(activePlayers.length).fill(0));
-
-        // Check if it's my turn
-        setIsMyTurn((state.players || players)[state.currentPlayerIndex]?.uid === user?.uid);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [gameID, isInitialized, loading, players, roomID, topicID, user?.uid]);
-
-  useGameLifecycle({
-    topicID,
-    gameID,
-    roomID,
-    gameStatus: gameState?.gameStatus,
-    router,
-  });
-
-  const finishAndCleanup = async (winner?: GamePlayer) => {
-    await finishGame(topicID, gameID, roomID, winner ? {uid: winner.uid, displayName: winner.name} : undefined);
-    await cleanupGame(topicID, gameID, roomID);
-    router.push(`/lobby/${topicID}/${gameID}`);
-  };
-
-  const handleRollDice = async () => {
-    if (!isMyTurn || isRolling || !gameState || !currentPlayer) return;
-
-    const roll = Math.floor(Math.random() * 6) + 1;
-    const nextPositions = [...(gameState.pionPositions || pionPositions)];
-    const nextPosition = Math.min((nextPositions[currentPlayerIndex] || 0) + roll, BOARD_LIMIT);
-
-    setIsRolling(true);
-    try {
-      nextPositions[currentPlayerIndex] = nextPosition;
-
-      await updatePionPositions(topicID, gameID, roomID, nextPositions);
-      await updateGameState(topicID, gameID, roomID, {
-        lastDiceRoll: roll,
-        lastMovedByUID: currentPlayer.uid,
-        lastMovedAt: new Date().toISOString(),
-        turnPhase: 'moved',
-      });
-
-      if (nextPosition >= BOARD_LIMIT) {
-        await finishAndCleanup(currentPlayer);
-        return;
-      }
-
-      await advanceGameTurn(topicID, gameID, roomID);
-    } finally {
-      setIsRolling(false);
-    }
-  };
-
-  const activePlayers = gameState?.players || players;
-  const currentPlayer = activePlayers[currentPlayerIndex];
-
-  if (loading) {
-    return (
-      <main>
-        <Header showBackIcon />
-        <div className="text-center py-5">Initializing Ular Tangga game...</div>
-        <Footer />
-      </main>
-    );
-  }
+  const currentPlayerIndex = 0;
 
   return (
-    <main>
-      <Header showBackIcon />
-      <div className="container py-5">
-        <h2>Ular Tangga</h2>
-        {gameError && <div className="alert alert-warning">{gameError}</div>}
-        <p>Game Status: {gameState?.gameStatus || 'unknown'}</p>
-        <p>Current Player: {currentPlayer?.name || 'Unknown'}</p>
-        <p>My Turn: {isMyTurn ? 'Yes' : 'No'}</p>
-        <p>Total Players: {activePlayers.length}</p>
-        <p>Total Questions: {gameState?.questions?.length || 0}</p>
-        <p>Board Progress: {pionPositions.join(', ') || '0'}</p>
-        <p>Last Dice Roll: {gameState?.lastDiceRoll || '-'}</p>
+    <main className="relative min-h-screen w-full overflow-x-hidden">
+      {/* Overlay untuk Rotasi Perangkat */}
+      <RotateDeviceOverlay />
 
-        <button className="btn btn-primary mt-3" onClick={() => void handleRollDice()} disabled={!isMyTurn || isRolling}>
-          Roll Dice
+      {/* Background Image */}
+      <div className="fixed inset-0 -z-10 bg-[#59a87d]">
+        <GameBackground />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start lg:items-center justify-center min-h-[100svh] pt-2 md:pt-4 lg:pt-8 pb-0 px-2 md:px-5 lg:px-8 w-full max-w-[1400px] mx-auto">
+        {/* Tombol Back */}
+        <button 
+            onClick={() => router.push(`/room/${params?.gameID}/${params?.topicID}/${params?.roomID}`)}
+            className="absolute left-10 lg:left-7 top-7 z-50 text-white transition-transform"
+          >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-10 h-10">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
         </button>
 
-        {/* Game board and components will be rendered here */}
-        <div className="alert alert-info mt-4">
-          Ular Tangga game component - Multiplayer board game mode
+        {/* Setting Button */}
+        <SettingButton onClick={() => setIsPaused(true)} />
+
+        {/* Left Section - Board */}
+        <div className="flex-1 w-full flex items-start justify-center z-20 mt-1 md:mt-2 lg:mt-0">
+          <div className="w-full aspect-square max-w-[80vh] md:max-w-[75vh] lg:max-w-[80vh] ml-4 md:ml-12 lg:ml-4">
+            <Board />
+          </div>
         </div>
+
+        {/* Right Section - Player Turn */}
+        <div className="flex-1 w-full flex flex-col justify-start lg:justify-center items-center h-full">
+          <div className="w-full flex-col flex items-center max-w-[85vmin] md:max-w-[70vh] lg:max-w-[75vh]">
+            <PlayerTurnBox
+              players={players}
+              currentPlayerIndex={currentPlayerIndex}
+              focusedPlayerIndex={undefined}
+              focusedPlayerName={undefined}
+              isMyTurn
+              diceState={undefined}
+              onDiceRollComplete={() => {}}
+              question={null}
+              showQuestion={false}
+              onSelectAnswer={() => {}}
+              myPlayerId="player-1"
+            />
+          </div>
+        </div>
+
+        <PauseModal 
+            isOpen={isPaused}               
+            onClose={() => setIsPaused(false)} 
+        />
       </div>
-      <Footer />
     </main>
   );
 }
