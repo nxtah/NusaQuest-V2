@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Poppins } from "next/font/google";
+import BackButton from "../ui/BackButton";
 
 const poppins = Poppins({
     subsets: ["latin"],
@@ -32,25 +33,7 @@ export default function NavBar() {
         >
             <div className="flex items-center gap-1.5 lg:gap-4 shrink-0 lg:flex-1 lg:min-w-0 lg:pr-4">
                 {/* Tombol Kembali */}
-                <Link
-                    href="/home"
-                    className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 shrink-0 flex items-center justify-center bg-white/5 backdrop-blur-lg text-white border border-white rounded-full hover:bg-white/20"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth="1.5"
-                        stroke="currentColor"
-                        className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-                        />
-                    </svg>
-                </Link>
+                <BackButton href="/home" iconSize="md" />
 
                 {/* List Menu Kategori */}
                 <div className="flex gap-2 overflow-x-auto scrollbar-hide w-full items-center">

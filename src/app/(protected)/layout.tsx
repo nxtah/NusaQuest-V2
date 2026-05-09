@@ -4,6 +4,7 @@ import {
   SESSION_COOKIE_NAME,
   verifySessionToken,
 } from '@/src/lib/utils/auth-api';
+import '../../styles/lobby.css';
 
 export default async function ProtectedLayout({
   children,
@@ -22,6 +23,5 @@ export default async function ProtectedLayout({
   if (!authContext) {
     redirect('/login');
   }
-
   return <>{children}</>;
 }

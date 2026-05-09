@@ -1,11 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import BackButton from '../../../components/ui/BackButton';
 import { getRoomImage } from '../../../assets/images/room/cloudinaryAssets';
 import { getBackgroundImage } from '../../../assets/images/background/cloudinaryAssets';
-import { getAwanImage } from '../../../assets/images/hero/cloudinaryAssets';
+import { getAwanImage } from '../../../assets/images/home/cloudinaryAssets';
 import { getInformationImage } from '../../../assets/images/information/cloudinaryAssets';
-import '../../../app/(protected)/lobby/[topicID]/[gameID]/lobby.css';
 
 interface RoomSelectProps {
   topicID: string;
@@ -71,7 +71,9 @@ export default function RoomSelect({ topicID, gameID, onSelect }: RoomSelectProp
         </div>
       </div>
 
-      <button onClick={() => router.back()} className="btn-back"> &lt; </button>
+      <div className="back-button-wrapper">
+        <BackButton href="/home" />
+      </div>
     </main>
   );
 }
