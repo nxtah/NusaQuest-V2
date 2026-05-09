@@ -1,5 +1,3 @@
-// Mapping for information images from Cloudinary CDN.
-// Add new entries in one place.
 export const information = {
 	imagePopup: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370185/image-popup_bvtwoq.webp',
 	board1: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370178/board-1_hlxc1z.webp',
