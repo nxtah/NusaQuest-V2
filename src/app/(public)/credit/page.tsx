@@ -1,22 +1,22 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Image from "next/image";
-import localFont from "next/font/local";
-import { Poppins } from "next/font/google";
+import { useState } from 'react';
+import Image from 'next/image';
+import localFont from 'next/font/local';
+import { Poppins } from 'next/font/google';
 
-import { background } from "@/src/assets/images/background/cloudinaryAssets";
-import CreditMemberCard from "@/src/components/credit/CreditMemberCard";
-import CreditMemberModal from "@/src/components/credit/CreditMemberModal";
-import BackButton from "@/src/components/ui/BackButton";
+import { background } from '@/src/assets/images/background/cloudinaryAssets';
+import CreditMemberCard from '@/src/components/credit/CreditMemberCard';
+import CreditMemberModal from '@/src/components/credit/CreditMemberModal';
+import BackButton from '@/src/components/ui/BackButton';
 
 const bauhaus = localFont({
-  src: "../../../../public/fonts/Bauhaus.otf",
+  src: '../../../../public/fonts/Bauhaus.otf',
 });
 
 const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
 });
 
 type Member = {
@@ -26,63 +26,63 @@ type Member = {
   bio: string;
 };
 
-const teamData: Record<"V1" | "V2", Member[]> = {
+const teamData: Record<'V1' | 'V2', Member[]> = {
   V1: [
     {
-      id: "v1-1",
-      name: "Raka Pratama",
-      role: "Project Manager",
-      bio: "Mengatur arah proyek, timeline, dan sinkronisasi kebutuhan fitur lintas tim.",
+      id: 'v1-1',
+      name: 'Raka Pratama',
+      role: 'Project Manager',
+      bio: 'Mengatur arah proyek, timeline, dan sinkronisasi kebutuhan fitur lintas tim.',
     },
     {
-      id: "v1-2",
-      name: "Nadia Amalia",
-      role: "Frontend Developer",
-      bio: "Membangun halaman publik awal dan komponen UI inti NusaQuest V1.",
+      id: 'v1-2',
+      name: 'Nadia Amalia',
+      role: 'Frontend Developer',
+      bio: 'Membangun halaman publik awal dan komponen UI inti NusaQuest V1.',
     },
     {
-      id: "v1-3",
-      name: "Fajar Maulana",
-      role: "Backend Developer",
-      bio: "Menangani integrasi data dan alur API untuk kebutuhan konten aplikasi.",
+      id: 'v1-3',
+      name: 'Fajar Maulana',
+      role: 'Backend Developer',
+      bio: 'Menangani integrasi data dan alur API untuk kebutuhan konten aplikasi.',
     },
     {
-      id: "v1-4",
-      name: "Sinta Maharani",
-      role: "UI/UX Designer",
-      bio: "Mendesain alur pengguna dan style visual agar pengalaman aplikasi tetap konsisten.",
+      id: 'v1-4',
+      name: 'Sinta Maharani',
+      role: 'UI/UX Designer',
+      bio: 'Mendesain alur pengguna dan style visual agar pengalaman aplikasi tetap konsisten.',
     },
   ],
   V2: [
     {
-      id: "v2-1",
-      name: "Dimas Syahputra",
-      role: "Tech Lead",
-      bio: "Memimpin standar implementasi teknis dan arsitektur pengembangan di V2.",
+      id: 'v2-1',
+      name: 'Dimas Syahputra',
+      role: 'Tech Lead',
+      bio: 'Memimpin standar implementasi teknis dan arsitektur pengembangan di V2.',
     },
     {
-      id: "v2-2",
-      name: "Alya Putri",
-      role: "Frontend Developer",
-      bio: "Mengembangkan halaman interaktif terbaru serta peningkatan responsivitas mobile.",
+      id: 'v2-2',
+      name: 'Alya Putri',
+      role: 'Frontend Developer',
+      bio: 'Mengembangkan halaman interaktif terbaru serta peningkatan responsivitas mobile.',
     },
     {
-      id: "v2-3",
-      name: "Reza Saputra",
-      role: "Game Feature Developer",
-      bio: "Mengimplementasikan fitur game edukasi dan interaksi reward pemain.",
+      id: 'v2-3',
+      name: 'Reza Saputra',
+      role: 'Game Feature Developer',
+      bio: 'Mengimplementasikan fitur game edukasi dan interaksi reward pemain.',
     },
     {
-      id: "v2-4",
-      name: "Mikhaela Tanu",
-      role: "QA & Documentation",
-      bio: "Melakukan validasi skenario penggunaan dan dokumentasi proses pengembangan.",
+      id: 'v2-4',
+      name: 'Mikhaela Tanu',
+      role: 'QA & Documentation',
+      bio: 'Melakukan validasi skenario penggunaan dan dokumentasi proses pengembangan.',
     },
   ],
 };
 
 export default function Page() {
-  const [selectedVersion, setSelectedVersion] = useState<"V1" | "V2">("V1");
+  const [selectedVersion, setSelectedVersion] = useState<'V1' | 'V2'>('V1');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   return (
@@ -105,19 +105,19 @@ export default function Page() {
 
         <header className="text-center text-white">
           <h1 className={`${bauhaus.className} text-3xl tracking-normal sm:text-4xl lg:text-5xl`}>
-            Tim Nusaquest
+            Tim NusaQuest
           </h1>
 
           <div className="mt-6 flex justify-center gap-3">
-            {(["V1", "V2"] as const).map((version) => (
+            {(['V1', 'V2'] as const).map((version) => (
               <button
                 key={version}
                 type="button"
                 onClick={() => setSelectedVersion(version)}
                 className={`rounded-full px-5 py-2 text-sm font-semibold transition sm:text-base ${
                   selectedVersion === version
-                    ? "bg-yellow-300 text-green-900"
-                    : "bg-white/20 text-white hover:bg-white/30"
+                    ? 'bg-yellow-300 text-green-900'
+                    : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
               >
                 {version}
