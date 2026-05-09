@@ -36,6 +36,11 @@ const poppinsBold = Poppins({
 export const metadata: Metadata = {
   title: "NusaQuest",
   description: "Educational Adventure Game",
+  icons: {
+    icon: "/icons/logo.webp",
+    shortcut: "/icons/logo.webp",
+    apple: "/icons/logo.webp",
+  },
 };
 
 export default function RootLayout({
