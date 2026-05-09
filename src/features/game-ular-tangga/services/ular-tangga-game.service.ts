@@ -9,6 +9,7 @@ import {
   get,
   onValue,
   set,
+  update,
   off,
   ref,
 } from 'firebase/database';
@@ -77,15 +78,71 @@ export interface GamePlayer {
   role?: string;
 }
 
-// ─── Queue untuk debounce updateGameState ───────────────────────────────────
+/**
+ * Memperbarui gameState secara atomik menggunakan Firebase update().
+ * Tidak perlu GET+SET — lebih aman dari race condition.
+ * Setara dengan `updateGameState` di V1.
+ */
+export async function updateGameState(
+  topicID: string,
+  gameID: string,
+  roomID: string,
+  updates: Partial<UlarTanggaGameState> & Record<string, unknown>,
+): Promise<void> {
+  if (!topicID || !gameID || !roomID) return;
 
-const updateQueue: Record<string, ReturnType<typeof setTimeout>> = {};
+  try {
+    const basePath = gameStateRef(topicID, gameID, roomID);
+    const db = getFirebaseDb();
+
+    // Flatten nested objects ke format Firebase update path
+    // Contoh: { diceState: { isRolling: false } } → { 'diceState/isRolling': false }
+    const flatUpdates: Record<string, unknown> = {};
+
+    const flatten = (obj: Record<string, unknown>, prefix = '') => {
+      for (const key in obj) {
+        const val = obj[key];
+        const fullKey = prefix ? `${prefix}/${key}` : key;
+        if (
+          val !== null &&
+          typeof val === 'object' &&
+          !Array.isArray(val)
+        ) {
+          flatten(val as Record<string, unknown>, fullKey);
+        } else {
+          flatUpdates[`${basePath}/${fullKey}`] = val;
+        }
+      }
+    };
+
+    // Array harus disimpan utuh (tidak di-flatten)
+    const topLevelUpdates: Record<string, unknown> = {};
+    for (const key in updates) {
+      const val = (updates as Record<string, unknown>)[key];
+      if (Array.isArray(val)) {
+        flatUpdates[`${basePath}/${key}`] = val;
+      } else if (val !== null && typeof val === 'object') {
+        flatten(val as Record<string, unknown>, key);
+      } else {
+        topLevelUpdates[`${basePath}/${key}`] = val;
+      }
+    }
+
+    // Tambahkan lastUpdated
+    flatUpdates[`${basePath}/lastUpdated`] = Date.now();
+    Object.assign(flatUpdates, topLevelUpdates);
+
+    await update(ref(db), flatUpdates);
+  } catch (error) {
+    console.error('Error updating game state:', error);
+    throw error;
+  }
+}
 
 // ─── Fetch Players dari Firebase ─────────────────────────────────────────────
 
 /**
  * Mendengarkan data pemain dalam sebuah ruangan secara real-time.
- * Setara dengan `fetchGamePlayers` di V1.
  */
 export function fetchGamePlayers(
   topicID: string,
@@ -108,6 +165,7 @@ export function fetchGamePlayers(
 
   return () => off(playersRef);
 }
+
 
 // ─── Fetch Questions ─────────────────────────────────────────────────────────
 
@@ -247,90 +305,7 @@ export async function getGameState(
   }
 }
 
-/**
- * Memperbarui gameState dengan debouncing dan deep merge.
- * Setara dengan `updateGameState` di V1.
- */
-export function updateGameState(
-  topicID: string,
-  gameID: string,
-  roomID: string,
-  updates: Partial<UlarTanggaGameState> & Record<string, unknown>,
-): Promise<void> {
-  const key = `${topicID}-${gameID}-${roomID}`;
 
-  if (updateQueue[key]) {
-    clearTimeout(updateQueue[key]);
-  }
-
-  return new Promise((resolve, reject) => {
-    updateQueue[key] = setTimeout(async () => {
-      try {
-        const stateRef = ref(
-          getFirebaseDb(),
-          gameStateRef(topicID, gameID, roomID),
-        );
-        const snapshot = await get(stateRef);
-        const currentState = (snapshot.val() || {}) as Record<string, unknown>;
-
-        // Deep merge logic dengan support untuk path notation (e.g. "playerActivity/uid/isActive")
-        const newState: Record<string, unknown> = { ...currentState };
-
-        const applyUpdates = (
-          target: Record<string, unknown>,
-          source: Record<string, unknown>,
-        ) => {
-          for (const key in source) {
-            if (key.includes('/')) {
-              const parts = key.split('/');
-              let cur = target;
-              for (let i = 0; i < parts.length; i++) {
-                const part = parts[i];
-                if (i === parts.length - 1) {
-                  cur[part] = source[key];
-                } else {
-                  if (!cur[part] || typeof cur[part] !== 'object') {
-                    cur[part] = {};
-                  }
-                  cur = cur[part] as Record<string, unknown>;
-                }
-              }
-            } else if (
-              typeof source[key] === 'object' &&
-              source[key] !== null &&
-              !Array.isArray(source[key]) &&
-              typeof target[key] === 'object' &&
-              target[key] !== null
-            ) {
-              target[key] = {
-                ...(target[key] as Record<string, unknown>),
-                ...(source[key] as Record<string, unknown>),
-              };
-            } else {
-              target[key] = source[key];
-            }
-          }
-        };
-
-        applyUpdates(newState, updates as Record<string, unknown>);
-        newState.lastUpdated = Date.now();
-
-        // Hapus undefined
-        const cleanState = Object.fromEntries(
-          Object.entries(newState).filter(([, v]) => v !== undefined),
-        );
-
-        await set(stateRef, cleanState);
-        delete updateQueue[key];
-        resolve();
-      } catch (error) {
-        console.error('Error updating game state:', error);
-        delete updateQueue[key];
-        reject(error);
-      }
-    }, 0);
-  });
-}
 
 // ─── Initialize ───────────────────────────────────────────────────────────────
 
@@ -353,7 +328,7 @@ export async function initializeUlarTanggaGameState(
 
       const initialState: UlarTanggaGameState = {
         currentPlayerIndex: 0,
-        pionPositions: new Array(playerCount).fill(0),
+        pionPositions: new Array(playerCount).fill(1),
         isMoving: false,
         showQuestion: false,
         waitingForAnswer: false,

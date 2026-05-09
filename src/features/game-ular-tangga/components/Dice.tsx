@@ -10,6 +10,7 @@ export type DiceState = {
 };
 
 interface DiceProps {
+  onRollStart?: (number: number) => void;
   onRollComplete: (number: number, isUserAction: boolean) => void;
   disabled?: boolean;
   diceState?: DiceState;
@@ -20,11 +21,11 @@ interface DiceProps {
 
 const FACE_ROTATIONS: Record<number, { x: number; y: number }> = {
   1: { x: 0, y: 0 },
-  2: { x: -90, y: 0 },
-  3: { x: 0, y: -90 },
-  4: { x: 0, y: 90 },
-  5: { x: 90, y: 0 },
-  6: { x: 180, y: 0 },
+  2: { x: 0, y: 180 }, // Back
+  3: { x: 0, y: -90 }, // Right
+  4: { x: 0, y: 90 },  // Left
+  5: { x: -90, y: 0 }, // Top
+  6: { x: 90, y: 0 },  // Bottom
 };
 
 const DiceFace: React.FC<{ number: number }> = ({ number }) => {
@@ -96,6 +97,7 @@ const DiceFace: React.FC<{ number: number }> = ({ number }) => {
 };
 
 export default function Dice({
+  onRollStart,
   onRollComplete,
   disabled = false,
   diceState,
@@ -125,20 +127,30 @@ export default function Dice({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Ref untuk cegah onRollComplete dipanggil lebih dari sekali per roll
+  const hasCalledRef = useRef(false);
+
   // Handle external dice state change (multiplayer sync)
   useEffect(() => {
-    if (diceState?.isRolling && !isLocalRolling) {
+    // Reset guard setiap kali Firebase menyatakan tidak ada roll yang sedang berlangsung
+    // HANYA jika animasi lokal sudah selesai (!isLocalRolling) untuk mencegah race condition
+    if (!diceState?.isRolling && !isLocalRolling) {
+      hasCalledRef.current = false;
+    }
+
+    if (diceState?.isRolling && !isLocalRolling && !hasCalledRef.current) {
+      // Ada pemain lain yang rolling (atau kita pindah tab & kembali)
       animateDice(diceState.currentNumber);
       setIsLocalRolling(true);
     } else if (!diceState?.isRolling && isLocalRolling) {
+      // Roll dari luar selesai
       setIsLocalRolling(false);
 
-      // Callback only if it's my turn (parent handles question display)
-      if (isMyTurn) {
+      if (isMyTurn && !hasCalledRef.current) {
         onRollComplete(diceState?.currentNumber || 1, false);
       }
     }
-  }, [diceState?.isRolling, isMyTurn, onRollComplete]);
+  }, [diceState?.isRolling, isMyTurn, onRollComplete, isLocalRolling]);
 
   const animateDice = (finalNumber: number) => {
     if (!diceRef.current) return;
@@ -178,6 +190,13 @@ export default function Dice({
         });
         setCurrentFace(finalNumber);
         animationRef.current = null;
+
+        // JIKA INI ROLL DARI KITA SENDIRI, PANGGIL ONROLLCOMPLETE DI SINI
+        // Setelah animasi 1 detik benar-benar selesai
+        if (hasCalledRef.current) {
+          setIsLocalRolling(false);
+          onRollComplete(finalNumber, true);
+        }
       },
     });
   };
@@ -186,11 +205,14 @@ export default function Dice({
     if (disabled || isLocalRolling || !isMyTurn) return;
 
     const randomNumber = Math.floor(Math.random() * 6) + 1;
+    hasCalledRef.current = true; // Tandai sudah dipanggil dari sini
     setIsLocalRolling(true);
-    animateDice(randomNumber);
+    
+    // Beritahu parent (dan Firebase) bahwa roll sudah dimulai, agar pemain lain bisa melihat animasi
+    if (onRollStart) onRollStart(randomNumber);
 
-    // Call parent handler
-    onRollComplete(randomNumber, true);
+    animateDice(randomNumber);
+    // onRollComplete HANYA akan dipanggil di dalam onComplete animasi GSAP di atas
   };
 
   const isOtherPlayerRolling =

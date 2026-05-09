@@ -43,7 +43,12 @@ export default function PlayerList({
       <div className="flex items-center gap-1 md:gap-3">
         {leftPlayers.map((player, index) => (
           <div key={player.id} className={getAvatarClass(index)}>
-            <img src={player.avatar} alt={`Player ${player.id}`} className="w-full h-full object-cover" />
+            <img 
+              src={player.avatar} 
+              alt={`Player ${player.id}`} 
+              className="w-full h-full object-cover bg-white" 
+              referrerPolicy="no-referrer" 
+            />
           </div>
         ))}
       </div>
@@ -58,7 +63,12 @@ export default function PlayerList({
 
           return (
             <div key={player.id} className={getAvatarClass(playerIndex)}>
-              <img src={player.avatar} alt={`Player ${player.id}`} className="w-full h-full object-cover" />
+              <img 
+                src={player.avatar} 
+                alt={`Player ${player.id}`} 
+                className="w-full h-full object-cover bg-white" 
+                referrerPolicy="no-referrer" 
+              />
             </div>
           );
         })}

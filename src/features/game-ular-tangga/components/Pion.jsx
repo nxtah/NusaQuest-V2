@@ -13,131 +13,115 @@ export default function Pion({
     snakesDown,
     isCorrect,
 }) {
-    const imageRef = useRef(null);
-    const [positionIndex, setPositionIndex] = useState(desiredIndex);
-    const isAnimating = useRef(false);
+    // State hanya dipakai untuk initial render & force-rerender posisi akhir
+    const [, forceRender] = useState(0);
+
+    // Ref untuk posisi terkini — selalu up-to-date, tidak stale
+    const positionIndexRef = useRef(desiredIndex);
+    const imageRef         = useRef(null);
+    const isAnimating      = useRef(false);
+
+    const offsetX = cellSize * 0.35;
+    const offsetY = cellSize * 0.1;
 
     useEffect(() => {
-        if(!imageRef.current) return;
-
         const node = imageRef.current;
+        if (!node) return;
 
-        if (positionIndex === desiredIndex || isAnimating.current) return;
+        const fromIndex = positionIndexRef.current; // Selalu nilai terbaru
+
+        // Tidak ada perubahan atau sedang animasi
+        if (desiredIndex === fromIndex || isAnimating.current) return;
 
         gsap.killTweensOf(node);
         isAnimating.current = true;
 
-        const offsetX = cellSize * 0.35;
-        const offsetY = cellSize * 0.1;
+        const steps     = Math.abs(desiredIndex - fromIndex);
+        const direction = desiredIndex > fromIndex ? 1 : -1;
+        
+        // Deteksi apakah ini lompatan ular / tangga
+        const isSnakeOrLadder = 
+            (tanggaUp && tanggaUp.some(t => t.start === fromIndex + 1 && t.end === desiredIndex + 1)) ||
+            (snakesDown && snakesDown.some(s => s.start === fromIndex + 1 && s.end === desiredIndex + 1)) ||
+            steps > 6;
 
-        const moveToIndex = (targetIndex) => {
-            const targetPos = getPosition(targetIndex);
-
-            if (tanggaUp[positionIndex] && isCorrect) {
-                gsap.to(node, {
-                    x: targetPos.x + offsetX,
-                    y: targetPos.y + offsetY,
-                    duration: 0.5,
-                    ease: "power1.out",
-                    onComplete: () => {
-                        setPositionIndex(targetIndex);
-                        isAnimating.current = false;
-                        if (onAnimationComplete) {
-                            onAnimatingComplete(index, targetIndex);
-                        }
-                    },
-                });
-            } else if (snakesDown[positionIndex]) {
-                gsap.to(node, {
-                    x: targetPos.x + offsetX,
-                    y: targetPos.y + offsetY,
-                    duration: 0.5,
-                    ease: "power1.out",
-                    onComplete: () => {
-                        setPositionIndex(targetIndex);
-                        isAnimating.current = false;
-                        if (onAnimationComplete) {
-                            onAnimationComplete(index, targetIndex)
-                        }
-                    }
-                });
-            } else {
-                gsap.to(node, {
-                    x: targetPos.x + offsetX,
-                    y: targetPos.y + offsetY, 
-                    duration: 0.3,
-                    ease: "none",
-                    onComplete: () => { 
-                        setPositionIndex(targetIndex);
-                        isAnimating.current = false;
-                        if (onAnimationComplete) {
-                            onAnimationComplete(index, targetIndex)
-                        }
-                    },
-                });
-            }
-        };
-        if(tanggaUp[positionIndex] && isCorrect) {
-            moveToIndex(tanggaUp[positionIndex]);
-        } else if (snakesDown[positionIndex]) {
-            moveToIndex(snakesDown[positionIndex]);
-        } else {
-            const steps = Math.abs(desiredIndex - positionIndex);
-            const direction = desiredIndex > positionIndex ? 1 : -1;
-
-            const animateStep = (step) => {
-                if (step > steps) {
-                    setPositionIndex(desiredIndex);
+        // JIKA LOMPATAN ULAR / TANGGA, MELUNCUR LANGSUNG
+        if (isSnakeOrLadder) {
+            const targetPos = getPosition(desiredIndex);
+            gsap.to(node, {
+                x: targetPos.x + offsetX,
+                y: targetPos.y + offsetY,
+                duration: 1.2,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    positionIndexRef.current = desiredIndex;
                     isAnimating.current = false;
-                    if (onAnimationComplete) {
-                        onAnimationComplete(index, desiredIndex);
-                    }
-                    return;
+                    forceRender(n => n + 1);
+                    if (onAnimationComplete) onAnimationComplete(index, desiredIndex);
                 }
-
-                const intermediateIndex = positionIndex + step * direction;
-                const targetPos = getPosition(intermediateIndex);
-
-                gsap.to(node, {
-                    y: targetPos.y + offsetY - (cellSize * 0.3),
-                    duration: 0.22,
-                    onComplete: () => {
-                        gsap.to(node, {
-                            x: targetPos.x + offsetX,
-                            y: targetPos.y + offsetY,
-                            duration: 0.15,
-                            ease: "power1.out",
-                            onComplete: () => {
-                                setPositionIndex(intermediateIndex);
-                                animateStep(step + 1);
-                            },
-                        });
-                    },
-                });
-            };
-
-            animateStep(1);
+            });
+            return;
         }
-    }, [
-        desiredIndex,
-        getPosition,
-        index,
-        onAnimationComplete,
-        positionIndex,
-        tanggaUp,
-        isCorrect,
-        snakesDown,
-    ]);
+
+        let   currentStep = 0;
+
+        const animateStep = () => {
+            currentStep++;
+
+            if (currentStep > steps) {
+                // Sampai di target — update ref & paksa re-render
+                positionIndexRef.current = desiredIndex;
+                isAnimating.current = false;
+                forceRender(n => n + 1);
+                if (onAnimationComplete) onAnimationComplete(index, desiredIndex);
+                return;
+            }
+
+            const intermediateIndex = fromIndex + currentStep * direction;
+            const prevIndex         = fromIndex + (currentStep - 1) * direction;
+            const targetPos         = getPosition(intermediateIndex);
+            const prevPos           = getPosition(prevIndex);
+
+            // Lompat sedikit ke atas lalu mendarat di kotak berikutnya
+            gsap.to(node, {
+                y: prevPos.y + offsetY - cellSize * 0.3,
+                duration: 0.18,
+                ease: "power1.out",
+                onComplete: () => {
+                    gsap.to(node, {
+                        x: targetPos.x + offsetX,
+                        y: targetPos.y + offsetY,
+                        duration: 0.14,
+                        ease: "power1.in",
+                        onComplete: animateStep,
+                    });
+                },
+            });
+        };
+
+        animateStep();
+
+    }, [desiredIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Sync offsetX/offsetY ketika cellSize berubah (resize)
+    useEffect(() => {
+        const node = imageRef.current;
+        if (!node || isAnimating.current) return;
+        const pos = getPosition(positionIndexRef.current);
+        gsap.set(node, { x: pos.x + offsetX, y: pos.y + offsetY });
+    }, [cellSize, getPosition, offsetX, offsetY]);
 
     const aspectRatio = image.width / image.height;
-    const pionHeight = cellSize * 0.8; 
-    const pionWidth = pionHeight * aspectRatio;
+    const pionHeight  = cellSize * 0.8;
+    const pionWidth   = pionHeight * aspectRatio;
+
+    const currentPos = getPosition(positionIndexRef.current);
 
     return (
         <KonvaImage
             ref={imageRef}
-            x={getPosition(positionIndex).x + offsetX}
-            y={getPosition(positionIndex).y + offsetY}
+            x={currentPos.x + offsetX}
+            y={currentPos.y + offsetY}
             width={pionWidth}
             height={pionHeight}
             image={image}
