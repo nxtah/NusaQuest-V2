@@ -156,7 +156,37 @@ export async function playerJoinRoom(
 
       const currentPlayersData = currentRoomData.players || {};
       
-      // 1. Check if user is already in the room
+      // 1. Ghost Room Check (Auto-Destroy Dead Rooms)
+      // Jika game sedang berjalan, periksa apakah masih ada manusia yang benar-benar aktif
+      if (currentRoomData.gameStatus === 'playing' || (currentRoomData as any).gameStarted) {
+        let hasOnline = false;
+        const activities: Record<string, any> = currentRoomData.gameState?.playerActivity || {};
+        const playerUids = Object.keys(currentPlayersData).map(k => currentPlayersData[k].uid);
+        
+        for (const uid of playerUids) {
+            const act = activities[uid];
+            // Jika ada satu saja pemain yang masih aktif dan ping terakhir < 60 detik
+            if (act && act.isActive && (Date.now() - act.lastActivity <= 60000)) {
+               hasOnline = true;
+               break;
+            }
+        }
+
+        // Jika room kosong atau semua pemain di dalamnya berstatus Offline/Bot, hancurkan game!
+        if (playerUids.length === 0 || !hasOnline) {
+           currentRoomData.gameStatus = 'waiting';
+           (currentRoomData as any).gameStarted = false;
+           currentRoomData.gameState = null;
+           delete currentRoomData.players;
+           currentRoomData.currentPlayers = 0;
+           // Hapus isi object agar logic di bawah menganggap room kosong
+           for (const key of Object.keys(currentPlayersData)) {
+               delete currentPlayersData[key];
+           }
+        }
+      }
+
+      // 2. Check if user is already in the room
       let alreadyJoined = false;
       for (const key of Object.keys(currentPlayersData)) {
         if (currentPlayersData[key].uid === userId) {
@@ -166,18 +196,10 @@ export async function playerJoinRoom(
       }
       if (alreadyJoined) return currentRoomData; // Skip adding again
 
-      // 2. Prevent joining if game has already started
+      // 3. Prevent joining if game has already started (and wasn't destroyed above)
       if (currentRoomData.gameStatus === 'playing' || (currentRoomData as any).gameStarted) {
-        // SELF HEALING: If game started but no players exist, it's corrupted. Reset it!
-        if (Object.keys(currentPlayersData).length === 0) {
-           currentRoomData.gameStatus = 'waiting';
-           (currentRoomData as any).gameStarted = false;
-           currentRoomData.gameState = null;
-           // Terus ke bawah untuk memperbolehkan user join sebagai pemain pertama
-        } else {
-           // Abort transaction to throw error below
-           return; 
-        }
+         // Abort transaction to throw error below
+         return; 
       }
 
       const capacity = currentRoomData.capacity || 4;
