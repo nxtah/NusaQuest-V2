@@ -27,14 +27,19 @@ import {
   shuffle,
   initializeUlarTanggaGameState,
   listenToGameState,
+  listenToGameStart,
   updateGameState,
+  setGameStartStatus,
   setGameStatus,
   cleanupGame,
   updatePlayerActivity,
+  setPlayerOffline,
   type UlarTanggaGameState,
   type GamePlayer,
   type UlarTanggaQuestion,
 } from '../../../../../../../features/game-ular-tangga/services/ular-tangga-game.service';
+import { playerJoinRoom, playerLeaveRoom } from '../../../../../../../features/lobby/services/lobby.service';
+import UlarTanggaLobby from '../../../../../../../features/game-ular-tangga/components/UlarTanggaLobby';
 
 // ─── Posisi ULAR (kepala → buntut) sesuai foto papan ───────────────────────
 const SNAKES_DOWN: { start: number; end: number }[] = [
@@ -93,83 +98,108 @@ export default function UlarTanggaPage() {
   const [gameState, setGameState] = useState<UlarTanggaGameState | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [isPaused,  setIsPaused]  = useState(false);
-  const [initDone,  setInitDone]  = useState(false);
-  // Menandai apakah kita sudah selesai menunggu data pemain dari Firebase
-  const [playersResolved, setPlayersResolved] = useState(false);
+  const [gameStarted, setGameStarted] = useState<boolean>(false);
+  const [isGameLocked, setIsGameLocked] = useState<boolean>(false);
+
+  const gameStartedRef = useRef<boolean>(false);
+  useEffect(() => {
+    gameStartedRef.current = gameStarted;
+  }, [gameStarted]);
 
   const activityTimerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
-  const playersTimeoutRef     = useRef<ReturnType<typeof setTimeout>  | null>(null);
   const latestPlayersRef      = useRef<GamePlayer[]>([]);
 
-  // ── Langkah 1: Subscribe ke pemain Firebase + fallback timeout ───────────
+  // ── Langkah 1: Subscribe ke pemain Firebase & Auto Join ───────────
   useEffect(() => {
-    if (!topicID || !gameID || !roomID) return;
+    if (!topicID || !gameID || !roomID || !user) return;
 
-    // Tunggu data dari Firebase, jika timeout pakai user login sebagai pemain
-    playersTimeoutRef.current = setTimeout(() => {
-      if (latestPlayersRef.current.length === 0 && user) {
-        // Tidak ada pemain di Firebase — gunakan user login sebagai solo player
-        const soloPlayer: GamePlayer = {
-          uid:         user.uid,
-          displayName: user.displayName || 'Pemain',
-          photoURL:    user.googlePhotoURL ?? user.firebasePhotoURL ?? undefined,
-          playerIndex: 0,
-        };
-        setPlayers([soloPlayer]);
+    let isJoined = false;
+
+    const joinRoom = async () => {
+      try {
+        await playerJoinRoom(
+          topicID,
+          gameID,
+          roomID,
+          user.uid,
+          user.displayName || 'Pemain',
+          user.googlePhotoURL || user.firebasePhotoURL || undefined
+        );
+        isJoined = true;
+      } catch (error: any) {
+        if (error.message === 'Permainan sedang berlangsung') {
+          setIsGameLocked(true);
+          setLoading(false);
+        } else if (error.message === 'Room penuh') {
+          console.warn('Room penuh');
+        }
       }
-      setPlayersResolved(true);
-    }, PLAYERS_WAIT_TIMEOUT_MS);
+    };
+    joinRoom();
 
     const unsub = fetchGamePlayers(topicID, gameID, roomID, (fetchedPlayers) => {
       latestPlayersRef.current = fetchedPlayers;
-      if (fetchedPlayers.length > 0) {
-        // Ada pemain di Firebase — gunakan data nyata dan hentikan timeout
-        if (playersTimeoutRef.current) {
-          clearTimeout(playersTimeoutRef.current);
-          playersTimeoutRef.current = null;
-        }
-        setPlayers(fetchedPlayers);
-        setPlayersResolved(true);
-      }
+      setPlayers(fetchedPlayers);
     });
 
     return () => {
       unsub();
-      if (playersTimeoutRef.current) clearTimeout(playersTimeoutRef.current);
+      // Saat komponen unmount (keluar halaman):
+      // Jika game BELUM mulai, keluarkan user dari room.
+      // Jika game SUDAH mulai, ubah status jadi offline (agar bot jalan & bisa reconnect).
+      if (isJoined) {
+         if (!gameStartedRef.current) {
+           playerLeaveRoom(topicID, gameID, roomID, user.uid).catch(() => {});
+         } else {
+           setPlayerOffline(topicID, gameID, roomID, user.uid).catch(() => {});
+         }
+      }
     };
   }, [topicID, gameID, roomID, user]);
 
-  // ── Langkah 2: Bootstrap game state di Firebase (reset + init baru) ────────
+  // ── Subscribe ke status Game Started ─────────────────────────────
   useEffect(() => {
-    if (!topicID || !gameID || !roomID || !playersResolved || players.length === 0 || initDone) return;
-
-    let cancelled = false;
-
-    const bootstrap = async () => {
-      try {
-        // Hapus state lama agar selalu mulai dari awal saat akses halaman
-        await cleanupGame(topicID, gameID, roomID);
-
-        const questions = await getQuestions(topicID);
-        const shuffled  = shuffle<UlarTanggaQuestion>(questions);
-
-        await initializeUlarTanggaGameState(topicID, gameID, roomID, players, shuffled);
-        await setGameStatus(topicID, gameID, roomID, 'playing');
-
-        if (!cancelled) setInitDone(true);
-      } catch (err) {
-        console.error('Gagal bootstrap game Ular Tangga:', err);
-        if (!cancelled) setInitDone(true);
+    if (!topicID || !gameID || !roomID) return;
+    const unsub = listenToGameStart(topicID, gameID, roomID, (isStarted) => {
+      setGameStarted(isStarted);
+      if (!isStarted) {
+         setLoading(false); // Sudah masuk lobby, berhenti loading
       }
-    };
+    });
+    return () => unsub();
+  }, [topicID, gameID, roomID]);
 
-    bootstrap();
-    return () => { cancelled = true; };
-  }, [topicID, gameID, roomID, players, playersResolved, initDone]);
+  // ── Langkah 2: Bootstrap game state di Firebase (reset + init baru) ────────
+  // ── Handler: Saat tombol Mulai Permainan ditekan ──────────────
+  const handleStartGame = async () => {
+    if (players.length === 0) return;
+    
+    setLoading(true);
+    try {
+      // Hapus state lama (jika ada) agar fresh
+      await cleanupGame(topicID, gameID, roomID);
+      
+      const questions = await getQuestions(topicID);
+      const shuffled  = shuffle<UlarTanggaQuestion>(questions);
+
+      // Tetapkan index pemain berdasarkan urutan mereka masuk ke array
+      const indexedPlayers = players.map((p, i) => ({ ...p, playerIndex: i }));
+
+      // Init game state baru (termasuk mapping pion)
+      await initializeUlarTanggaGameState(topicID, gameID, roomID, indexedPlayers, shuffled);
+      await setGameStatus(topicID, gameID, roomID, 'playing');
+      
+      // Trigger semua client untuk berpindah ke board game
+      await setGameStartStatus(topicID, gameID, roomID, true);
+    } catch (err) {
+      console.error('Gagal bootstrap game Ular Tangga:', err);
+      setLoading(false);
+    }
+  };
 
   // ── Langkah 3: Subscribe ke gameState Firebase (real-time) ───────────────
   useEffect(() => {
-    if (!topicID || !gameID || !roomID || !initDone) return;
+    if (!topicID || !gameID || !roomID || !gameStarted) return;
 
     const unsub = listenToGameState(topicID, gameID, roomID, (state) => {
       setGameState(state);
@@ -181,11 +211,11 @@ export default function UlarTanggaPage() {
     });
 
     return () => unsub();
-  }, [topicID, gameID, roomID, initDone, router]);
+  }, [topicID, gameID, roomID, gameStarted, router]);
 
   // ── Update aktivitas pemain secara berkala + auto-cleanup saat keluar ──────
   useEffect(() => {
-    if (!myUID || !topicID || !gameID || !roomID || !initDone) return;
+    if (!myUID || !topicID || !gameID || !roomID || !gameStarted) return;
 
     updatePlayerActivity(topicID, gameID, roomID, myUID);
 
@@ -194,16 +224,29 @@ export default function UlarTanggaPage() {
     }, ACTIVITY_INTERVAL_MS);
 
     return () => {
-      // Bersihkan data game dari Firebase ketika user meninggalkan halaman
       if (activityTimerRef.current) clearInterval(activityTimerRef.current);
-      cleanupGame(topicID, gameID, roomID).catch(() => {});
     };
-  }, [myUID, topicID, gameID, roomID, initDone]);
+  }, [myUID, topicID, gameID, roomID, gameStarted]);
 
   // ── Computed values ──────────────────────────────────────────────────────
   const currentPlayerIndex = gameState?.currentPlayerIndex ?? 0;
   const currentPlayer      = players[currentPlayerIndex];
   const isMyTurn           = !!myUID && currentPlayer?.uid === myUID;
+
+  // Variabel untuk Bot Takeover
+  const currentActivePlayerUID = currentPlayer?.uid;
+  const currentActivity = currentActivePlayerUID ? gameState?.playerActivity?.[currentActivePlayerUID] : null;
+  // Jika offline lebih dari 60 detik atau isActive false
+  const isCurrentPlayerOffline = currentActivity ? (!currentActivity.isActive || (Date.now() - currentActivity.lastActivity > 60000)) : false;
+  
+  // Mencari siapa yang harus menjadi 'Otak' Bot (Bot Runner).
+  // Bot Runner adalah pemain pertama di daftar yang statusnya masih ONLINE.
+  const firstOnlinePlayer = players.find(p => {
+    const act = gameState?.playerActivity?.[p.uid];
+    return act ? (act.isActive && (Date.now() - act.lastActivity <= 60000)) : true;
+  });
+  const isMeBotRunner = firstOnlinePlayer?.uid === myUID;
+  const isBotActing = isMeBotRunner && isCurrentPlayerOffline && !isMyTurn;
   // pionPositions dalam Firebase: 1-indexed (1–100). 0 berarti belum di papan.
   // Kita kirim ke Board sebagai 0-indexed (0–99), atau -1 jika belum masuk papan.
   // Ubah nilai default ke 1 agar pion langsung tampil di papan kotak pertama.
@@ -215,17 +258,27 @@ export default function UlarTanggaPage() {
 
   const playerListForUI = players.map((p, i) => {
     const hasValidPhoto = typeof p.photoURL === 'string' && p.photoURL.startsWith('http');
+    
+    // Check if player is offline
+    const activity = gameState?.playerActivity?.[p.uid];
+    const isOffline = activity ? (!activity.isActive || (Date.now() - activity.lastActivity > 60000)) : false;
+    
+    // Gunakan avatar robot dari DiceBear jika offline
+    const finalAvatar = isOffline 
+      ? `https://api.dicebear.com/7.x/bottts/svg?seed=${p.uid}&backgroundColor=b6e3f4`
+      : (hasValidPhoto ? p.photoURL : (PION_AVATARS[i] || ularTangga.pion1)) as string;
+
     return {
       id:     i + 1,
       name:   p.displayName || p.name || `Pemain ${i + 1}`,
-      avatar: (hasValidPhoto ? p.photoURL : (PION_AVATARS[i] || ularTangga.pion1)) as string,
+      avatar: finalAvatar,
     };
   });
 
   // ── Handler: Saat dice diklik (mulai animasi) ────────────────────────────
   const handleDiceRollStart = useCallback(
     async (rolledNumber: number) => {
-      if (!isMyTurn || !gameState) return;
+      if ((!isMyTurn && !isBotActing) || !gameState) return;
 
       await updateGameState(topicID, gameID, roomID, {
         diceState: {
@@ -241,7 +294,7 @@ export default function UlarTanggaPage() {
   // ── Handler: Setelah dice selesai animasi ────────────────────────────────
   const handleDiceRollComplete = useCallback(
     async (rolledNumber: number, _isUserAction: boolean) => {
-      if (!isMyTurn || !gameState) return;
+      if ((!isMyTurn && !isBotActing) || !gameState) return;
 
       const currentPositions = [...(gameState.pionPositions ?? [])];
       const startPosition = currentPositions[currentPlayerIndex] ?? 0;
@@ -304,16 +357,24 @@ export default function UlarTanggaPage() {
         };
 
         const showQuestionLogic = async () => {
-          const shouldShowQuestion = Boolean(gameState.questions && gameState.questions.length > 0);
+          // MATIKAN PERTANYAAN SEMENTARA SESUAI REQUEST (karena ular/tangga dimatikan)
+          const shouldShowQuestion = false; // Boolean(gameState.questions && gameState.questions.length > 0);
           const nextQuestionIndex  = shouldShowQuestion
-            ? (gameState.currentQuestionIndex + 1) % gameState.questions.length
+            ? (gameState.currentQuestionIndex + 1) % (gameState.questions?.length || 1)
             : 0;
+
+          // Aturan Ular Tangga: Dapat 6 = Jalan Lagi!
+          const nextPlayerIndex = rolledNumber === 6
+            ? currentPlayerIndex
+            : (currentPlayerIndex + 1) % Math.max(players.length, 1);
 
           await updateGameState(topicID, gameID, roomID, {
             pionPositions:        nextPositions,
             showQuestion:         shouldShowQuestion,
             waitingForAnswer:     shouldShowQuestion,
             currentQuestionIndex: shouldShowQuestion ? nextQuestionIndex : gameState.currentQuestionIndex,
+            turnCounter:          (gameState.turnCounter || 0) + 1,
+            ...(shouldShowQuestion ? {} : { currentPlayerIndex: nextPlayerIndex }),
           });
         };
 
@@ -336,16 +397,22 @@ export default function UlarTanggaPage() {
   // ── Handler: Jawab soal ───────────────────────────────────────────────────
   const handleSelectAnswer = useCallback(
     async (selectedIndex: number) => {
-      if (!isMyTurn || !gameState || !currentQuestion) return;
+      if ((!isMyTurn && !isBotActing) || !gameState || !currentQuestion) return;
 
       const isCorrect = selectedIndex === currentQuestion.correctIndex;
-      const nextPlayerIndex = (currentPlayerIndex + 1) % Math.max(players.length, 1);
+      
+      // Jika sebelumnya dia dapat dadu 6, giliran tetap miliknya setelah menjawab!
+      const isExtraTurn = gameState.diceState?.currentNumber === 6;
+      const nextPlayerIndex = isExtraTurn
+        ? currentPlayerIndex
+        : (currentPlayerIndex + 1) % Math.max(players.length, 1);
 
       await updateGameState(topicID, gameID, roomID, {
         showQuestion:       false,
         waitingForAnswer:   false,
         isCorrect,
         currentPlayerIndex: nextPlayerIndex,
+        turnCounter:        (gameState.turnCounter || 0) + 1,
         diceState: {
           isRolling:     false,
           currentNumber: gameState.diceState?.currentNumber ?? 1,
@@ -353,10 +420,71 @@ export default function UlarTanggaPage() {
         },
       });
     },
-    [isMyTurn, gameState, currentQuestion, currentPlayerIndex, players.length, topicID, gameID, roomID],
+    [isMyTurn, isBotActing, gameState, currentQuestion, currentPlayerIndex, players.length, topicID, gameID, roomID],
   );
 
-  // ── Render Loading ───────────────────────────────────────────────────────
+  // Ref untuk mencegah bot melempar dadu berkali-kali pada giliran yang sama (saat pion sedang berjalan)
+  const lastBotTurnRef = useRef<number>(-1);
+
+  // Reset ref ketika turnCounter berubah
+  useEffect(() => {
+    const currentTurn = gameState?.turnCounter || 0;
+    if (lastBotTurnRef.current !== currentTurn) {
+      lastBotTurnRef.current = -1;
+    }
+  }, [gameState?.turnCounter]);
+
+  // ── BOT TAKEOVER LOGIC ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!gameStarted || !gameState || !isBotActing || isPaused) return;
+
+    // 1. Jika sedang menunggu jawaban soal
+    if (gameState.waitingForAnswer && gameState.showQuestion) {
+      const timer = setTimeout(() => {
+        // Jawab secara acak (0-3)
+        const randomAnswer = Math.floor(Math.random() * 4);
+        handleSelectAnswer(randomAnswer);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+    
+    // 2. Jika waktunya roll dadu (belum rolling dan tidak sedang ditanya)
+    if (!gameState.diceState?.isRolling && !gameState.waitingForAnswer) {
+      const currentTurnCount = gameState.turnCounter || 0;
+      if (lastBotTurnRef.current === currentTurnCount) return; // Mencegah double roll saat animasi berjalan
+
+      const timer = setTimeout(() => {
+        lastBotTurnRef.current = currentTurnCount; // Tandai bahwa bot sudah jalan di giliran ini
+        const randomDice = Math.floor(Math.random() * 6) + 1;
+        // Panggil start lalu complete dengan delay sedikit agar UI terlihat
+        handleDiceRollStart(randomDice);
+        setTimeout(() => {
+          handleDiceRollComplete(randomDice, false);
+        }, 1500); // Sesuaikan dengan durasi animasi dadu
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameStarted, gameState, isBotActing, isPaused, handleSelectAnswer, handleDiceRollStart, handleDiceRollComplete]);
+
+  // ── Render Loading & Locked State ─────────────────────────────────────────
+  if (isGameLocked) {
+    return (
+      <main className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-[#59a87d]">
+        <div className="flex flex-col items-center justify-center gap-6 p-8 bg-black/50 backdrop-blur-md rounded-2xl border-2 border-red-500 shadow-2xl max-w-lg text-center">
+          <span className="text-6xl">🔒</span>
+          <h2 className="text-white text-3xl font-bold" style={{ fontFamily: 'var(--font-spicy-rice)' }}>Akses Ditolak</h2>
+          <p className="text-gray-200 text-lg">Ada yang sedang bermain di room ini. Silakan tunggu hingga permainan selesai, atau bergabung dengan room lain.</p>
+          <button 
+            onClick={() => router.push(`/room/${params?.gameID}/${params?.topicID}/${params?.roomID}`)}
+            className="mt-4 px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-full transition-transform active:scale-95"
+          >
+            Kembali
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (loading) {
     return (
       <main className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-[#59a87d]">
@@ -371,6 +499,22 @@ export default function UlarTanggaPage() {
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
+  if (!gameStarted) {
+    return (
+      <main className="relative min-h-screen w-full overflow-x-hidden">
+        {/* Overlay rotasi perangkat */}
+        <RotateDeviceOverlay />
+        <UlarTanggaLobby 
+          players={players} 
+          onStartGame={handleStartGame} 
+          topicID={topicID} 
+          roomID={roomID} 
+          myUID={myUID}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden">
       {/* Overlay rotasi perangkat */}
@@ -383,9 +527,9 @@ export default function UlarTanggaPage() {
 
       {/* Konten utama */}
       <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start lg:items-center justify-center min-h-[100svh] pt-2 md:pt-4 lg:pt-8 pb-0 px-2 md:px-5 lg:px-8 w-full max-w-[1400px] mx-auto">
-        {/* Tombol Back */}
+        {/* Tombol Back di dalam game (jika user ingin keluar dari game yang sedang berlangsung) */}
         <button
-          onClick={() => router.push(`/room/${params?.gameID}/${params?.topicID}/${params?.roomID}`)}
+          onClick={() => router.push(`/lobby/${params?.topicID}/${params?.gameID}`)}
           className="absolute left-10 lg:left-7 top-7 z-50 text-white transition-transform hover:scale-110"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-10 h-10">

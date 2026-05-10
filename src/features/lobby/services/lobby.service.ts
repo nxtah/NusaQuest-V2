@@ -155,6 +155,31 @@ export async function playerJoinRoom(
       if (!currentRoomData) return currentRoomData;
 
       const currentPlayersData = currentRoomData.players || {};
+      
+      // 1. Check if user is already in the room
+      let alreadyJoined = false;
+      for (const key of Object.keys(currentPlayersData)) {
+        if (currentPlayersData[key].uid === userId) {
+          alreadyJoined = true;
+          break;
+        }
+      }
+      if (alreadyJoined) return currentRoomData; // Skip adding again
+
+      // 2. Prevent joining if game has already started
+      if (currentRoomData.gameStatus === 'playing' || (currentRoomData as any).gameStarted) {
+        // SELF HEALING: If game started but no players exist, it's corrupted. Reset it!
+        if (Object.keys(currentPlayersData).length === 0) {
+           currentRoomData.gameStatus = 'waiting';
+           (currentRoomData as any).gameStarted = false;
+           currentRoomData.gameState = null;
+           // Terus ke bawah untuk memperbolehkan user join sebagai pemain pertama
+        } else {
+           // Abort transaction to throw error below
+           return; 
+        }
+      }
+
       const capacity = currentRoomData.capacity || 4;
 
       if (Object.keys(currentPlayersData).length >= capacity) {
@@ -189,6 +214,15 @@ export async function playerJoinRoom(
     });
 
     if (!transactionResult.committed) {
+      // If aborted because game started (returned undefined), roomData hasn't changed.
+      // So we can check the original snapshot or fetch a new one to be sure.
+      const freshSnap = await get(roomRef);
+      if (freshSnap.exists()) {
+        const freshData = freshSnap.val();
+        if (freshData.gameStatus === 'playing' || freshData.gameStarted) {
+          throw new Error('Permainan sedang berlangsung');
+        }
+      }
       throw new Error('Room penuh');
     }
   } catch (error) {
@@ -227,6 +261,7 @@ export async function playerLeaveRoom(
         if (remainingPlayers <= 0) {
           roomUpdates.gameStatus = 'waiting';
           roomUpdates.gameState = null;
+          (roomUpdates as any).gameStarted = false; // Reset gameStarted for V2
         }
 
         await update(ref(firebaseDb, roomPath), roomUpdates);

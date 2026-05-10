@@ -10,6 +10,7 @@ import {
   onValue,
   set,
   update,
+  remove,
   off,
   ref,
 } from 'firebase/database';
@@ -57,6 +58,7 @@ export interface UlarTanggaGameState {
   allowExtraRoll: boolean;
   potionUsable: boolean;
   currentQuestionIndex: number;
+  turnCounter?: number;
   questions: UlarTanggaQuestion[];
   gameStatus: 'playing' | 'finished' | 'abandoned';
   gameType: 'ulartangga';
@@ -159,7 +161,10 @@ export function fetchGamePlayers(
 
   const unsubscribe = onValue(playersRef, (snapshot) => {
     const data = snapshot.val() || {};
-    const playersArray = Object.values(data) as GamePlayer[];
+    const playersArray = Object.values(data).map((p: any) => ({
+      ...p,
+      displayName: p.displayName || p.name || 'Pemain',
+    })) as GamePlayer[];
     callback(playersArray);
   });
 
@@ -379,12 +384,31 @@ export async function cleanupGame(
 ): Promise<void> {
   const db = getFirebaseDb();
   try {
+    // 1. Bersihkan pemain offline/bot dari daftar players agar tidak nyangkut di Lobby berikutnya
+    const activityRef = ref(db, `${gameStateRef(topicID, gameID, roomID)}/playerActivity`);
+    const activitySnap = await get(activityRef);
+    if (activitySnap.exists()) {
+      const activities = activitySnap.val();
+      const playersRef = ref(db, `${roomRef(topicID, gameID, roomID)}/players`);
+      const playersSnap = await get(playersRef);
+      if (playersSnap.exists()) {
+        const playersData = playersSnap.val();
+        for (const [key, player] of Object.entries(playersData)) {
+          const act = activities[(player as any).uid];
+          // Jika offline, hapus dari list players
+          if (!act || !act.isActive || (Date.now() - act.lastActivity > 60000)) {
+            await remove(ref(db, `${roomRef(topicID, gameID, roomID)}/players/${key}`));
+          }
+        }
+      }
+    }
+
+    // 2. Reset state game (Pemain aktif/manusia akan dihapus oleh playerLeaveRoom saat mereka pindah halaman)
     await set(ref(db, gameStateRef(topicID, gameID, roomID)), null);
     await set(ref(db, `${roomRef(topicID, gameID, roomID)}/gameTimer`), null);
     await setGameStatus(topicID, gameID, roomID, null);
     await setGameStartStatus(topicID, gameID, roomID, false);
     await set(ref(db, `${roomRef(topicID, gameID, roomID)}/chatMessages`), null);
-    await set(ref(db, `${roomRef(topicID, gameID, roomID)}/players`), null);
   } catch (error) {
     console.error('Error cleaning up game:', error);
   }
@@ -407,15 +431,60 @@ export async function updatePlayerActivity(
     `${gameStateRef(topicID, gameID, roomID)}/playerActivity/${userUID}`,
   );
   try {
-    const snapshot = await get(activityRef);
-    if (snapshot.exists()) {
-      await set(activityRef, {
-        ...snapshot.val(),
-        lastActivity: Date.now(),
-        isActive: true,
-      });
-    }
+    await update(activityRef, {
+      lastActivity: Date.now(),
+      isActive: true,
+    });
   } catch (error) {
     console.error('Error updating player activity:', error);
+  }
+}
+
+export async function setPlayerOffline(
+  topicID: string,
+  gameID: string,
+  roomID: string,
+  userUID: string,
+): Promise<void> {
+  if (!topicID || !gameID || !roomID || !userUID) return;
+  const db = getFirebaseDb();
+  const activityRef = ref(
+    db,
+    `${gameStateRef(topicID, gameID, roomID)}/playerActivity/${userUID}`,
+  );
+  try {
+    await update(activityRef, {
+      lastActivity: Date.now(),
+      isActive: false,
+    });
+
+    // Cek apakah masih ada pemain manusia yang online
+    const actSnap = await get(ref(db, `${gameStateRef(topicID, gameID, roomID)}/playerActivity`));
+    if (actSnap.exists()) {
+      const activities = actSnap.val();
+      let hasOnline = false;
+      for (const uid of Object.keys(activities)) {
+        const act = activities[uid];
+        if (act.isActive && (Date.now() - act.lastActivity <= 60000)) {
+          hasOnline = true;
+          break;
+        }
+      }
+      
+      // Jika semua pemain sudah keluar / offline (hanya tersisa bot/ghost)
+      if (!hasOnline) {
+        // Hancurkan game ini sepenuhnya dan kembalikan ke Lobby kosong
+        const rRef = roomRef(topicID, gameID, roomID);
+        const updates: any = {};
+        updates[`${rRef}/gameStarted`] = false;
+        updates[`${rRef}/gameStatus`] = 'waiting';
+        updates[`${rRef}/gameState`] = null;
+        updates[`${rRef}/players`] = null;
+        updates[`${rRef}/currentPlayers`] = 0;
+        await update(ref(db), updates);
+      }
+    }
+  } catch (error) {
+    console.error('Error setting player offline:', error);
   }
 }

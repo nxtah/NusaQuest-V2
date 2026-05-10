@@ -133,8 +133,7 @@ export default function Dice({
   // Handle external dice state change (multiplayer sync)
   useEffect(() => {
     // Reset guard setiap kali Firebase menyatakan tidak ada roll yang sedang berlangsung
-    // HANYA jika animasi lokal sudah selesai (!isLocalRolling) untuk mencegah race condition
-    if (!diceState?.isRolling && !isLocalRolling) {
+    if (!diceState?.isRolling) {
       hasCalledRef.current = false;
     }
 
