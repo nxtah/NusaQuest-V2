@@ -559,8 +559,12 @@ export async function movePawn(
     },
   };
 
-  // 1. Update posisi pion ke kotak tujuan dadu
-  const newPositions = [...state.pionPositions];
+  // 1. Update posisi pion ke kotak tujuan dadu (Pastikan format array aman)
+  const currentPositions = Array.isArray(state.pionPositions) 
+    ? [...state.pionPositions] 
+    : Object.values(state.pionPositions);
+    
+  const newPositions = [...currentPositions];
   newPositions[playerIndex] = newPos;
   updates.pionPositions = newPositions;
 
@@ -650,7 +654,12 @@ export async function submitAnswer(
     const target = getLadderTarget(currentPos);
     if (target) {
       console.log(`[UlarTangga] Jawaban BENAR! Naik dari ${currentPos} ke ${target}`);
-      const newPositions = [...state.pionPositions];
+      
+      const currentPositions = Array.isArray(state.pionPositions) 
+        ? [...state.pionPositions] 
+        : Object.values(state.pionPositions);
+        
+      const newPositions = [...currentPositions];
       newPositions[playerIndex] = target;
       updates.pionPositions = newPositions;
     } else {
