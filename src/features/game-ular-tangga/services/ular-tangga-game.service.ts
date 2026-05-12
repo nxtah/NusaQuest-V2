@@ -551,6 +551,10 @@ export async function movePawn(
   const nextPlayer = (playerIndex + 1) % state.pionPositions.length;
   const updates: Partial<UlarTanggaGameState> & Record<string, any> = {
     isMoving: false,
+    diceState: {
+      isRolling: false,
+      currentNumber: steps,
+    },
   };
 
   // 1. Update posisi pion ke kotak tujuan dadu
