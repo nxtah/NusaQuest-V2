@@ -548,7 +548,8 @@ export async function movePawn(
   // Jika melebihi 100, tetap di tempat
   if (newPos > 100) newPos = currentPos;
 
-  const nextPlayer = (playerIndex + 1) % state.pionPositions.length;
+  const isExtraTurn = steps === 6;
+  const nextPlayer = isExtraTurn ? playerIndex : (playerIndex + 1) % state.pionPositions.length;
   const updates: Partial<UlarTanggaGameState> & Record<string, any> = {
     isMoving: false,
     diceState: {
@@ -680,8 +681,13 @@ export async function nextTurn(
   const state = await getGameState(topicID, gameID, roomID);
   if (!state) return;
 
+  const isExtraTurn = state.diceState?.lastRoll === 6;
+  const nextPlayerIndex = isExtraTurn 
+    ? state.currentPlayerIndex 
+    : (state.currentPlayerIndex + 1) % state.pionPositions.length;
+
   await updateGameState(topicID, gameID, roomID, {
-    currentPlayerIndex: (state.currentPlayerIndex + 1) % state.pionPositions.length,
+    currentPlayerIndex: nextPlayerIndex,
     showQuestion: false,
     isCorrect: null,
     selectedAnswerIndex: null,
