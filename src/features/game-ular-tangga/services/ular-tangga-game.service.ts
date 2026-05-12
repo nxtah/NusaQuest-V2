@@ -542,14 +542,22 @@ export async function movePawn(
     return;
   }
 
-  const currentPos = state.pionPositions[playerIndex] ?? 0;
+  const pIndex = Number(playerIndex);
+  const currentPositions = Array.isArray(state.pionPositions) 
+    ? [...state.pionPositions] as number[]
+    : Object.values(state.pionPositions) as number[];
+    
+  const currentPos = currentPositions[pIndex] ?? 0;
   let newPos = currentPos + steps;
+
+  console.log(`[UlarTangga] Bergerak: Pemain ${pIndex} | Dari ${currentPos} ke ${newPos} (Dadu: ${steps})`);
 
   // Jika melebihi 100, tetap di tempat
   if (newPos > 100) newPos = currentPos;
 
   const isExtraTurn = steps === 6;
-  const nextPlayer = isExtraTurn ? playerIndex : (playerIndex + 1) % state.pionPositions.length;
+  const nextPlayer = isExtraTurn ? pIndex : (pIndex + 1) % currentPositions.length;
+
   const updates: Partial<UlarTanggaGameState> & Record<string, any> = {
     isMoving: false,
     diceState: {
@@ -559,21 +567,15 @@ export async function movePawn(
     },
   };
 
-  // 1. Update posisi pion ke kotak tujuan dadu (Pastikan format array aman)
-  const currentPositions = Array.isArray(state.pionPositions) 
-    ? [...state.pionPositions] as number[]
-    : Object.values(state.pionPositions) as number[];
-    
+  // 1. Update posisi pion ke kotak tujuan dadu
   const newPositions = [...currentPositions];
-  newPositions[playerIndex] = newPos;
+  newPositions[pIndex] = newPos;
   updates.pionPositions = newPositions;
 
-  // 2. Cek Tangga (LADDER) sesuai request user
+  // 2. Cek Tangga (LADDER)
   if (isLadderStart(newPos)) {
-    console.log(`[UlarTangga] Pion mendarat di TANGGA (kotak ${newPos})`);
-    
+    console.log(`[UlarTangga] TANGGA terdeteksi di kotak ${newPos}`);
     if (!state.questions || state.questions.length === 0) {
-      console.warn('[UlarTangga] Soal tidak ditemukan di state game!');
       updates.currentPlayerIndex = nextPlayer;
       await updateGameState(topicID, gameID, roomID, updates);
       return;
@@ -583,24 +585,17 @@ export async function movePawn(
     const question = state.questions[qIndex];
 
     if (!question) {
-      console.error('Soal pada index ini tidak ditemukan');
       updates.currentPlayerIndex = nextPlayer;
       await updateGameState(topicID, gameID, roomID, updates);
       return;
     }
 
-    // Tampilkan soal
     updates.showQuestion = true;
     updates.waitingForAnswer = true;
     updates.isCorrect = null;
     updates.selectedAnswerIndex = null;
     
-    // Shuffle opsi jawaban
-    const { shuffledOptions, correctIndex } = shuffleOptions(
-      question.options,
-      question.correctIndex
-    );
-    
+    const { shuffledOptions, correctIndex } = shuffleOptions(question.options, question.correctIndex);
     updates[`questions/${qIndex}/options`] = shuffledOptions;
     updates[`questions/${qIndex}/correctIndex`] = correctIndex;
     
@@ -609,8 +604,9 @@ export async function movePawn(
   // 3. Cek Ular (SNAKE)
   else if (isSnakeHead(newPos)) {
     const target = getSnakeTarget(newPos);
-    if (target) {
-      newPositions[playerIndex] = target;
+    console.log(`[UlarTangga] ULAR terdeteksi! Turun ke ${target}`);
+    if (target !== null) {
+      newPositions[pIndex] = target;
       updates.pionPositions = newPositions;
     }
     updates.currentPlayerIndex = nextPlayer;
@@ -618,6 +614,7 @@ export async function movePawn(
   }
   // 4. Kotak Biasa
   else {
+    console.log(`[UlarTangga] Kotak Biasa. Next Player: ${nextPlayer}`);
     updates.currentPlayerIndex = nextPlayer;
     await updateGameState(topicID, gameID, roomID, updates);
   }
