@@ -561,8 +561,8 @@ export async function movePawn(
 
   // 1. Update posisi pion ke kotak tujuan dadu (Pastikan format array aman)
   const currentPositions = Array.isArray(state.pionPositions) 
-    ? [...state.pionPositions] 
-    : Object.values(state.pionPositions);
+    ? [...state.pionPositions] as number[]
+    : Object.values(state.pionPositions) as number[];
     
   const newPositions = [...currentPositions];
   newPositions[playerIndex] = newPos;
@@ -656,8 +656,8 @@ export async function submitAnswer(
       console.log(`[UlarTangga] Jawaban BENAR! Naik dari ${currentPos} ke ${target}`);
       
       const currentPositions = Array.isArray(state.pionPositions) 
-        ? [...state.pionPositions] 
-        : Object.values(state.pionPositions);
+        ? [...state.pionPositions] as number[]
+        : Object.values(state.pionPositions) as number[];
         
       const newPositions = [...currentPositions];
       newPositions[playerIndex] = target;
