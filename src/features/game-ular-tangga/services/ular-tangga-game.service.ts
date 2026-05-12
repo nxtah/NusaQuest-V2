@@ -554,6 +554,7 @@ export async function movePawn(
     diceState: {
       isRolling: false,
       currentNumber: steps,
+      lastRoll: steps,
     },
   };
 
@@ -689,7 +690,7 @@ export async function nextTurn(
     diceState: {
       isRolling: false,
       currentNumber: 1,
-      lastRoll: null,
+      lastRoll: state.diceState?.lastRoll || 1,
     },
   });
 }
