@@ -60,6 +60,7 @@ export default function PlayerTurnBox({
               selectedIndex={question.selectedIndex ?? null}
               isCorrectIndex={question.isCorrectIndex ?? null}
               onSelectOption={onSelectAnswer}
+              playerName={focusedPlayerName ?? undefined}
             />
           ) : (
             <InitialPanel focusedName={focusedPlayerName} />
