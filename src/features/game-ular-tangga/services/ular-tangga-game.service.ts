@@ -15,6 +15,12 @@ import {
   ref,
 } from 'firebase/database';
 import { getFirebaseDb } from '../../../lib/firebase/db';
+import {
+  isLadderStart,
+  getLadderTarget,
+  isSnakeHead,
+  getSnakeTarget,
+} from '../utils/board-rules';
 
 // ─── Helpers untuk path ─────────────────────────────────────────────────────
 
@@ -55,6 +61,7 @@ export interface UlarTanggaGameState {
   showQuestion: boolean;
   waitingForAnswer: boolean;
   isCorrect: boolean | null;
+  selectedAnswerIndex: number | null;
   allowExtraRoll: boolean;
   potionUsable: boolean;
   currentQuestionIndex: number;
@@ -185,9 +192,36 @@ export async function getQuestions(topicID: string): Promise<UlarTanggaQuestion[
     const data = snapshot.val();
     if (!data) return [];
 
-    return Object.keys(data)
-      .map((key) => ({ id: key, ...data[key] } as UlarTanggaQuestion))
-      .filter((q) => q.topic === topicID);
+    const questionList = Object.keys(data).map((key) => {
+      const q = data[key];
+      let rawOptions = q.options || q.multiple_choices || [];
+      
+      // Pastikan options adalah array string (Firebase terkadang mengirim objek)
+      const finalOptions = (Array.isArray(rawOptions) ? rawOptions : Object.values(rawOptions))
+        .map(opt => {
+          if (typeof opt === 'object' && opt !== null) {
+            return (opt as any).text || (opt as any).choice || Object.values(opt)[0] || '';
+          }
+          return String(opt);
+        });
+
+      return {
+        id: key,
+        text: q.text || q.question_text || '',
+        options: finalOptions,
+        correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index !== undefined ? q.correct_index : 0),
+        topic: q.topic || ''
+      } as UlarTanggaQuestion;
+    });
+    
+    // Filter berdasarkan topik (Kecuali jika topiknya "math", ambil semua untuk testing)
+    const filtered = questionList.filter((q) => {
+      const isTopicMatch = topicID === 'math' || q.topic === topicID;
+      return isTopicMatch && q.text && q.options;
+    });
+
+    console.log(`[UlarTangga] Topic: ${topicID} | Total Soal Ditemukan: ${filtered.length}`);
+    return filtered;
   } catch (error) {
     console.error('Error fetching questions:', error);
     return [];
@@ -333,11 +367,12 @@ export async function initializeUlarTanggaGameState(
 
       const initialState: UlarTanggaGameState = {
         currentPlayerIndex: 0,
-        pionPositions: new Array(playerCount).fill(1),
+        pionPositions: new Array(playerCount).fill(0),
         isMoving: false,
         showQuestion: false,
         waitingForAnswer: false,
         isCorrect: null,
+        selectedAnswerIndex: null,
         allowExtraRoll: false,
         potionUsable: false,
         currentQuestionIndex: 0,
@@ -487,4 +522,180 @@ export async function setPlayerOffline(
   } catch (error) {
     console.error('Error setting player offline:', error);
   }
+}
+
+// ─── Core Gameplay Logic ─────────────────────────────────────────────────────
+
+/**
+ * Memindahkan pion pemain berdasarkan angka dadu.
+ */
+export async function movePawn(
+  topicID: string,
+  gameID: string,
+  roomID: string,
+  playerIndex: number,
+  steps: number,
+): Promise<void> {
+  const state = await getGameState(topicID, gameID, roomID);
+  if (!state || !state.pionPositions) {
+    console.error('GameState atau pionPositions tidak ditemukan');
+    return;
+  }
+
+  const currentPos = state.pionPositions[playerIndex] ?? 0;
+  let newPos = currentPos + steps;
+
+  // Jika melebihi 100, tetap di tempat
+  if (newPos > 100) newPos = currentPos;
+
+  const nextPlayer = (playerIndex + 1) % state.pionPositions.length;
+  const updates: Partial<UlarTanggaGameState> & Record<string, any> = {
+    isMoving: false,
+  };
+
+  // 1. Update posisi pion ke kotak tujuan dadu
+  const newPositions = [...state.pionPositions];
+  newPositions[playerIndex] = newPos;
+  updates.pionPositions = newPositions;
+
+  // 2. Cek Tangga (LADDER) sesuai request user
+  if (isLadderStart(newPos)) {
+    console.log(`[UlarTangga] Pion mendarat di TANGGA (kotak ${newPos})`);
+    
+    if (!state.questions || state.questions.length === 0) {
+      console.warn('[UlarTangga] Soal tidak ditemukan di state game!');
+      updates.currentPlayerIndex = nextPlayer;
+      await updateGameState(topicID, gameID, roomID, updates);
+      return;
+    }
+
+    const qIndex = state.currentQuestionIndex || 0;
+    const question = state.questions[qIndex];
+
+    if (!question) {
+      console.error('Soal pada index ini tidak ditemukan');
+      updates.currentPlayerIndex = nextPlayer;
+      await updateGameState(topicID, gameID, roomID, updates);
+      return;
+    }
+
+    // Tampilkan soal
+    updates.showQuestion = true;
+    updates.waitingForAnswer = true;
+    updates.isCorrect = null;
+    updates.selectedAnswerIndex = null;
+    
+    // Shuffle opsi jawaban
+    const { shuffledOptions, correctIndex } = shuffleOptions(
+      question.options,
+      question.correctIndex
+    );
+    
+    updates[`questions/${qIndex}/options`] = shuffledOptions;
+    updates[`questions/${qIndex}/correctIndex`] = correctIndex;
+    
+    await updateGameState(topicID, gameID, roomID, updates);
+  } 
+  // 3. Cek Ular (SNAKE)
+  else if (isSnakeHead(newPos)) {
+    const target = getSnakeTarget(newPos);
+    if (target) {
+      newPositions[playerIndex] = target;
+      updates.pionPositions = newPositions;
+    }
+    updates.currentPlayerIndex = nextPlayer;
+    await updateGameState(topicID, gameID, roomID, updates);
+  }
+  // 4. Kotak Biasa
+  else {
+    updates.currentPlayerIndex = nextPlayer;
+    await updateGameState(topicID, gameID, roomID, updates);
+  }
+}
+
+/**
+ * Menangani jawaban user untuk tantangan tangga.
+ */
+export async function submitAnswer(
+  topicID: string,
+  gameID: string,
+  roomID: string,
+  selectedIndex: number,
+): Promise<void> {
+  const state = await getGameState(topicID, gameID, roomID);
+  if (!state || !state.waitingForAnswer) return;
+
+  const qIndex = state.currentQuestionIndex;
+  const question = state.questions[qIndex];
+  const isCorrect = selectedIndex === question.correctIndex;
+
+  const updates: Partial<UlarTanggaGameState> & Record<string, any> = {
+    isCorrect,
+    selectedAnswerIndex: selectedIndex,
+    waitingForAnswer: false,
+    // currentQuestionIndex dipindah ke nextTurn agar soal tidak langsung ganti di UI
+  };
+
+  const playerIndex = state.currentPlayerIndex;
+  const currentPos = state.pionPositions[playerIndex];
+
+  if (isCorrect) {
+    // Jika benar: naik tangga
+    const target = getLadderTarget(currentPos);
+    if (target) {
+      console.log(`[UlarTangga] Jawaban BENAR! Naik dari ${currentPos} ke ${target}`);
+      const newPositions = [...state.pionPositions];
+      newPositions[playerIndex] = target;
+      updates.pionPositions = newPositions;
+    } else {
+      console.warn(`[UlarTangga] Target tangga tidak ditemukan untuk posisi ${currentPos}`);
+    }
+  } else {
+    console.log(`[UlarTangga] Jawaban SALAH! Tetap di kotak ${currentPos}`);
+  }
+
+  // Berikan jeda sedikit untuk UI menampilkan warna (highlight) sebelum tutup modal dan ganti turn
+  // Namun karena ini service, kita hanya update state isCorrect. 
+  // UI akan mendengarkan isCorrect dan memberikan highlight.
+  // Setelah jeda (di handled oleh hook/UI), turn akan berganti.
+  
+  await updateGameState(topicID, gameID, roomID, updates);
+
+  // Fungsi untuk mengganti turn bisa dipanggil dari sini atau dari hook setelah delay
+}
+
+/**
+ * Memindahkan giliran ke pemain berikutnya.
+ */
+export async function nextTurn(
+  topicID: string,
+  gameID: string,
+  roomID: string
+): Promise<void> {
+  const state = await getGameState(topicID, gameID, roomID);
+  if (!state) return;
+
+  await updateGameState(topicID, gameID, roomID, {
+    currentPlayerIndex: (state.currentPlayerIndex + 1) % state.pionPositions.length,
+    showQuestion: false,
+    isCorrect: null,
+    selectedAnswerIndex: null,
+    // Update index soal di sini setelah panel tertutup
+    currentQuestionIndex: (state.currentQuestionIndex + 1) % (state.questions?.length || 1),
+    diceState: {
+      isRolling: false,
+      currentNumber: 1,
+      lastRoll: null,
+    },
+  });
+}
+
+/**
+ * Helper untuk shuffle opsi jawaban tanpa kehilangan jejak jawaban benar.
+ */
+function shuffleOptions(options: string[], correctIndex: number) {
+  const correctText = options[correctIndex];
+  const shuffledOptions = shuffle([...options]);
+  const newCorrectIndex = shuffledOptions.indexOf(correctText);
+  return { shuffledOptions, correctIndex: newCorrectIndex };
 }

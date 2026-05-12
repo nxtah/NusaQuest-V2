@@ -20,21 +20,21 @@ export default function QuestionPanel({
 }: QuestionPanelProps) {
   return (
     <div className="relative w-full max-w-[560px] px-2 sm:px-0">
-      <div className="relative w-full aspect-[1069/722] overflow-hidden">
+      <div className="relative w-full aspect-[1069/722]">
         <div
           className="absolute inset-0 bg-center bg-contain bg-no-repeat"
           style={{ backgroundImage: `url(${ularTangga.kertas})` }}
         />
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-3 py-3 sm:px-5 sm:py-5 md:px-6 md:py-6 lg:px-8 lg:py-8">
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4">
           {/* Question Text - Responsive sizing */}
-          <p className="w-full max-w-[92%] text-center text-[11px] leading-tight font-medium text-gray-800 sm:max-w-[88%] sm:text-xs sm:leading-snug md:text-sm md:leading-relaxed lg:text-base break-words text-balance">
+          <p className="w-full max-w-[90%] text-center text-[10px] leading-tight font-bold text-gray-800 sm:text-xs md:text-sm lg:text-base break-words text-balance mb-1 sm:mb-2">
             {questionText}
           </p>
 
           {/* Options - Responsive gap and sizing */}
-          <div className="mt-3 sm:mt-4 md:mt-5 flex w-full max-w-[92%] flex-col items-center gap-1.5 sm:gap-2 md:gap-2.5 lg:gap-3 overflow-hidden">
-            {options.map((option, index) => {
+          <div className="flex w-full max-w-[92%] flex-col items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5">
+            {options?.map((option, index) => {
               const isSelected = selectedIndex === index;
               const isCorrect = isCorrectIndex === index;
               const isAnswered = selectedIndex !== null;
@@ -43,15 +43,15 @@ export default function QuestionPanel({
 
               return (
                 <button
-                  key={option}
+                  key={index}
                   type="button"
                   onClick={() => onSelectOption?.(index)}
                   disabled={selectedIndex !== null}
-                  className={`w-full rounded-full border px-3 py-1.5 text-[10px] font-medium leading-tight transition-all sm:px-4 sm:py-2 sm:text-xs md:px-5 md:py-2.5 md:text-sm disabled:cursor-not-allowed disabled:opacity-100 ${
+                  className={`w-full rounded-full border px-2 py-1 text-[9px] font-medium leading-tight transition-all sm:px-3 sm:py-1.5 sm:text-[10px] md:px-4 md:py-2 md:text-xs lg:text-sm disabled:cursor-not-allowed disabled:opacity-100 ${
                     isGreen
-                      ? 'border-lime-500 bg-lime-400 text-gray-900 font-bold scale-[1.0]'
+                      ? 'border-lime-500 bg-lime-400 text-gray-900 font-bold'
                       : isWrong
-                        ? 'border-red-600 bg-red-500 text-white font-bold scale-[1.0]'
+                        ? 'border-red-600 bg-red-500 text-white font-bold'
                         : isAnswered
                           ? 'border-gray-300 bg-gray-100 text-gray-600'
                           : 'border-gray-400 bg-transparent text-gray-900 hover:bg-black/5 active:bg-black/10'

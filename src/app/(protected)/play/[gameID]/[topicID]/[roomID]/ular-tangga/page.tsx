@@ -34,37 +34,18 @@ import {
   cleanupGame,
   updatePlayerActivity,
   setPlayerOffline,
+  movePawn,
+  submitAnswer,
+  nextTurn,
   type UlarTanggaGameState,
   type GamePlayer,
   type UlarTanggaQuestion,
 } from '../../../../../../../features/game-ular-tangga/services/ular-tangga-game.service';
 import { playerJoinRoom, playerLeaveRoom } from '../../../../../../../features/lobby/services/lobby.service';
 import UlarTanggaLobby from '../../../../../../../features/game-ular-tangga/components/UlarTanggaLobby';
+import { LADDERS, SNAKES } from '../../../../../../../features/game-ular-tangga/utils/board-rules';
 
-// ─── Posisi ULAR (kepala → buntut) sesuai foto papan ───────────────────────
-const SNAKES_DOWN: { start: number; end: number }[] = [
-  { start: 23, end: 2  },
-  { start: 30, end: 9  },
-  { start: 56, end: 39 },
-  { start: 66, end: 44 },
-  { start: 68, end: 14 },
-  { start: 91, end: 49 },
-  { start: 94, end: 67 },
-  { start: 98, end: 79 },
-];
-
-// ─── Posisi TANGGA (bawah → atas) sesuai foto papan ─────────────────────────
-const TANGGA_UP: { start: number; end: number }[] = [
-  { start: 4,  end: 14 },
-  { start: 9,  end: 31 },
-  { start: 20, end: 38 },
-  { start: 28, end: 84 },
-  { start: 40, end: 59 },
-  { start: 51, end: 67 },
-  { start: 63, end: 81 },
-  { start: 71, end: 91 },
-  { start: 80, end: 100 },
-];
+// Data tangga dan ular sekarang dikelola oleh board-rules.ts dan service layer.
 
 // ─── Avatar pion per index ──────────────────────────────────────────────────
 const PION_AVATARS = [
@@ -180,6 +161,9 @@ export default function UlarTanggaPage() {
       await cleanupGame(topicID, gameID, roomID);
       
       const questions = await getQuestions(topicID);
+      if (questions.length === 0) {
+        alert(`Peringatan: Tidak ada soal ditemukan untuk topik "${topicID}". Game akan berjalan tanpa tantangan tangga.`);
+      }
       const shuffled  = shuffle<UlarTanggaQuestion>(questions);
 
       // Tetapkan index pemain berdasarkan urutan mereka masuk ke array
@@ -247,10 +231,10 @@ export default function UlarTanggaPage() {
   });
   const isMeBotRunner = firstOnlinePlayer?.uid === myUID;
   const isBotActing = isMeBotRunner && isCurrentPlayerOffline && !isMyTurn;
-  // pionPositions dalam Firebase: 1-indexed (1–100). 0 berarti belum di papan.
+  // pionPositions dalam Firebase: 1-indexed (1–100). 0 berarti belum di papan (Start).
   // Kita kirim ke Board sebagai 0-indexed (0–99), atau -1 jika belum masuk papan.
-  // Ubah nilai default ke 1 agar pion langsung tampil di papan kotak pertama.
-  const pionPositionsRaw = gameState?.pionPositions ?? new Array(players.length).fill(1);
+  // Set default ke 0 agar pemain bisa mendarat di kotak 1.
+  const pionPositionsRaw = gameState?.pionPositions ?? new Array(players.length).fill(0);
   const showQuestion       = gameState?.showQuestion   ?? false;
   const currentQuestion    = gameState
     ? (gameState.questions?.[gameState.currentQuestionIndex] ?? null)
@@ -293,134 +277,26 @@ export default function UlarTanggaPage() {
 
   // ── Handler: Setelah dice selesai animasi ────────────────────────────────
   const handleDiceRollComplete = useCallback(
-    async (rolledNumber: number, _isUserAction: boolean) => {
+    async (rolledNumber: number, _isUserAction?: boolean) => {
       if ((!isMyTurn && !isBotActing) || !gameState) return;
-
-      const currentPositions = [...(gameState.pionPositions ?? [])];
-      const startPosition = currentPositions[currentPlayerIndex] ?? 0;
-      let intermediatePosition = startPosition + rolledNumber;
-
-      // Jika melebihi 100, tidak jadi jalan
-      if (intermediatePosition > BOARD_SIZE) {
-        intermediatePosition = startPosition;
-      }
-
-      // MATIKAN SEMENTARA SESUAI REQUEST
-      const tanggaMatch = undefined; // TANGGA_UP.find((t) => t.start === intermediatePosition);
-      const snakeMatch = undefined; // SNAKES_DOWN.find((s) => s.start === intermediatePosition);
-      const finalPosition = intermediatePosition; // tanggaMatch ? tanggaMatch.end : (snakeMatch ? snakeMatch.end : intermediatePosition);
-
-      // 1. Posisikan ke angka dadu terlebih dahulu agar pion berjalan langkah demi langkah
-      currentPositions[currentPlayerIndex] = intermediatePosition;
-
-      await updateGameState(topicID, gameID, roomID, {
-        pionPositions: [...currentPositions],
-        diceState: {
-          isRolling:     false,
-          currentNumber: rolledNumber,
-          lastRoll:      rolledNumber,
-        },
-      });
-
-      // Hitung durasi jalan pion: tiap kotak = 0.18 + 0.14 = 0.32 detik
-      const stepsToWalk = Math.abs(intermediatePosition - startPosition);
-      const walkDurationMs = stepsToWalk > 0 ? stepsToWalk * 320 + 200 : 500;
-
-      // 2. Tunggu animasi berjalan selesai, lalu eksekusi ular/tangga & pertanyaan
-      setTimeout(async () => {
-        const nextPositions = [...currentPositions];
-        nextPositions[currentPlayerIndex] = finalPosition;
-
-        const hasJump = finalPosition !== intermediatePosition;
-
-        // Jika ada lompatan (ular/tangga), update posisi dulu agar meluncur
-        if (hasJump) {
-          await updateGameState(topicID, gameID, roomID, {
-            pionPositions: [...nextPositions],
-          });
-        }
-
-        const finishGameIfDone = async () => {
-          if (finalPosition >= BOARD_SIZE) {
-            await updateGameState(topicID, gameID, roomID, {
-              pionPositions:         nextPositions,
-              gameStatus:            'finished',
-              gameWinnerUID:         currentPlayer?.uid,
-              gameWinnerDisplayName: currentPlayer?.displayName,
-              gameWonAt:             Date.now(),
-            });
-            await cleanupGame(topicID, gameID, roomID);
-            router.push(`/lobby/${topicID}/${gameID}`);
-            return true;
-          }
-          return false;
-        };
-
-        const showQuestionLogic = async () => {
-          // MATIKAN PERTANYAAN SEMENTARA SESUAI REQUEST (karena ular/tangga dimatikan)
-          const shouldShowQuestion = false; // Boolean(gameState.questions && gameState.questions.length > 0);
-          const nextQuestionIndex  = shouldShowQuestion
-            ? (gameState.currentQuestionIndex + 1) % (gameState.questions?.length || 1)
-            : 0;
-
-          // Aturan Ular Tangga: Dapat 6 = Jalan Lagi!
-          const nextPlayerIndex = rolledNumber === 6
-            ? currentPlayerIndex
-            : (currentPlayerIndex + 1) % Math.max(players.length, 1);
-
-          await updateGameState(topicID, gameID, roomID, {
-            pionPositions:        nextPositions,
-            showQuestion:         shouldShowQuestion,
-            waitingForAnswer:     shouldShowQuestion,
-            currentQuestionIndex: shouldShowQuestion ? nextQuestionIndex : gameState.currentQuestionIndex,
-            turnCounter:          (gameState.turnCounter || 0) + 1,
-            ...(shouldShowQuestion ? {} : { currentPlayerIndex: nextPlayerIndex }),
-          });
-        };
-
-        // Tunggu animasi meluncur (1.2 detik) jika ada ular/tangga, baru munculkan pertanyaan
-        if (hasJump) {
-          setTimeout(async () => {
-            if (await finishGameIfDone()) return;
-            await showQuestionLogic();
-          }, 1300);
-        } else {
-          if (await finishGameIfDone()) return;
-          await showQuestionLogic();
-        }
-
-      }, walkDurationMs);
+      // Gunakan service movePawn untuk menangani pergerakan dan cek tangga/ular
+      await movePawn(topicID, gameID, roomID, currentPlayerIndex, rolledNumber);
     },
-    [isMyTurn, gameState, currentPlayerIndex, currentPlayer, topicID, gameID, roomID, router],
+    [isMyTurn, isBotActing, gameState, currentPlayerIndex, topicID, gameID, roomID],
   );
 
   // ── Handler: Jawab soal ───────────────────────────────────────────────────
   const handleSelectAnswer = useCallback(
     async (selectedIndex: number) => {
-      if ((!isMyTurn && !isBotActing) || !gameState || !currentQuestion) return;
+      if ((!isMyTurn && !isBotActing) || !gameState) return;
+      await submitAnswer(topicID, gameID, roomID, selectedIndex);
 
-      const isCorrect = selectedIndex === currentQuestion.correctIndex;
-      
-      // Jika sebelumnya dia dapat dadu 6, giliran tetap miliknya setelah menjawab!
-      const isExtraTurn = gameState.diceState?.currentNumber === 6;
-      const nextPlayerIndex = isExtraTurn
-        ? currentPlayerIndex
-        : (currentPlayerIndex + 1) % Math.max(players.length, 1);
-
-      await updateGameState(topicID, gameID, roomID, {
-        showQuestion:       false,
-        waitingForAnswer:   false,
-        isCorrect,
-        currentPlayerIndex: nextPlayerIndex,
-        turnCounter:        (gameState.turnCounter || 0) + 1,
-        diceState: {
-          isRolling:     false,
-          currentNumber: gameState.diceState?.currentNumber ?? 1,
-          lastRoll:      gameState.diceState?.lastRoll ?? null,
-        },
-      });
+      // Delay 2 detik agar user bisa melihat highlight sebelum ganti turn
+      setTimeout(async () => {
+        await nextTurn(topicID, gameID, roomID);
+      }, 2000);
     },
-    [isMyTurn, isBotActing, gameState, currentQuestion, currentPlayerIndex, players.length, topicID, gameID, roomID],
+    [isMyTurn, isBotActing, gameState, topicID, gameID, roomID],
   );
 
   // Ref untuk mencegah bot melempar dadu berkali-kali pada giliran yang sama (saat pion sedang berjalan)
@@ -544,9 +420,9 @@ export default function UlarTanggaPage() {
         <div className="flex-1 w-full flex items-start justify-center z-20 mt-1 md:mt-2 lg:mt-0">
           <div className="w-full aspect-square max-w-[80vh] md:max-w-[75vh] lg:max-w-[80vh] ml-4 md:ml-12 lg:ml-4">
             <Board
-              pionPositionIndexes={pionPositionsRaw.map((pos) => (pos <= 0 ? -1 : pos - 1))}
-              tanggaUp={TANGGA_UP}
-              snakesDown={SNAKES_DOWN}
+              pionPositionIndexes={pionPositionsRaw.map((pos) => (pos <= 1 ? 0 : pos - 1))}
+              tanggaUp={Object.entries(LADDERS).map(([start, end]) => ({ start: Number(start), end: Number(end) }))}
+              snakesDown={Object.entries(SNAKES).map(([start, end]) => ({ start: Number(start), end: Number(end) }))}
               isCorrect={gameState?.isCorrect ?? false}
             />
           </div>
@@ -567,8 +443,10 @@ export default function UlarTanggaPage() {
               question={
                 currentQuestion
                   ? {
-                      text:    currentQuestion.text,
-                      options: currentQuestion.options,
+                      text:    currentQuestion.text || 'Memuat soal...',
+                      options: currentQuestion.options || [],
+                      selectedIndex: gameState?.selectedAnswerIndex,
+                      isCorrectIndex: currentQuestion.correctIndex,
                     }
                   : null
               }
