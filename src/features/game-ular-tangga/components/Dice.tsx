@@ -109,6 +109,7 @@ export default function Dice({
   const [currentFace, setCurrentFace] = useState(1);
   const diceRef = useRef<HTMLDivElement | null>(null);
   const animationRef = useRef<gsap.core.Tween | null>(null);
+  const clickLockRef = useRef(false);
 
   const [DICE_SIZE, setDiceSize] = useState(44);
 
@@ -135,6 +136,7 @@ export default function Dice({
     // Reset guard setiap kali Firebase menyatakan tidak ada roll yang sedang berlangsung
     if (!diceState?.isRolling) {
       hasCalledRef.current = false;
+      clickLockRef.current = false;
     }
 
     const isLocalRoll = !!myPlayerId && diceState?.rollingPlayerId === myPlayerId;
@@ -189,6 +191,7 @@ export default function Dice({
         animationRef.current = null;
 
         setIsLocalRolling(false);
+        clickLockRef.current = false;
 
         // JIKA INI ROLL DARI KITA SENDIRI, PANGGIL ONROLLCOMPLETE DI SINI
         if (isLocalRoll || hasCalledRef.current) {
@@ -199,9 +202,18 @@ export default function Dice({
   };
 
   const handleRollClick = () => {
-    if (disabled || isLocalRolling || !isMyTurn) return;
+    if (disabled) {
+      return;
+    } else if (clickLockRef.current) {
+      return;
+    } else if (isLocalRolling) {
+      return;
+    } else if (!isMyTurn) {
+      return;
+    }
 
     const randomNumber = Math.floor(Math.random() * 6) + 1;
+    clickLockRef.current = true;
     hasCalledRef.current = true; // Tandai sudah dipanggil dari sini
     setIsLocalRolling(true);
 
@@ -344,7 +356,7 @@ export default function Dice({
         {isMyTurn && !isOtherPlayerRolling && (
           <button
             onClick={handleRollClick}
-            disabled={disabled || isLocalRolling}
+            disabled={disabled || isLocalRolling || clickLockRef.current}
             className="px-3 py-1 lg:px-5 lg:py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold text-[12px] lg:text-sm rounded lg:rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:cursor-not-allowed"
           >
             {isLocalRolling ? 'Rolling...' : 'Roll'}

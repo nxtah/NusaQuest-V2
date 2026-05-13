@@ -218,6 +218,19 @@ export default function UlarTanggaPage() {
   const currentPlayerIndex = gameState?.currentPlayerIndex ?? 0;
   const currentPlayer = players[currentPlayerIndex];
   const isMyTurn = !!myUID && currentPlayer?.uid === myUID;
+  const isDiceDisabled = (() => {
+    if (!gameState) {
+      return true;
+    } else if (gameState.isMoving) {
+      return true;
+    } else if (gameState.waitingForAnswer) {
+      return true;
+    } else if (gameState.showQuestion) {
+      return true;
+    } else {
+      return false;
+    }
+  })();
 
   // Variabel untuk Bot Takeover
   const currentActivePlayerUID = currentPlayer?.uid;
@@ -456,6 +469,7 @@ export default function UlarTanggaPage() {
               focusedPlayerIndex={currentPlayerIndex}
               focusedPlayerName={currentPlayer?.displayName ?? null}
               isMyTurn={isMyTurn}
+              disabled={isDiceDisabled}
               diceState={gameState?.diceState}
               onDiceRollStart={handleDiceRollStart}
               onDiceRollComplete={handleDiceRollComplete}

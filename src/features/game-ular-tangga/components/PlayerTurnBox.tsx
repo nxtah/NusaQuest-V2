@@ -16,6 +16,7 @@ interface PlayerTurnBoxProps {
   children?: ReactNode;
   diceState?: DiceState | undefined;
   isMyTurn?: boolean;
+  disabled?: boolean;
   onDiceRollStart?: (num: number) => void;
   onDiceRollComplete?: (num: number, isUserAction: boolean) => void;
   onSelectAnswer?: (index: number) => void;
@@ -37,6 +38,7 @@ export default function PlayerTurnBox({
   children,
   diceState,
   isMyTurn = true,
+  disabled = false,
   onDiceRollStart,
   onDiceRollComplete,
   onSelectAnswer,
@@ -73,7 +75,7 @@ export default function PlayerTurnBox({
             onRollComplete={onDiceRollComplete ?? (() => { })}
             diceState={diceState}
             isMyTurn={isMyTurn}
-            disabled={false}
+            disabled={disabled}
             myPlayerId={myPlayerId}
           />
         </div>
