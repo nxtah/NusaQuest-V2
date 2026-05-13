@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import gsap from 'gsap';
 
 export type DiceState = {
@@ -19,16 +19,16 @@ interface DiceProps {
   myPlayerId?: string;
 }
 
-const FACE_ROTATIONS: Record<number, { x: number; y: number }> = {
-  1: { x: 0, y: 0 },
-  2: { x: 0, y: 180 }, // Back
-  3: { x: 0, y: -90 }, // Right
-  4: { x: 0, y: 90 },  // Left
-  5: { x: -90, y: 0 }, // Top
-  6: { x: 90, y: 0 },  // Bottom
+const FACE_ROTATIONS: Record<number, {x: number; y: number}> = {
+  1: {x: 0, y: 0},
+  2: {x: 0, y: 180}, // Back
+  3: {x: 0, y: -90}, // Right
+  4: {x: 0, y: 90},  // Left
+  5: {x: -90, y: 0}, // Top
+  6: {x: 90, y: 0},  // Bottom
 };
 
-const DiceFace: React.FC<{ number: number }> = ({ number }) => {
+const DiceFace: React.FC<{number: number}> = ({number}) => {
   const pips: Array<[number, number][]> = [
     [], // 0 (unused)
     [[50, 50]], // 1: center
@@ -137,6 +137,8 @@ export default function Dice({
       hasCalledRef.current = false;
     }
 
+    const isLocalRoll = !!myPlayerId && diceState?.rollingPlayerId === myPlayerId;
+
     if (diceState?.isRolling && !isLocalRolling && !hasCalledRef.current) {
       // Ada pemain lain yang rolling (atau kita pindah tab & kembali)
       animateDice(diceState.currentNumber);
@@ -144,14 +146,10 @@ export default function Dice({
     } else if (!diceState?.isRolling && isLocalRolling) {
       // Roll dari luar selesai
       setIsLocalRolling(false);
-
-      if (isMyTurn && !hasCalledRef.current) {
-        onRollComplete(diceState?.currentNumber || 1, false);
-      }
     }
-  }, [diceState?.isRolling, isMyTurn, onRollComplete, isLocalRolling]);
+  }, [diceState?.isRolling, diceState?.rollingPlayerId, myPlayerId, isLocalRolling]);
 
-  const animateDice = (finalNumber: number) => {
+  const animateDice = (finalNumber: number, isLocalRoll = false) => {
     if (!diceRef.current) return;
 
     // Kill any existing animation
@@ -190,10 +188,10 @@ export default function Dice({
         setCurrentFace(finalNumber);
         animationRef.current = null;
 
+        setIsLocalRolling(false);
+
         // JIKA INI ROLL DARI KITA SENDIRI, PANGGIL ONROLLCOMPLETE DI SINI
-        // Setelah animasi 1 detik benar-benar selesai
-        if (hasCalledRef.current) {
-          setIsLocalRolling(false);
+        if (isLocalRoll || hasCalledRef.current) {
           onRollComplete(finalNumber, true);
         }
       },
@@ -206,11 +204,11 @@ export default function Dice({
     const randomNumber = Math.floor(Math.random() * 6) + 1;
     hasCalledRef.current = true; // Tandai sudah dipanggil dari sini
     setIsLocalRolling(true);
-    
+
     // Beritahu parent (dan Firebase) bahwa roll sudah dimulai, agar pemain lain bisa melihat animasi
     if (onRollStart) onRollStart(randomNumber);
 
-    animateDice(randomNumber);
+    animateDice(randomNumber, true);
     // onRollComplete HANYA akan dipanggil di dalam onComplete animasi GSAP di atas
   };
 

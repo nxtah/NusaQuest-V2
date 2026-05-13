@@ -14,7 +14,7 @@ import {
   off,
   ref,
 } from 'firebase/database';
-import { getFirebaseDb } from '../../../lib/firebase/db';
+import {getFirebaseDb} from '../../../lib/firebase/db';
 import {
   isLadderStart,
   getLadderTarget,
@@ -46,6 +46,7 @@ export interface DiceState {
   isRolling: boolean;
   currentNumber: number;
   lastRoll: number | null;
+  rollingPlayerId?: string;
 }
 
 export interface PlayerActivity {
@@ -56,6 +57,8 @@ export interface PlayerActivity {
 
 export interface UlarTanggaGameState {
   currentPlayerIndex: number;
+  currentPlayerUID?: string; // ===== TAMBAH: UID pemain yang giliran sekarang =====
+  lastTurnChangeAt?: number; // ===== TAMBAH: Timestamp perubahan turn terakhir =====
   pionPositions: number[];
   isMoving: boolean;
   showQuestion: boolean;
@@ -159,7 +162,7 @@ export function fetchGamePlayers(
   roomID: string,
   callback: (players: GamePlayer[]) => void,
 ): () => void {
-  if (!topicID || !gameID || !roomID) return () => {};
+  if (!topicID || !gameID || !roomID) return () => { };
 
   const playersRef = ref(
     getFirebaseDb(),
@@ -168,10 +171,17 @@ export function fetchGamePlayers(
 
   const unsubscribe = onValue(playersRef, (snapshot) => {
     const data = snapshot.val() || {};
-    const playersArray = Object.values(data).map((p: any) => ({
-      ...p,
-      displayName: p.displayName || p.name || 'Pemain',
-    })) as GamePlayer[];
+    const playersArray = Object.entries(data)
+      .sort(([keyA], [keyB]) => {
+        const indexA = Number.parseInt(keyA.replace(/\D+/g, ''), 10) || 0;
+        const indexB = Number.parseInt(keyB.replace(/\D+/g, ''), 10) || 0;
+        return indexA - indexB;
+      })
+      .map(([, p]: [string, any], index) => ({
+        ...p,
+        displayName: p.displayName || p.name || 'Pemain',
+        playerIndex: index,
+      })) as GamePlayer[];
     callback(playersArray);
   });
 
@@ -195,7 +205,7 @@ export async function getQuestions(topicID: string): Promise<UlarTanggaQuestion[
     const questionList = Object.keys(data).map((key) => {
       const q = data[key];
       let rawOptions = q.options || q.multiple_choices || [];
-      
+
       // Pastikan options adalah array string (Firebase terkadang mengirim objek)
       const finalOptions = (Array.isArray(rawOptions) ? rawOptions : Object.values(rawOptions))
         .map(opt => {
@@ -213,7 +223,7 @@ export async function getQuestions(topicID: string): Promise<UlarTanggaQuestion[
         topic: q.topic || ''
       } as UlarTanggaQuestion;
     });
-    
+
     // Filter berdasarkan topik (Kecuali jika topiknya "math", ambil semua untuk testing)
     const filtered = questionList.filter((q) => {
       const isTopicMatch = topicID === 'math' || q.topic === topicID;
@@ -295,7 +305,7 @@ export function listenToGameStart(
   roomID: string,
   callback: (isStarted: boolean) => void,
 ): () => void {
-  if (!topicID || !gameID || !roomID) return () => {};
+  if (!topicID || !gameID || !roomID) return () => { };
   const startRef = ref(
     getFirebaseDb(),
     `${roomRef(topicID, gameID, roomID)}/gameStarted`,
@@ -315,7 +325,7 @@ export function listenToGameState(
   roomID: string,
   callback: (state: UlarTanggaGameState) => void,
 ): () => void {
-  if (!topicID || !gameID || !roomID) return () => {};
+  if (!topicID || !gameID || !roomID) return () => { };
 
   const stateRef = ref(getFirebaseDb(), gameStateRef(topicID, gameID, roomID));
   onValue(stateRef, (snapshot) => {
@@ -367,6 +377,8 @@ export async function initializeUlarTanggaGameState(
 
       const initialState: UlarTanggaGameState = {
         currentPlayerIndex: 0,
+        currentPlayerUID: players[0]?.uid, // ===== TAMBAH: Set pemain pertama =====
+        lastTurnChangeAt: Date.now(),       // ===== TAMBAH: Timestamp sekarang =====
         pionPositions: new Array(playerCount).fill(0),
         isMoving: false,
         showQuestion: false,
@@ -505,7 +517,7 @@ export async function setPlayerOffline(
           break;
         }
       }
-      
+
       // Jika semua pemain sudah keluar / offline (hanya tersisa bot/ghost)
       if (!hasOnline) {
         // Hancurkan game ini sepenuhnya dan kembalikan ke Lobby kosong
@@ -528,6 +540,7 @@ export async function setPlayerOffline(
 
 /**
  * Memindahkan pion pemain berdasarkan angka dadu.
+ * ===== PERBAIKI: Tambah validasi UID untuk block race condition =====
  */
 export async function movePawn(
   topicID: string,
@@ -535,6 +548,7 @@ export async function movePawn(
   roomID: string,
   playerIndex: number,
   steps: number,
+  userUID?: string,
 ): Promise<void> {
   const state = await getGameState(topicID, gameID, roomID);
   if (!state || !state.pionPositions) {
@@ -542,21 +556,51 @@ export async function movePawn(
     return;
   }
 
+  console.log(`[MovePawn] Called with:`, {playerIndex, steps, userUID, pionPositionsType: typeof state.pionPositions, isArray: Array.isArray(state.pionPositions)});
+
+  // ===== VALIDASI BERLAPIS: Block race condition UID-based =====
   const pIndex = Number(playerIndex);
-  const currentPositions = Array.isArray(state.pionPositions) 
+
+  // Validasi 1: playerIndex harus match dengan currentPlayerIndex
+  if (state.currentPlayerIndex !== pIndex) {
+    console.warn(
+      `[PION] Blocked! playerIndex=${pIndex} !== currentPlayerIndex=${state.currentPlayerIndex}`
+    );
+    return; // JANGAN PROSES gerakan
+  }
+
+  // Validasi 2: Jika userUID ada, pastikan UID user match dengan currentPlayerUID di state
+  if (userUID && state.currentPlayerUID !== userUID) {
+    console.warn(
+      `[PION] Blocked! userUID="${userUID}" !== currentPlayerUID="${state.currentPlayerUID}"`
+    );
+    return; // JANGAN PROSES gerakan
+  }
+
+  console.log(`[PION] OK! playerIndex=${pIndex} && userUID="${userUID}" match state, steps=${steps}`);
+
+  const currentPositions = Array.isArray(state.pionPositions)
     ? [...state.pionPositions] as number[]
     : Object.values(state.pionPositions) as number[];
-    
+
   const currentPos = currentPositions[pIndex] ?? 0;
   let newPos = currentPos + steps;
 
-  console.log(`[UlarTangga] Bergerak: Pemain ${pIndex} | Dari ${currentPos} ke ${newPos} (Dadu: ${steps})`);
+  console.log(`[UlarTangga] MovePawn Debug:`, {
+    pIndex,
+    currentPlayerIndex: state.currentPlayerIndex,
+    currentPlayerUID: state.currentPlayerUID,
+    currentPositionsBefore: JSON.stringify(currentPositions),
+    currentPos,
+    newPos,
+    steps,
+  });
 
   // Jika melebihi 100, tetap di tempat
   if (newPos > 100) newPos = currentPos;
 
   const isExtraTurn = steps === 6;
-  const nextPlayer = isExtraTurn ? pIndex : (pIndex + 1) % currentPositions.length;
+  const nextPlayerIndex = isExtraTurn ? pIndex : (pIndex + 1) % currentPositions.length;
 
   const updates: Partial<UlarTanggaGameState> & Record<string, any> = {
     isMoving: false,
@@ -572,11 +616,21 @@ export async function movePawn(
   newPositions[pIndex] = newPos;
   updates.pionPositions = newPositions;
 
+  console.log(`[UlarTangga] After update:`, {
+    newPositionsAfter: JSON.stringify(newPositions),
+    pIndex,
+    newPos,
+  });
+
   // 2. Cek Tangga (LADDER)
   if (isLadderStart(newPos)) {
     console.log(`[UlarTangga] TANGGA terdeteksi di kotak ${newPos}`);
     if (!state.questions || state.questions.length === 0) {
-      updates.currentPlayerIndex = nextPlayer;
+      updates.currentPlayerIndex = nextPlayerIndex;
+      updates.currentPlayerUID = Object.keys(state.playerActivity).find(
+        uid => state.playerActivity[uid].playerIndex === nextPlayerIndex
+      );
+      updates.lastTurnChangeAt = Date.now(); // ===== PERBAIKI: Update timestamp =====
       await updateGameState(topicID, gameID, roomID, updates);
       return;
     }
@@ -585,7 +639,11 @@ export async function movePawn(
     const question = state.questions[qIndex];
 
     if (!question) {
-      updates.currentPlayerIndex = nextPlayer;
+      updates.currentPlayerIndex = nextPlayerIndex;
+      updates.currentPlayerUID = Object.keys(state.playerActivity).find(
+        uid => state.playerActivity[uid].playerIndex === nextPlayerIndex
+      );
+      updates.lastTurnChangeAt = Date.now();
       await updateGameState(topicID, gameID, roomID, updates);
       return;
     }
@@ -594,43 +652,44 @@ export async function movePawn(
     updates.waitingForAnswer = true;
     updates.isCorrect = null;
     updates.selectedAnswerIndex = null;
-    
-    const { shuffledOptions, correctIndex } = shuffleOptions(question.options, question.correctIndex);
+
+    const {shuffledOptions, correctIndex} = shuffleOptions(question.options, question.correctIndex);
     updates[`questions/${qIndex}/options`] = shuffledOptions;
     updates[`questions/${qIndex}/correctIndex`] = correctIndex;
-    
-    await updateGameState(topicID, gameID, roomID, updates);
-  } 
-  // 3. Cek Ular (SNAKE)
-  else if (isSnakeHead(newPos)) {
-    const target = getSnakeTarget(newPos);
-    console.log(`[UlarTangga] ULAR terdeteksi! Turun ke ${target}`);
-    if (target !== null) {
-      newPositions[pIndex] = target;
-      updates.pionPositions = newPositions;
-    }
-    updates.currentPlayerIndex = nextPlayer;
+
     await updateGameState(topicID, gameID, roomID, updates);
   }
-  // 4. Kotak Biasa
+  // 3. Kotak Biasa
   else {
-    console.log(`[UlarTangga] Kotak Biasa. Next Player: ${nextPlayer}`);
-    updates.currentPlayerIndex = nextPlayer;
+    console.log(`[UlarTangga] Kotak Biasa. Next Player: ${nextPlayerIndex}`);
+    updates.currentPlayerIndex = nextPlayerIndex;
+    updates.currentPlayerUID = Object.keys(state.playerActivity).find(
+      uid => state.playerActivity[uid].playerIndex === nextPlayerIndex
+    );
+    updates.lastTurnChangeAt = Date.now();
     await updateGameState(topicID, gameID, roomID, updates);
   }
 }
 
 /**
  * Menangani jawaban user untuk tantangan tangga.
+ * ===== PERBAIKI: Tambah validasi UID =====
  */
 export async function submitAnswer(
   topicID: string,
   gameID: string,
   roomID: string,
   selectedIndex: number,
+  userUID: string, // ===== TAMBAH: Parameter untuk validasi =====
 ): Promise<void> {
   const state = await getGameState(topicID, gameID, roomID);
   if (!state || !state.waitingForAnswer) return;
+
+  // ===== VALIDASI: CEK APAKAH INI PEMAIN YANG SEKARANG TURN =====
+  if (state.currentPlayerUID !== userUID) {
+    console.error(`[ANSWER] Validasi gagal! Bukan giliran user ${userUID}`);
+    return; // JANGAN PROSES jawaban
+  }
 
   const qIndex = state.currentQuestionIndex;
   const question = state.questions[qIndex];
@@ -651,11 +710,11 @@ export async function submitAnswer(
     const target = getLadderTarget(currentPos);
     if (target) {
       console.log(`[UlarTangga] Jawaban BENAR! Naik dari ${currentPos} ke ${target}`);
-      
-      const currentPositions = Array.isArray(state.pionPositions) 
+
+      const currentPositions = Array.isArray(state.pionPositions)
         ? [...state.pionPositions] as number[]
         : Object.values(state.pionPositions) as number[];
-        
+
       const newPositions = [...currentPositions];
       newPositions[playerIndex] = target;
       updates.pionPositions = newPositions;
@@ -670,7 +729,7 @@ export async function submitAnswer(
   // Namun karena ini service, kita hanya update state isCorrect. 
   // UI akan mendengarkan isCorrect dan memberikan highlight.
   // Setelah jeda (di handled oleh hook/UI), turn akan berganti.
-  
+
   await updateGameState(topicID, gameID, roomID, updates);
 
   // Fungsi untuk mengganti turn bisa dipanggil dari sini atau dari hook setelah delay
@@ -678,6 +737,7 @@ export async function submitAnswer(
 
 /**
  * Memindahkan giliran ke pemain berikutnya.
+ * ===== PERBAIKI: Update currentPlayerUID dengan benar =====
  */
 export async function nextTurn(
   topicID: string,
@@ -688,12 +748,19 @@ export async function nextTurn(
   if (!state) return;
 
   const isExtraTurn = state.diceState?.lastRoll === 6;
-  const nextPlayerIndex = isExtraTurn 
-    ? state.currentPlayerIndex 
+  const nextPlayerIndex = isExtraTurn
+    ? state.currentPlayerIndex
     : (state.currentPlayerIndex + 1) % state.pionPositions.length;
+
+  // ===== PERBAIKI: Dapatkan UID pemain berikutnya dari playerActivity =====
+  const nextPlayerUID = Object.keys(state.playerActivity).find(
+    uid => state.playerActivity[uid].playerIndex === nextPlayerIndex
+  );
 
   await updateGameState(topicID, gameID, roomID, {
     currentPlayerIndex: nextPlayerIndex,
+    currentPlayerUID: nextPlayerUID, // ===== TAMBAH: Set UID pemain berikutnya =====
+    lastTurnChangeAt: Date.now(),    // ===== TAMBAH: Update timestamp turn change =====
     showQuestion: false,
     isCorrect: null,
     selectedAnswerIndex: null,
@@ -714,5 +781,5 @@ function shuffleOptions(options: string[], correctIndex: number) {
   const correctText = options[correctIndex];
   const shuffledOptions = shuffle([...options]);
   const newCorrectIndex = shuffledOptions.indexOf(correctText);
-  return { shuffledOptions, correctIndex: newCorrectIndex };
+  return {shuffledOptions, correctIndex: newCorrectIndex};
 }
