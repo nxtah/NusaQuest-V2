@@ -67,14 +67,12 @@ export default function QuestionPanel({
                   onClick={() => onSelectOption?.(index)}
                   disabled={selectedIndex !== null}
                   className={`w-full rounded-full border px-2 py-1 text-[9px] font-medium leading-tight transition-all sm:px-3 sm:py-1.5 sm:text-[10px] md:px-4 md:py-2 md:text-xs lg:text-sm disabled:cursor-not-allowed disabled:opacity-100 ${shouldBeGreen
-                      ? 'border-lime-500 bg-lime-400 text-gray-900 font-bold' // Opsi yang dipilih & benar
+                      ? 'border-lime-600 bg-[#9dc90b] text-gray-900 font-bold' // Opsi yang dipilih & benar (sesuai referensi 2)
                       : shouldBeRed
-                        ? 'border-red-600 bg-red-500 text-white font-bold' // Opsi yang dipilih & salah
+                        ? 'border-red-700 bg-[#ef4444] text-white font-bold' // Opsi yang dipilih & salah
                         : shouldBeGreenCorrect
-                          ? 'border-lime-500 bg-lime-300 text-gray-900 font-semibold border-2' // Opsi jawaban benar (untuk referensi)
-                          : shouldBeGray
-                            ? 'border-gray-400 bg-transparent text-gray-900 hover:bg-black/5 active:bg-black/10' // Belum dijawab
-                            : 'border-gray-300 bg-gray-100 text-gray-600' // Opsi lain saat sudah dijawab
+                          ? 'border-lime-600 bg-[#aee01b] text-gray-900 font-semibold border-2' // Opsi jawaban benar (untuk referensi)
+                          : 'border-gray-500 bg-transparent text-gray-900 hover:bg-black/5 active:bg-black/10' // Kondisi belum dijawab atau opsi lain saat sudah dijawab
                     }`}
                 >
                   {option}
