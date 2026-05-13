@@ -43,7 +43,7 @@ import {
 } from '../../../../../../../features/game-ular-tangga/services/ular-tangga-game.service';
 import {playerJoinRoom, playerLeaveRoom} from '../../../../../../../features/lobby/services/lobby.service';
 import UlarTanggaLobby from '../../../../../../../features/game-ular-tangga/components/UlarTanggaLobby';
-import {LADDERS, SNAKES} from '../../../../../../../features/game-ular-tangga/utils/board-rules';
+import {LADDERS} from '../../../../../../../features/game-ular-tangga/utils/board-rules';
 
 // Data tangga dan ular sekarang dikelola oleh board-rules.ts dan service layer.
 

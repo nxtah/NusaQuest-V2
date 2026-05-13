@@ -18,8 +18,6 @@ import {getFirebaseDb} from '../../../lib/firebase/db';
 import {
   isLadderStart,
   getLadderTarget,
-  isSnakeHead,
-  getSnakeTarget,
 } from '../utils/board-rules';
 
 // ─── Helpers untuk path ─────────────────────────────────────────────────────
