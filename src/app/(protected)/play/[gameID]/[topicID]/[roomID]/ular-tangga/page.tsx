@@ -189,7 +189,9 @@ export default function UlarTanggaPage() {
       setGameState(state);
       setLoading(false);
 
-      if (state.gameStatus === 'finished' || state.gameStatus === 'abandoned') {
+      if (state.gameStatus === 'finished') {
+        router.push('/');
+      } else if (state.gameStatus === 'abandoned') {
         router.push(`/lobby/${topicID}/${gameID}`);
       }
     });

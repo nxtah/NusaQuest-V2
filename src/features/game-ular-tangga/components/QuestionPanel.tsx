@@ -9,7 +9,6 @@ interface QuestionPanelProps {
   selectedIndex?: number | null;
   onSelectOption?: (index: number) => void;
   isCorrectIndex?: number | null;
-  playerName?: string;
 }
 
 export default function QuestionPanel({
@@ -18,7 +17,6 @@ export default function QuestionPanel({
   selectedIndex = null,
   onSelectOption,
   isCorrectIndex = null,
-  playerName,
 }: QuestionPanelProps) {
   return (
     <div className="relative w-full max-w-[560px] px-2 sm:px-0">
@@ -29,15 +27,6 @@ export default function QuestionPanel({
         />
 
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4">
-          {/* Player Status Message */}
-          {playerName && (
-            <div className="mb-1 bg-blue-100/80 px-2 py-0.5 rounded-full border border-blue-200">
-              <p className="text-[8px] sm:text-[9px] md:text-[10px] font-bold text-blue-700 uppercase tracking-tight">
-                🎮 {playerName} sedang menjawab soal...
-              </p>
-            </div>
-          )}
-
           {/* Question Text - Responsive sizing */}
           <p className="w-full max-w-[90%] text-center text-[10px] leading-tight font-bold text-gray-800 sm:text-xs md:text-sm lg:text-base break-words text-balance mb-1 sm:mb-2">
             {questionText}
@@ -67,12 +56,12 @@ export default function QuestionPanel({
                   onClick={() => onSelectOption?.(index)}
                   disabled={selectedIndex !== null}
                   className={`w-full rounded-full border px-2 py-1 text-[9px] font-medium leading-tight transition-all sm:px-3 sm:py-1.5 sm:text-[10px] md:px-4 md:py-2 md:text-xs lg:text-sm disabled:cursor-not-allowed disabled:opacity-100 ${shouldBeGreen
-                      ? 'border-lime-600 bg-[#9dc90b] text-gray-900 font-bold' // Opsi yang dipilih & benar (sesuai referensi 2)
-                      : shouldBeRed
-                        ? 'border-red-700 bg-[#ef4444] text-white font-bold' // Opsi yang dipilih & salah
-                        : shouldBeGreenCorrect
-                          ? 'border-lime-600 bg-[#aee01b] text-gray-900 font-semibold border-2' // Opsi jawaban benar (untuk referensi)
-                          : 'border-gray-500 bg-transparent text-gray-900 hover:bg-black/5 active:bg-black/10' // Kondisi belum dijawab atau opsi lain saat sudah dijawab
+                    ? 'border-lime-600 bg-[#9dc90b] text-gray-900 font-bold' // Opsi yang dipilih & benar (sesuai referensi 2)
+                    : shouldBeRed
+                      ? 'border-red-700 bg-[#ef4444] text-white font-bold' // Opsi yang dipilih & salah
+                      : shouldBeGreenCorrect
+                        ? 'border-lime-600 bg-[#aee01b] text-gray-900 font-semibold border-2' // Opsi jawaban benar (untuk referensi)
+                        : 'border-gray-500 bg-transparent text-gray-900 hover:bg-black/5 active:bg-black/10' // Kondisi belum dijawab atau opsi lain saat sudah dijawab
                     }`}
                 >
                   {option}

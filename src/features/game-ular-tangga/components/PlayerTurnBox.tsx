@@ -1,10 +1,10 @@
 'use client';
 
-import React, { ReactNode } from 'react';
+import React, {ReactNode} from 'react';
 import InitialPanel from './InitialPanel';
 import QuestionPanel from './QuestionPanel';
 import PlayerList from './PlayerList';
-import Dice, { DiceState } from './Dice';
+import Dice, {DiceState} from './Dice';
 
 interface Player {
   id: number;
@@ -60,7 +60,6 @@ export default function PlayerTurnBox({
               selectedIndex={question.selectedIndex ?? null}
               isCorrectIndex={question.isCorrectIndex ?? null}
               onSelectOption={onSelectAnswer}
-              playerName={focusedPlayerName ?? undefined}
             />
           ) : (
             <InitialPanel focusedName={focusedPlayerName} />
@@ -71,7 +70,7 @@ export default function PlayerTurnBox({
         <div className="flex shrink-0 items-center justify-center relative z-10 lg:mt-0">
           <Dice
             onRollStart={onDiceRollStart}
-            onRollComplete={onDiceRollComplete ?? (() => {})}
+            onRollComplete={onDiceRollComplete ?? (() => { })}
             diceState={diceState}
             isMyTurn={isMyTurn}
             disabled={false}

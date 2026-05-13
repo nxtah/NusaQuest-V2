@@ -597,6 +597,32 @@ export async function movePawn(
   // Jika melebihi 100, tetap di tempat
   if (newPos > 100) newPos = currentPos;
 
+  // 1. Update posisi pion ke kotak tujuan dadu
+  const newPositions = [...currentPositions];
+  newPositions[pIndex] = newPos;
+
+  if (newPos === 100) {
+    const winnerUID = state.currentPlayerUID || undefined;
+    const winnerActivity = winnerUID ? state.playerActivity?.[winnerUID] : undefined;
+
+    await updateGameState(topicID, gameID, roomID, {
+      pionPositions: newPositions,
+      isMoving: false,
+      diceState: {
+        isRolling: false,
+        currentNumber: steps,
+        lastRoll: steps,
+        rollingPlayerId: winnerUID,
+      },
+      gameStatus: 'finished',
+      gameWinnerUID: winnerUID,
+      gameWinnerDisplayName: winnerActivity ? `Pemain ${winnerActivity.playerIndex + 1}` : undefined,
+      gameWonAt: Date.now(),
+      lastTurnChangeAt: Date.now(),
+    });
+    return;
+  }
+
   const isExtraTurn = steps === 6;
   const nextPlayerIndex = isExtraTurn ? pIndex : (pIndex + 1) % currentPositions.length;
 
@@ -608,10 +634,6 @@ export async function movePawn(
       lastRoll: steps,
     },
   };
-
-  // 1. Update posisi pion ke kotak tujuan dadu
-  const newPositions = [...currentPositions];
-  newPositions[pIndex] = newPos;
   updates.pionPositions = newPositions;
 
   console.log(`[UlarTangga] After update:`, {
