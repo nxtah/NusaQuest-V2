@@ -440,7 +440,6 @@ export default function UlarTanggaPage() {
             <Board
               pionPositionIndexes={pionPositionsRaw.map((pos) => (pos <= 1 ? 0 : pos - 1))}
               tanggaUp={Object.entries(LADDERS).map(([start, end]) => ({start: Number(start), end: Number(end)}))}
-              snakesDown={Object.entries(SNAKES).map(([start, end]) => ({start: Number(start), end: Number(end)}))}
               isCorrect={gameState?.isCorrect ?? false}
             />
           </div>
