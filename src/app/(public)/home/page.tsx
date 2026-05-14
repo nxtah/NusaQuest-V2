@@ -1,9 +1,59 @@
-import Link from 'next/link';
-import { pulau, getAwanImage, logo } from '../../../assets/images/home/cloudinaryAssets';
-import { background } from '../../../assets/images/background/cloudinaryAssets';
-import HomeIslandLabel from '../../../components/home/HomeIslandLabel';
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { pulau, getAwanImage, logo } from '../../../assets/images/home/cloudinaryAssets'
+import { background } from '../../../assets/images/background/cloudinaryAssets'
+import HomeIslandLabel from '../../../components/home/HomeIslandLabel'
+import GameSelectionModal from '../../../components/modals/GameSelectionModal'
+import RegionSelectionModal from '../../../components/modals/RegionSelectionModal'
+import { Region } from '@/src/types/firestore'
+
+// Map island clicks to map IDs
+const ISLAND_MAP: Record<string, string> = {
+  pulau1: 'map_kuliner',
+  pulau2: 'map_sejarah',
+  pulau3: 'map_budaya',
+  pulau4: 'map_wisata',
+  mercusuar: 'map_pahlawan',
+}
 
 export default function HomePage() {
+  const router = useRouter()
+  const [selectedMapId, setSelectedMapId] = useState<string | null>(null)
+  const [showGameModal, setShowGameModal] = useState(false)
+  const [showRegionModal, setShowRegionModal] = useState(false)
+  const [selectedGameType, setSelectedGameType] = useState<'ular-tangga' | 'nusa-card' | null>(null)
+  const [loadingLobby, setLoadingLobby] = useState(false)
+
+  const handleIslandClick = (island: string) => {
+    const mapId = ISLAND_MAP[island]
+    if (!mapId) return
+    setSelectedMapId(mapId)
+    setShowGameModal(true)
+  }
+
+  const handleGameSelection = (gameType: 'ular-tangga' | 'nusa-card') => {
+    setSelectedGameType(gameType)
+    setShowGameModal(false)
+    setShowRegionModal(true)
+  }
+
+  const handleRegionSelection = (region: Region) => {
+    if (!selectedMapId || !selectedGameType) return
+
+    setLoadingLobby(true)
+    setShowRegionModal(false)
+
+    // Navigate to lobby with params
+    setTimeout(() => {
+      router.push(
+        `/lobby?mapId=${selectedMapId}&gameType=${selectedGameType}&regionId=${region.regionId}`
+      )
+    }, 300)
+  }
+
   return (
     <main className="home-container">
       {/* Background */}
@@ -67,57 +117,72 @@ export default function HomePage() {
       <div className="home-content">
         {/* Top Row */}
         <div className="home-grid">
-          {/* Pulau 1 - Top Left */}
-          <div className="island-item island-tl">
+          {/* Pulau 1 - Top Left - KULINER */}
+          <div
+            className="island-item island-tl cursor-pointer hover:scale-105 transition-transform"
+            onClick={() => handleIslandClick('pulau1')}
+          >
             <img
               src={pulau.pulau1}
-              alt="Pulau 1"
+              alt="Kuliner Tradisional"
               className="island-image"
             />
-            <HomeIslandLabel label="Pulau 1" href="/destination/1" />
+            <HomeIslandLabel label="🍜 Kuliner Tradisional" href="#" />
           </div>
 
-          {/* Mercusuar - Center */}
-          <div className="island-item island-center">
+          {/* Mercusuar - Center - PAHLAWAN */}
+          <div
+            className="island-item island-center cursor-pointer hover:scale-105 transition-transform"
+            onClick={() => handleIslandClick('mercusuar')}
+          >
             <img
               src={pulau.mercusuar}
-              alt="Mercusuar"
+              alt="Pahlawan & Tokoh Terkenal"
               className="island-image mercusuar-image"
             />
-            <HomeIslandLabel label="Mercusuar" className="top-[130%]" href="/destination/5" />
+            <HomeIslandLabel label="🎖️ Pahlawan & Tokoh" className="top-[130%]" href="#" />
           </div>
 
-          {/* Pulau 4 - Top Right */}
-          <div className="island-item island-tr">
+          {/* Pulau 4 - Top Right - WISATA */}
+          <div
+            className="island-item island-tr cursor-pointer hover:scale-105 transition-transform"
+            onClick={() => handleIslandClick('pulau4')}
+          >
             <img
               src={pulau.pulau4}
-              alt="Pulau 4"
+              alt="Destinasi Wisata"
               className="island-image"
             />
-            <HomeIslandLabel label="Pulau 4" href="/destination/4" />
+            <HomeIslandLabel label="🏝️ Destinasi Wisata" href="#" />
           </div>
         </div>
 
         {/* Bottom Row */}
         <div className="home-grid-bottom">
-          {/* Pulau 2 - Bottom Left */}
-          <div className="island-item island-bl">
+          {/* Pulau 2 - Bottom Left - SEJARAH */}
+          <div
+            className="island-item island-bl cursor-pointer hover:scale-105 transition-transform"
+            onClick={() => handleIslandClick('pulau2')}
+          >
             <img
               src={pulau.pulau2}
-              alt="Pulau 2"
+              alt="Sejarah"
               className="island-image"
             />
-            <HomeIslandLabel label="Pulau 2" className="left-[36%]" href="/destination/2" />
+            <HomeIslandLabel label="🏛️ Sejarah" className="left-[36%]" href="#" />
           </div>
 
-          {/* Pulau 3 - Bottom Right */}
-          <div className="island-item island-br">
+          {/* Pulau 3 - Bottom Right - BUDAYA */}
+          <div
+            className="island-item island-br cursor-pointer hover:scale-105 transition-transform"
+            onClick={() => handleIslandClick('pulau3')}
+          >
             <img
               src={pulau.pulau3}
-              alt="Pulau 3"
+              alt="Seni Budaya"
               className="island-image"
             />
-            <HomeIslandLabel label="Pulau 3" className="left-[70%] top-[20%]" href="/destination/3" />
+            <HomeIslandLabel label="🎭 Seni Budaya" className="left-[70%] top-[20%]" href="#" />
           </div>
         </div>
       </div>
@@ -150,6 +215,20 @@ export default function HomePage() {
         />
         <span className="papan1-text">Informasi</span>
       </Link>
+
+      {/* Modals */}
+      <GameSelectionModal
+        isOpen={showGameModal}
+        onSelect={handleGameSelection}
+        onClose={() => setShowGameModal(false)}
+      />
+
+      <RegionSelectionModal
+        isOpen={showRegionModal}
+        onSelect={handleRegionSelection}
+        onClose={() => setShowRegionModal(false)}
+        isLoading={loadingLobby}
+      />
     </main>
-  );
+  )
 }
