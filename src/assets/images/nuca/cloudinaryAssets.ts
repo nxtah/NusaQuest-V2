@@ -5,6 +5,7 @@ export const nuca = {
     awan: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774363918/awan-3_xhps96.png',
     kayu: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774506109/kayu_filvkl.webp',
     nuca: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1782913002/Frame_76_i8wyjf.webp',
+    arrowNuca: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1782988574/Vector_pmesry.svg',
 } as const;
 
 export type NucaImageKey = keyof typeof nuca;
