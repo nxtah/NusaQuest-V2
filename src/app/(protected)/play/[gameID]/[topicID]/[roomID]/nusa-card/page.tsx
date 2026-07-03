@@ -7,6 +7,7 @@ import GameBackground from "../../../../../../../features/game-nuca/components/G
 import GameArea from "../../../../../../../features/game-nuca/components/GameArea";
 import RotateDeviceOverlay from "../../../../../../../components/layout/RotateDeviceOverlay";
 import PauseModal from "../../../../../../../components/layout/PauseModal";
+import SettingButton from "../../../../../../../components/layout/SettingButton";
 
 export default function Page() {
   const router = useRouter();
@@ -28,23 +29,29 @@ export default function Page() {
         <GameBackground />
       </div>
 
+      {/* Tombol Back */}
       <button
-        type="button"
-        aria-label="Kembali ke room"
         onClick={() => router.push(roomPath)}
-        className="absolute left-[20px] top-[20px] z-50 rounded-xl border border-white/35 bg-black/20 p-2 text-white transition hover:bg-black/35"
+        className="absolute left-10 lg:left-7 top-7 z-50 text-white transition-transform"
       >
-        <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+          stroke="currentColor"
+          className="w-10 h-10"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15.75 19.5L8.25 12l7.5-7.5"
+          />
+        </svg>
       </button>
 
-      <button
-        type="button"
-        aria-label="Buka menu"
-        onClick={() => setIsPaused(true)}
-        className="absolute right-[20px] top-[20px] z-50 rounded-xl border border-white/35 bg-black/20 p-2 text-white transition hover:bg-black/35"
-      >
-        <MoreHorizontal className="h-7 w-7 sm:h-8 sm:w-8" />
-      </button>
+      {/* Setting Button */}
+      <SettingButton onClick={() => setIsPaused(true)} />
 
       <GameArea />
 
