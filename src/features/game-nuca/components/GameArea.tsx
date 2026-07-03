@@ -38,7 +38,7 @@ function OpponentDeck({
   stackDirection?: 1 | -1;
 }) {
   return (
-    <div className="relative h-[clamp(108px,10vw,156px)] w-[clamp(76px,6.4vw,116px)]">
+    <div className="relative h-[clamp(96px,8vw,140px)] w-[clamp(68px,5.5vw,100px)] lg:h-[clamp(108px,10vw,156px)] lg:w-[clamp(76px,6.4vw,116px)]">
       {[0, 1, 2, 3].map((index) => (
         <img
           key={index}
@@ -58,7 +58,7 @@ function OpponentDeck({
 
 function ActiveQuestionCard({ playedCard }: { playedCard: PlayerCard | null }) {
   return (
-    <div className="flex h-[clamp(116px,10.7vw,166px)] w-[clamp(82px,6.9vw,122px)] items-center justify-center rounded-lg border border-dashed border-white/45 bg-black/20 backdrop-blur-sm">
+    <div className="flex h-[clamp(100px,9vw,140px)] w-[clamp(70px,6vw,100px)] lg:h-[clamp(116px,10.7vw,166px)] lg:w-[clamp(82px,6.9vw,122px)] items-center justify-center rounded-lg border border-dashed border-white/45 bg-black/20 backdrop-blur-sm">
       {playedCard ? (
         <div
           className="flex h-[clamp(108px,10vw,156px)] w-[clamp(76px,6.4vw,116px)] flex-col justify-between rounded-lg border border-white/55 px-1.5 py-1.5 text-left text-white shadow-xl"
@@ -154,7 +154,7 @@ export default function GameArea() {
               <PlayerProfileNuca
                 isActive={activePlayer === players[2].id}
                 status={getPlayerStatus(players[2].id)}
-                sizeClassName="h-10 w-10 sm:h-11 sm:w-11"
+                sizeClassName="h-10 w-10 lg:h-11 lg:w-11"
                 onAnswerTimeout={advanceTurn}
               />
             </div>
@@ -168,7 +168,7 @@ export default function GameArea() {
               <PlayerProfileNuca
                 isActive={activePlayer === players[1].id}
                 status={getPlayerStatus(players[1].id)}
-                sizeClassName="h-10 w-10 sm:h-11 sm:w-11"
+                sizeClassName="h-10 w-10 lg:h-11 lg:w-11"
                 onAnswerTimeout={advanceTurn}
               />
             </div>
@@ -188,7 +188,7 @@ export default function GameArea() {
               <PlayerProfileNuca
                 isActive={activePlayer === players[3].id}
                 status={getPlayerStatus(players[3].id)}
-                sizeClassName="h-10 w-10 sm:h-11 sm:w-11"
+                sizeClassName="h-10 w-10 lg:h-11 lg:w-11"
                 onAnswerTimeout={advanceTurn}
               />
             </div>
@@ -197,7 +197,7 @@ export default function GameArea() {
 
         {/* CENTER — main deck + active question card */}
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-[clamp(16px,1.7vw,28px)]">
-          <div className="relative h-[clamp(116px,10.7vw,166px)] w-[clamp(82px,6.9vw,122px)]">
+          <div className="relative h-[clamp(90px,7vw,106px)] w-[clamp(62px,8vw,100px)] lg:h-[clamp(116px,10.7vw,166px)] lg:w-[clamp(82px,6.9vw,122px)]">
             {[0, 1, 2, 3].map((index) => (
               <img
                 key={index}
@@ -246,7 +246,7 @@ export default function GameArea() {
               <PlayerProfileNuca
                 isActive={activePlayer === players[0].id}
                 status={getPlayerStatus(players[0].id)}
-                sizeClassName="h-10 w-10 sm:h-11 sm:w-11"
+                sizeClassName="h-10 w-10 lg:h-11 lg:w-11"
                 onAnswerTimeout={advanceTurn}
               />
             </div>
