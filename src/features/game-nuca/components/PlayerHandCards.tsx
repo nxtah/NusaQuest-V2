@@ -42,8 +42,8 @@ export default function PlayerHandCards({
             type="button"
             onClick={() => onSelectCard(card.id)}
             disabled={!canPlay || Boolean(selectedCardId && !isSelected)}
-            className={`relative h-[clamp(108px,10vw,156px)] w-[clamp(76px,6.4vw,116px)] rounded-xl border border-white/55 p-1.5 text-left text-white shadow-[0_10px_16px_rgba(0,0,0,0.32)] ${
-              index === 0 ? "" : "-ml-6 sm:-ml-7"
+            className={`relative h-[clamp(90px,8vw,140px)] w-[clamp(62px,5.5vw,100px)] lg:h-[clamp(108px,10vw,156px)] lg:w-[clamp(76px,6.4vw,116px)] rounded-xl border border-white/55 p-1.5 text-left text-white shadow-[0_10px_16px_rgba(0,0,0,0.32)] ${
+              index === 0 ? "" : "-ml-4 lg:-ml-7"
             } ${canPlay ? "cursor-pointer" : "cursor-not-allowed"}`}
             style={{ backgroundColor: card.hue }}
             initial={{ rotateY: 0 }}
@@ -73,8 +73,8 @@ export default function PlayerHandCards({
             }}
             whileHover={selectedCardId || !canPlay ? undefined : { y: -4 }}
           >
-            <p className="text-[8px] font-bold uppercase leading-none tracking-wide">Q: Makanan</p>
-            <p className="mt-2 line-clamp-3 text-[8px] font-semibold leading-tight text-white/95 sm:text-[9px]">
+            <p className="text-[7px] lg:text-[10px] font-bold uppercase leading-none tracking-wide">Q: Makanan</p>
+            <p className="mt-4 line-clamp-3 text-[6px] lg:text-[9px] leading-tight text-white/95 sm:text-[9px]">
               {card.title}
             </p>
           </motion.button>

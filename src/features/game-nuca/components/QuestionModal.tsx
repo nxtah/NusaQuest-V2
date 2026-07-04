@@ -24,7 +24,7 @@ export default function QuestionModal({ isOpen, onClose }: QuestionModalProps) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl sm:p-8"
+            className="w-full max-w-md lg:max-w-xl rounded-2xl bg-white p-6 lg:p-8 shadow-2xl"
           >
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#7b5a27]">
               Pertanyaan Nusantara
