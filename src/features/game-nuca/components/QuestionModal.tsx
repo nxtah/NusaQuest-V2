@@ -43,7 +43,7 @@ export default function QuestionModal({
             className={`
               ${poppins.className}
               relative
-              w-[95vw]
+              w-[70vw]
               max-w-[900px]
 
               max-[640px]:w-[98vw]
@@ -56,7 +56,7 @@ export default function QuestionModal({
                 bg-center
                 bg-contain
 
-                min-h-[clamp(435px,60vh,560px)]
+                min-h-[clamp(380px,60vh,560px)]
 
                 px-[clamp(24px,3vw,48px)]
                 pt-[clamp(48px,5vw,68px)]
@@ -78,7 +78,7 @@ export default function QuestionModal({
                 font-bold
                 text-[#1f2a1f]
                 leading-tight
-
+                pt-[clamp(24px,2vw,48px)] 
                 max-[640px]:text-base
                 ">
                 {question}
@@ -122,8 +122,8 @@ export default function QuestionModal({
               </div>
             </div>
 
-            <div className="absolute left-1/2 -bottom-4 sm:-bottom-[clamp(8px,1vw,16px)] z-10 -translate-x-1/2">
-              <div className="relativeh-14 w-14 sm:h-[clamp(52px,5vw,74px)] sm:w-[clamp(52px,5vw,74px)]">
+            <div className="absolute left-1/2 lg:bottom-4 bottom-[clamp(8px,1vw,16px)] z-10 -translate-x-1/2">
+              <div className="relative lg:h-14 lg:w-14 h-[clamp(40px,3rem,64px)] w-[clamp(40px,3rem,64px)]">
                 <div className="h-full w-full overflow-hidden rounded-full bg-gradient-to-br from-[#fff3cb] via-[#f6c26f] to-[#cf8132] shadow-[0_6px_14px_rgba(0,0,0,0.35)] ring-2 ring-white/80">
                   {avatarUrl ? (
                     <img
