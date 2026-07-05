@@ -2,69 +2,50 @@
 import {useEffect, useState} from 'react';
 import Modal, {FormField} from './Modal';
 import {
-  getGameQuestions,
-  createQuestion,
-  updateQuestion,
-  deleteQuestion,
-  type Question,
-} from '@/src/services/firebase/rtdb/admin.questions.service';
+  getAllInformasi,
+  createInformasi,
+  updateInformasi,
+  deleteInformasi,
+  type Informasi,
+} from '@/src/services/firebase/rtdb/admin.informasi.service';
 
-const GAMES = [
-  {id: 'game1', name: 'Game Ular Tangga'},
-  {id: 'game2', name: 'Game Nusa Card'},
+const CATEGORIES = [
+  'Tutorial',
+  'Panduan',
+  'Tips',
+  'Berita',
+  'Peraturan',
+  'FAQ',
+  'Lainnya',
 ];
 
-const TOPICS = [
-  'DAERAH',
-  'KULINER',
-  'MUSIK',
-  'TARI',
-  'SEJARAH',
-  'ALAM',
-  'OLAHRAGA',
-  'TRADISI',
-];
-
-function getQuestionText(question: Question) {
-  return question.question;
-}
-
-function getQuestionAnswer(question: Question) {
-  return question.answer;
-}
-
-function getQuestionTopic(question: Question) {
-  return question.topic;
-}
-
-export default function QuestionsTable() {
-  const [selectedGame, setSelectedGame] = useState('game1');
-  const [questions, setQuestions] = useState<Record<string, Question>>({});
+export default function InformasiTable() {
+  const [informasiList, setInformasiList] = useState<Record<string, Informasi>>({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingData, setEditingData] = useState<Question | null>(null);
+  const [editingData, setEditingData] = useState<Informasi | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Load questions
+  // Load informasi
   useEffect(() => {
-    const loadQuestions = async () => {
+    const loadInformasi = async () => {
       setLoading(true);
       setError(null);
-      const result = await getGameQuestions(selectedGame);
+      const result = await getAllInformasi();
 
       if (result.success) {
-        setQuestions(result.data || {});
+        setInformasiList(result.data || {});
       } else {
-        setError('Failed to load questions');
+        setError('Failed to load informasi');
       }
       setLoading(false);
     };
 
-    loadQuestions();
-  }, [selectedGame]);
+    loadInformasi();
+  }, []);
 
   const handleAddNew = () => {
     setEditingId(null);
@@ -72,27 +53,27 @@ export default function QuestionsTable() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (id: string, data: Question) => {
+  const handleEdit = (id: string, data: Informasi) => {
     setEditingId(id);
     setEditingData(data);
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this question?')) return;
+    if (!confirm('Are you sure you want to delete this informasi?')) return;
 
     setLoading(true);
-    const result = await deleteQuestion(selectedGame, id);
+    const result = await deleteInformasi(id);
 
     if (result.success) {
-      setQuestions((prev) => {
+      setInformasiList((prev) => {
         const updated = {...prev};
         delete updated[id];
         return updated;
       });
-      setSuccess('Question deleted successfully');
+      setSuccess('Informasi deleted successfully');
     } else {
-      setError('Failed to delete question');
+      setError('Failed to delete informasi');
     }
     setLoading(false);
 
@@ -106,49 +87,56 @@ export default function QuestionsTable() {
     try {
       if (editingId) {
         // Update existing
-        const result = await updateQuestion(selectedGame, editingId, {
-          question: data.question as string,
-          answer: data.answer as string,
-          topic: data.topic as string,
+        const result = await updateInformasi(editingId, {
+          title: data.title as string,
+          description: data.description as string,
+          content: data.content as string,
+          category: data.category as string,
+          image: (data.image as string) || undefined,
         });
 
         if (result.success) {
-          setQuestions((prev) => ({
+          setInformasiList((prev) => ({
             ...prev,
             [editingId]: {
               ...editingData,
-              question: (result.data.question ?? editingData?.question) as string,
-              answer: (result.data.answer ?? editingData?.answer) as string,
-              topic: (result.data.topic ?? editingData?.topic) as string,
+              title: (result.data.title ?? editingData?.title) as string,
+              description: (result.data.description ?? editingData?.description) as string,
+              content: (result.data.content ?? editingData?.content) as string,
+              category: (result.data.category ?? editingData?.category) as string,
+              image: result.data.image ?? editingData?.image,
               updatedAt: result.data.updatedAt,
-            } as Question,
+            } as Informasi,
           }));
-          setSuccess('Question updated successfully');
+          setSuccess('Informasi updated successfully');
         } else {
-          setError('Failed to update question');
+          setError('Failed to update informasi');
         }
       } else {
         // Create new
-        const result = await createQuestion(selectedGame, {
-          question: data.question as string,
-          answer: data.answer as string,
-          topic: data.topic as string,
+        const result = await createInformasi({
+          title: data.title as string,
+          description: data.description as string,
+          content: data.content as string,
+          category: data.category as string,
+          image: (data.image as string) || undefined,
         });
 
         if (result.success) {
-          setQuestions((prev) => ({
+          setInformasiList((prev) => ({
             ...prev,
             [result.data.id]: {
               id: result.data.id,
-              question: data.question as string,
-              answer: data.answer as string,
-              topic: data.topic as string,
-              gameId: selectedGame,
+              title: data.title as string,
+              description: data.description as string,
+              content: data.content as string,
+              category: data.category as string,
+              image: (data.image as string) || undefined,
             },
           }));
-          setSuccess('Question created successfully');
+          setSuccess('Informasi created successfully');
         } else {
-          setError('Failed to create question');
+          setError('Failed to create informasi');
         }
       }
 
@@ -159,17 +147,11 @@ export default function QuestionsTable() {
     }
   };
 
-  const questionsArray = Object.entries(questions)
-    .map(([id, q]) => ({
-      id,
-      ...q,
-      question: getQuestionText(q),
-      answer: getQuestionAnswer(q),
-      topic: getQuestionTopic(q),
-    }))
+  const informasiArray = Object.entries(informasiList)
+    .map(([id, item]) => ({id, ...item}))
     .sort((a, b) => {
-      const aTime = (a as Question & {createdAt?: number}).createdAt || 0;
-      const bTime = (b as Question & {createdAt?: number}).createdAt || 0;
+      const aTime = a.createdAt || 0;
+      const bTime = b.createdAt || 0;
       return bTime - aTime;
     });
 
@@ -189,46 +171,29 @@ export default function QuestionsTable() {
         )}
 
         {/* Top Actions Bar */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex gap-3 bg-black/40 p-1.5 rounded-2xl border border-white/10">
-            {GAMES.map((game) => (
-              <button
-                key={game.id}
-                onClick={() => setSelectedGame(game.id)}
-                className={`px-6 py-2.5 font-bold rounded-xl transition-all ${selectedGame === game.id
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'hover:bg-white/10 text-gray-300'
-                  }`}
-              >
-                {game.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-3">
-            <button className="px-6 py-3 bg-[#2d3748]/80 border border-white/20 hover:bg-[#3a4556] text-white rounded-xl font-bold transition-all shadow-md text-sm backdrop-blur-sm">
-              Save Changes
-            </button>
-            <button
-              onClick={handleAddNew}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.6)] text-sm"
+        <div className="flex justify-end items-center mb-8 gap-3">
+          <button className="px-6 py-3 bg-[#2d3748]/80 border border-white/20 hover:bg-[#3a4556] text-white rounded-xl font-bold transition-all shadow-md text-sm backdrop-blur-sm">
+            Save Changes
+          </button>
+          <button
+            onClick={handleAddNew}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.6)] text-sm"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12h14" />
-                <path d="M12 5v14" />
-              </svg>
-              Add New
-            </button>
-          </div>
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+            Add New
+          </button>
         </div>
 
         {/* Table Container */}
@@ -237,41 +202,41 @@ export default function QuestionsTable() {
             <div className="h-full flex items-center justify-center">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-8 h-8 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                <p className="text-gray-400">Loading questions...</p>
+                <p className="text-gray-400">Loading informasi...</p>
               </div>
             </div>
-          ) : questionsArray.length > 0 ? (
+          ) : informasiArray.length > 0 ? (
             <table className="w-full text-sm text-left">
               <thead className="text-[11px] uppercase bg-black/60 text-gray-300 font-extrabold tracking-widest sticky top-0 z-10 backdrop-blur-xl border-b border-white/10">
                 <tr>
                   <th className="px-6 py-5 w-16 text-center">#</th>
-                  <th className="px-6 py-5 w-[40%]">PERTANYAAN</th>
-                  <th className="px-6 py-5 w-[30%]">JAWABAN</th>
-                  <th className="px-6 py-5">TOPIK</th>
+                  <th className="px-6 py-5 w-[25%]">JUDUL</th>
+                  <th className="px-6 py-5 w-[35%]">DESKRIPSI</th>
+                  <th className="px-6 py-5">KATEGORI</th>
                   <th className="px-6 py-5 text-center">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {questionsArray.map((q, idx) => (
-                  <tr key={q.id} className="hover:bg-white/5 transition-colors group">
+                {informasiArray.map((item, idx) => (
+                  <tr key={item.id} className="hover:bg-white/5 transition-colors group">
                     <td className="px-6 py-5 font-black text-gray-400 text-center">
                       {idx + 1}
                     </td>
                     <td className="px-6 py-5 font-bold text-base text-gray-100 pr-8 leading-relaxed">
-                      {q.question}
+                      {item.title}
                     </td>
-                    <td className="px-6 py-5 font-bold text-blue-300 text-base">
-                      {q.answer}
+                    <td className="px-6 py-5 text-gray-300 text-sm line-clamp-2">
+                      {item.description}
                     </td>
                     <td className="px-6 py-5">
                       <span className="px-3 py-1.5 bg-white/10 rounded-lg text-xs font-bold text-gray-200 uppercase tracking-wider border border-white/10 shadow-sm">
-                        {q.topic}
+                        {item.category}
                       </span>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex items-center justify-center gap-3">
                         <button
-                          onClick={() => handleEdit(q.id, q)}
+                          onClick={() => handleEdit(item.id, item)}
                           className="p-2.5 bg-blue-500/20 hover:bg-blue-500 text-blue-300 hover:text-white rounded-xl transition-all border border-blue-500/30 hover:border-transparent shadow-sm"
                         >
                           <svg
@@ -289,7 +254,7 @@ export default function QuestionsTable() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(q.id)}
+                          onClick={() => handleDelete(item.id)}
                           className="p-2.5 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white rounded-xl transition-all border border-red-500/30 hover:border-transparent shadow-sm"
                         >
                           <svg
@@ -317,7 +282,9 @@ export default function QuestionsTable() {
             </table>
           ) : (
             <div className="h-full flex items-center justify-center">
-              <p className="text-gray-400 text-lg">No questions found. Create one to get started!</p>
+              <p className="text-gray-400 text-lg">
+                No informasi found. Create one to get started!
+              </p>
             </div>
           )}
         </div>
@@ -326,7 +293,7 @@ export default function QuestionsTable() {
       {/* Modal */}
       <Modal
         isOpen={isModalOpen}
-        title={editingId ? 'Edit Question' : 'Add New Question'}
+        title={editingId ? 'Edit Informasi' : 'Add New Informasi'}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmit}
         isLoading={isSaving}
@@ -334,35 +301,51 @@ export default function QuestionsTable() {
         size="lg"
       >
         <FormField
-          label="Question"
-          name="question"
-          type="textarea"
-          placeholder="Enter the question"
-          value={editingData?.question}
-          required
-          rows={3}
-        />
-        <FormField
-          label="Answer"
-          name="answer"
+          label="Title"
+          name="title"
           type="text"
-          placeholder="Enter the answer"
-          value={editingData?.answer}
+          placeholder="Enter title"
+          value={editingData?.title}
           required
         />
         <FormField
-          label="Topic"
-          name="topic"
+          label="Description"
+          name="description"
+          type="textarea"
+          placeholder="Enter description"
+          value={editingData?.description}
+          required
+          rows={2}
+        />
+        <FormField
+          label="Content"
+          name="content"
+          type="textarea"
+          placeholder="Enter detailed content"
+          value={editingData?.content}
+          required
+          rows={4}
+        />
+        <FormField
+          label="Category"
+          name="category"
           type="select"
-          value={editingData?.topic}
+          value={editingData?.category}
           required
         >
-          {TOPICS.map((topic) => (
-            <option key={topic} value={topic} className="text-gray-900">
-              {topic}
+          {CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
             </option>
           ))}
         </FormField>
+        <FormField
+          label="Image URL (Optional)"
+          name="image"
+          type="text"
+          placeholder="https://example.com/image.jpg"
+          value={editingData?.image}
+        />
       </Modal>
 
       <style dangerouslySetInnerHTML={{

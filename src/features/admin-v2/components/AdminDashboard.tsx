@@ -1,12 +1,14 @@
 'use client';
-import { useState } from 'react';
+import {useState} from 'react';
 import Sidebar from './Sidebar';
 import DashboardHeader from './DashboardHeader';
 import QuestionsTable from './QuestionsTable';
+import InformasiTable from './InformasiTable';
+import KotaProvinsTable from './KotaProvinsTable';
 
-export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
+export default function AdminDashboard({onLogout}: {onLogout: () => void}) {
   const [activeMenu, setActiveMenu] = useState('pertanyaan');
-  
+
   return (
     <div className="min-h-screen w-full flex text-white font-sans relative overflow-hidden">
       {/* Background Combo */}
@@ -18,31 +20,24 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       </div>
 
       {/* Sidebar Component */}
-      <Sidebar 
-        activeMenu={activeMenu} 
-        setActiveMenu={setActiveMenu} 
-        onLogout={onLogout} 
+      <Sidebar
+        activeMenu={activeMenu}
+        setActiveMenu={setActiveMenu}
+        onLogout={onLogout}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col p-8 lg:p-10 overflow-hidden h-screen z-10">
         <DashboardHeader activeMenu={activeMenu} />
-        
+
         {/* Render content based on active menu */}
         {activeMenu === 'pertanyaan' && <QuestionsTable />}
-        {activeMenu === 'informasi' && (
-          <div className="flex-1 bg-[#1e2532]/70 backdrop-blur-2xl rounded-[2rem] border border-white/20 p-8 flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-             <p className="text-2xl text-gray-300 font-bold drop-shadow-md">Menu Informasi (Coming Soon)</p>
-          </div>
-        )}
-        {activeMenu === 'kota' && (
-          <div className="flex-1 bg-[#1e2532]/70 backdrop-blur-2xl rounded-[2rem] border border-white/20 p-8 flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-             <p className="text-2xl text-gray-300 font-bold drop-shadow-md">Menu Kota & Provinsi (Coming Soon)</p>
-          </div>
-        )}
+        {activeMenu === 'informasi' && <InformasiTable />}
+        {activeMenu === 'kota' && <KotaProvinsTable />}
       </main>
 
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
         }
