@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useState } from 'react';
 
+import { useAuth } from '../../features/auth/hooks/useAuth';
 import EditProfileModal from './EditProfileModal';
 
 type ProfileCardProps = {
@@ -13,7 +14,18 @@ type ProfileCardProps = {
 };
 
 export default function ProfileCard({ username, email, avatarSrc, woodSrc }: ProfileCardProps) {
+  const { logout } = useAuth();
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -25,7 +37,13 @@ export default function ProfileCard({ username, email, avatarSrc, woodSrc }: Pro
         <div className="profile-card-shell">
           <div className="profile-card-content">
             <div className="profile-avatar-wrap">
-              <Image src={avatarSrc} alt="Avatar pengguna" fill className="profile-image" />
+              <Image
+                src={avatarSrc}
+                alt="Avatar pengguna"
+                fill
+                className="profile-image"
+                unoptimized={avatarSrc.startsWith('blob:')}
+              />
             </div>
 
             <div className="profile-card-info">
@@ -36,13 +54,20 @@ export default function ProfileCard({ username, email, avatarSrc, woodSrc }: Pro
             <div className="profile-card-actions">
               <button
                 type="button"
+                id="btn-edit-profile"
                 className="profile-action-btn edit poppins-bold"
                 onClick={() => setIsEditOpen(true)}
               >
                 Edit Profile
               </button>
-              <button type="button" className="profile-action-btn logout poppins-bold">
-                Logout
+              <button
+                type="button"
+                id="btn-logout"
+                className="profile-action-btn logout poppins-bold"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? 'Keluar...' : 'Logout'}
               </button>
             </div>
           </div>
