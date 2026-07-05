@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Irish_Grover, Geist, Geist_Mono, Poppins } from "next/font/google"; 
 import React from 'react';
 import './globals.css';
+import '../components/home/home-modals.css';
+import '../components/home/home-labels.css';
 import type { Viewport } from 'next';
 
 export const viewport: Viewport = {
@@ -27,10 +29,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const poppinsBold = Poppins({
+const poppins = Poppins({
   subsets: ['latin'],
-  weight: ['700'],
-  variable: '--font-poppins-bold',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-poppins',
 });
 
 export const metadata: Metadata = {
@@ -50,7 +52,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${irishGrover.variable} ${poppinsBold.variable} antialiased overflow-auto m-0 p-0`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${irishGrover.variable} ${poppins.variable} antialiased overflow-auto m-0 p-0`}>
         {children}
       </body>
     </html>

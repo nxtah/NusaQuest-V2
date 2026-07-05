@@ -1,0 +1,63 @@
+'use client';
+
+import React from 'react';
+import { GameType, GAME_TYPES } from '../../features/home/types';
+
+interface GameSelectionModalProps {
+  isOpen: boolean;
+  islandLabel: string | null;
+  onSelectGame: (game: GameType) => void;
+  onClose: () => void;
+}
+
+export default function GameSelectionModal({
+  isOpen,
+  islandLabel,
+  onSelectGame,
+  onClose,
+}: GameSelectionModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="game-modal-overlay" onClick={onClose}>
+      <div className="game-modal-container" onClick={(e) => e.stopPropagation()}>
+        <button
+          className="game-modal-close"
+          onClick={onClose}
+          aria-label="Close modal"
+        >
+          ✕
+        </button>
+
+        <div className="game-modal-header">
+          <h2 className="game-modal-title">Pilih Game</h2>
+          {islandLabel && (
+            <p className="game-modal-subtitle">
+              dari {islandLabel}
+            </p>
+          )}
+        </div>
+
+        <div className="game-modal-content">
+          <div className="game-options-grid">
+            {(Object.entries(GAME_TYPES) as Array<[GameType, typeof GAME_TYPES[GameType]]>).map(
+              ([gameKey, gameValue]) => (
+                <button
+                  key={gameKey}
+                  onClick={() => onSelectGame(gameKey)}
+                  className="game-option-card"
+                  aria-label={`Pilih game ${gameValue.label}`}
+                >
+                  <span className="game-option-icon">
+                    {gameKey === 'ular-tangga' ? '🎲' : '🃏'}
+                  </span>
+                  <span className="game-option-label">{gameValue.label}</span>
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

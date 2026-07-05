@@ -1,0 +1,61 @@
+/* Home label styles for island and menu badges */
+.home-label-base {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	z-index: 60;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	white-space: nowrap;
+	transform: translate(-50%, -50%);
+	padding: 0.6rem 1.1rem;
+	font-size: clamp(0.86rem, 1.25vw, 1.05rem);
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	color: #fff;
+	transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+/* Game labels (Pulau 1-4, Mercusuar) - more square, larger, yellow gradient */
+.home-label-game {
+	@apply home-label-base flex items-center gap-2 px-5 py-3 text-base font-semibold;
+	border-radius: 0.25rem; /* less rounded - more boxy */
+	background: linear-gradient(135deg, #FFC857 0%, #FFB703 70%);
+	color: #1a1200;
+	box-shadow: 0 8px 22px rgba(255, 184, 0, 0.14);
+}
+
+.home-label-game:hover {
+	filter: brightness(1.04);
+	transform: translate(-50%, -50%) scale(1.04);
+}
+
+.home-label-tail-game {
+	@apply h-3 w-3 rounded-sm;
+	background: linear-gradient(135deg, #FFDB6B 0%, #FFC857 100%);
+	box-shadow: 0 4px 10px rgba(255, 184, 0, 0.12);
+}
+
+/* Menu label remains rounded but smaller */
+.home-label-menu {
+	border: 2px solid rgba(255, 255, 255, 0.92);
+	border-radius: 0.9rem;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
+		linear-gradient(135deg, #f39a2e, #db6b1b);
+	box-shadow: 0 10px 22px rgba(106, 47, 7, 0.28);
+}
+
+@media (max-width: 768px) {
+	.home-label-base {
+		padding: 0.5rem 0.9rem;
+		font-size: 0.95rem;
+	}
+
+	.home-label-game {
+		padding: 0.44rem 0.9rem;
+		font-size: 0.9rem;
+	}
+}
+
