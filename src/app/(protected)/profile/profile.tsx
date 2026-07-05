@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 
 import { background } from '../../../assets/images/background/cloudinaryAssets';
@@ -9,8 +11,21 @@ import BadgeSection from '../../../components/profile/BadgeSection';
 import ProfileCard from '../../../components/profile/ProfileCard';
 import ProfileHeader from '../../../components/profile/ProfileHeader';
 import ProfilePanel from '../../../components/profile/ProfilePanel';
+import { useAuth } from '../../../features/auth/hooks/useAuth';
 
 export default function Profile() {
+  const { user } = useAuth();
+
+  // Ambil foto profil: utamakan foto yang di-upload ke Firebase Storage,
+  // jika belum ada pakai foto Google, fallback ke gambar kertas
+  const avatarSrc =
+    user?.firebasePhotoURL ||
+    user?.googlePhotoURL ||
+    information.kertas;
+
+  const username  = user?.displayName || 'Nusa Player';
+  const email     = user?.email        || '';
+
   return (
     <div className="profile-scene">
       <div className="profile-bg-layer">
@@ -46,9 +61,9 @@ export default function Profile() {
           {/* Kolom kiri: kartu profil */}
           <div className="profile-left-region">
             <ProfileCard
-              username="Nusa Player"
-              email="nusa.player@mail.com"
-              avatarSrc={information.kertas}
+              username={username}
+              email={email}
+              avatarSrc={avatarSrc}
               woodSrc={background.kayu}
             />
           </div>

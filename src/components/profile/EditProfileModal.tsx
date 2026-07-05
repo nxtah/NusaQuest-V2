@@ -3,6 +3,9 @@
 import Image from 'next/image';
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 
+import { useAuth } from '../../features/auth/hooks/useAuth';
+import { updateUserData, uploadPhoto } from '../../features/auth/services/auth.service';
+
 type EditProfileModalProps = {
   onClose: () => void;
   initialUsername?: string;
@@ -41,38 +44,68 @@ export default function EditProfileModal({
   initialUsername = 'Nusa Player',
   avatarSrc,
 }: EditProfileModalProps) {
+  const { user } = useAuth();
+
   const [username, setUsername] = useState(initialUsername);
-  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Bersihkan object URL saat unmount / ganti foto
   useEffect(() => {
     return () => {
-      if (selectedPhotoUrl) {
-        URL.revokeObjectURL(selectedPhotoUrl);
-      }
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
-  }, [selectedPhotoUrl]);
+  }, [previewUrl]);
 
   const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
+    if (event.target === event.currentTarget) onClose();
   };
 
   const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     const nextUrl = URL.createObjectURL(file);
-    if (selectedPhotoUrl) {
-      URL.revokeObjectURL(selectedPhotoUrl);
-    }
-    setSelectedPhotoUrl(nextUrl);
+    setSelectedFile(file);
+    setPreviewUrl(nextUrl);
   };
 
-  const previewSrc = selectedPhotoUrl ?? avatarSrc;
+  const handleSave = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      let firebasePhotoURL = user.firebasePhotoURL ?? null;
+
+      // Upload foto baru ke Firebase Storage jika ada yang dipilih
+      if (selectedFile) {
+        const { downloadURL } = await uploadPhoto(selectedFile, user.uid);
+        firebasePhotoURL = downloadURL;
+      }
+
+      // Simpan perubahan ke Realtime Database
+      await updateUserData({
+        ...user,
+        displayName: username.trim() || user.displayName,
+        firebasePhotoURL,
+      });
+
+      onClose();
+    } catch {
+      setSaveError('Gagal menyimpan. Coba lagi ya!');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const displaySrc = previewUrl ?? avatarSrc;
 
   return (
     <div
@@ -90,10 +123,17 @@ export default function EditProfileModal({
         </div>
 
         <div className="epm-content">
+          {/* Avatar preview */}
           <div className="epm-avatar-wrap">
             <div className="epm-avatar">
-              {previewSrc ? (
-                <Image src={previewSrc} alt="Profile photo" fill className="object-cover" unoptimized />
+              {displaySrc ? (
+                <Image
+                  src={displaySrc}
+                  alt="Profile photo"
+                  fill
+                  className="object-cover"
+                  unoptimized={!!previewUrl}
+                />
               ) : null}
             </div>
 
@@ -103,7 +143,7 @@ export default function EditProfileModal({
               onClick={() => photoInputRef.current?.click()}
             >
               <CameraIcon />
-              Change Photo
+              Ganti Foto
             </button>
 
             <input
@@ -115,21 +155,36 @@ export default function EditProfileModal({
             />
           </div>
 
+          {/* Username field */}
           <div className="epm-field">
             <label htmlFor="edit-username" className="epm-label">Username</label>
             <input
               id="edit-username"
               type="text"
               value={username}
-              onChange={(event) => setUsername(event.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               className="epm-input"
+              maxLength={30}
             />
           </div>
 
+          {saveError && (
+            <p style={{ color: '#ef4444', fontSize: 13, fontWeight: 600, textAlign: 'center', margin: 0 }}>
+              {saveError}
+            </p>
+          )}
+
+          {/* Actions */}
           <div className="epm-actions">
-            <button type="button" className="epm-save-btn" onClick={onClose}>
+            <button
+              type="button"
+              id="btn-save-profile"
+              className="epm-save-btn"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
               <SaveIcon />
-              Save
+              {isSaving ? 'Menyimpan...' : 'Simpan'}
             </button>
           </div>
         </div>

@@ -1,11 +1,10 @@
-import type { Metadata } from "next";
-import { Irish_Grover, Geist, Geist_Mono, Poppins } from "next/font/google"; 
+import type {Metadata, Viewport} from 'next';
+import {Geist, Geist_Mono, Irish_Grover, Poppins} from 'next/font/google';
 import React from 'react';
+import Providers from '@/src/app/providers';
 import './globals.css';
 import '../components/home/home-modals.css';
 import '../components/home/home-labels.css';
-import type { Viewport } from 'next';
-
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -14,19 +13,19 @@ export const viewport: Viewport = {
 };
 
 const irishGrover = Irish_Grover({
-  weight: "400",
-  variable: "--font-irish-grover",
-  subsets: ["latin"],
+  weight: '400',
+  variable: '--font-irish-grover',
+  subsets: ['latin'],
 });
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 const poppins = Poppins({
@@ -36,12 +35,12 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "NusaQuest",
-  description: "Educational Adventure Game",
+  title: 'NusaQuest',
+  description: 'Educational Adventure Game',
   icons: {
-    icon: "/icons/logo.webp",
-    shortcut: "/icons/logo.webp",
-    apple: "/icons/logo.webp",
+    icon: '/icons/logo.webp',
+    shortcut: '/icons/logo.webp',
+    apple: '/icons/logo.webp',
   },
 };
 
@@ -53,7 +52,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} ${irishGrover.variable} ${poppins.variable} antialiased overflow-auto m-0 p-0`}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

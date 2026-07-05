@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Stage, Layer, Rect, Text, Image as KonvaImage } from "react-konva";
-import { ularTangga } from "../../../../src/assets/images/ular-tangga/cloudinaryAssets";
+import { ularTangga } from "../../../assets/images/ular-tangga/cloudinaryAssets";
 import Pion from "./Pion";
 
 export default function Board({
