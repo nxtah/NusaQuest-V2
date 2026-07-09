@@ -44,7 +44,7 @@ export default function NusaMaps({setShowModal, setSelectedTopic}: NusaMapsProps
     if (!isInitialized) return;
 
     if (!isLoggedIn) {
-      router.push('/login');
+      router.push('/home');
       return;
     }
 

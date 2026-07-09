@@ -3,8 +3,8 @@
 import Image from 'next/image';
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 
-import { useAuth } from '../../features/auth/hooks/useAuth';
-import { updateUserData, uploadPhoto } from '../../features/auth/services/auth.service';
+
+
 
 type EditProfileModalProps = {
   onClose: () => void;
@@ -44,7 +44,7 @@ export default function EditProfileModal({
   initialUsername = 'Nusa Player',
   avatarSrc,
 }: EditProfileModalProps) {
-  const { user } = useAuth();
+  const user = null;
 
   const [username, setUsername] = useState(initialUsername);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

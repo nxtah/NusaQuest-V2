@@ -2,6 +2,8 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   type User,
 } from 'firebase/auth';
@@ -17,8 +19,17 @@ export function getFirebaseAuth() {
   return firebaseAuth!;
 }
 
-export async function signInWithGooglePopup() {
-  return signInWithPopup(getFirebaseAuth(), googleProvider);
+export async function signInWithGoogle() {
+  // Try popup first; if COOP blocks it, fall back to redirect
+  try {
+    await signInWithPopup(getFirebaseAuth(), googleProvider);
+  } catch {
+    await signInWithRedirect(getFirebaseAuth(), googleProvider);
+  }
+}
+
+export async function getAuthRedirectResult() {
+  return getRedirectResult(getFirebaseAuth());
 }
 
 export async function signOutFirebase() {

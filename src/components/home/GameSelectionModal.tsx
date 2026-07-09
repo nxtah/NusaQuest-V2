@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { GameType, GAME_TYPES } from '../../features/home/types';
+import { getPopupImage } from '../../assets/images/home/cloudinaryAssets';
 
 interface GameSelectionModalProps {
   isOpen: boolean;
@@ -49,7 +50,11 @@ export default function GameSelectionModal({
                   aria-label={`Pilih game ${gameValue.label}`}
                 >
                   <span className="game-option-icon">
-                    {gameKey === 'ular-tangga' ? '🎲' : '🃏'}
+                    <img
+                      src={gameKey === 'ular-tangga' ? getPopupImage('ularTanggaIcon') : getPopupImage('nucaIcon')}
+                      alt={gameValue.label}
+                      className="w-32 h-32 md:w-36 md:h-36 object-contain"
+                    />
                   </span>
                   <span className="game-option-label">{gameValue.label}</span>
                 </button>

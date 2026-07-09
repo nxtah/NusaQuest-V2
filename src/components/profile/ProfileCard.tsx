@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useState } from 'react';
 
-import { useAuth } from '../../features/auth/hooks/useAuth';
+
 import EditProfileModal from './EditProfileModal';
 
 type ProfileCardProps = {
@@ -14,18 +14,9 @@ type ProfileCardProps = {
 };
 
 export default function ProfileCard({ username, email, avatarSrc, woodSrc }: ProfileCardProps) {
-  const { logout } = useAuth();
+  
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await logout();
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
+  // const [isLoggingOut] = useState(false);
 
   return (
     <>
@@ -62,12 +53,10 @@ export default function ProfileCard({ username, email, avatarSrc, woodSrc }: Pro
               </button>
               <button
                 type="button"
-                id="btn-logout"
                 className="profile-action-btn logout poppins-bold"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
+                disabled
               >
-                {isLoggingOut ? 'Keluar...' : 'Logout'}
+                Login (coming soon)
               </button>
             </div>
           </div>

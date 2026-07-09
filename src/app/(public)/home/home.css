@@ -183,9 +183,9 @@
     height: 100%;
     object-fit: contain;
     object-position: center;
-    pointer-events: none;
     user-drag: none;
     -webkit-user-drag: none;
+    transition: filter 0.3s ease;
 }
 
 /* Mercusuar styling */

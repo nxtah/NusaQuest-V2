@@ -49,7 +49,7 @@ export function useGameBootstrap({
     const initGame = async () => {
       try {
         if (!user?.uid) {
-          router.push('/login');
+          router.push('/home');
           return;
         }
 

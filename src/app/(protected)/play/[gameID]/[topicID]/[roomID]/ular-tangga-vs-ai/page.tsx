@@ -4,7 +4,7 @@ import {useEffect, useMemo, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import Header from '@/src/components/layout/Header';
 import Footer from '@/src/components/layout/Footer';
-import {useAuth} from '@/src/features/auth/hooks/useAuth';
+
 import {useGameBootstrap} from '@/src/features/game/hooks/useGameBootstrap';
 import {useGameLifecycle} from '@/src/features/game/hooks/useGameLifecycle';
 import {
@@ -26,7 +26,7 @@ const BOARD_LIMIT = 30;
 export default function UlarTanggaVsAiPage() {
   const params = useParams();
   const router = useRouter();
-  const {user, isInitialized} = useAuth();
+  const user = null; const isInitialized = true;
 
   const gameID = params.gameID as string;
   const topicID = params.topicID as string;

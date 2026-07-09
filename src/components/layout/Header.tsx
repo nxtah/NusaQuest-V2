@@ -1,65 +1,34 @@
 'use client';
 
 import Link from 'next/link';
-import {useRouter} from 'next/navigation';
-import {useAuth} from '@/src/features/auth/hooks/useAuth';
 
 interface HeaderProps {
   showBackIcon?: boolean;
-  showTextHeader?: string;
 }
 
-export default function Header({showBackIcon = false, showTextHeader}: HeaderProps) {
-  const router = useRouter();
-  const {isLoggedIn, user, logout} = useAuth();
-
-  const handleLogout = async () => {
-    await logout();
-    router.push('/login');
-  };
-
+export default function Header({ showBackIcon }: HeaderProps) {
   return (
-    <header className="header-container py-3 border-bottom">
-      <div className="container d-flex justify-content-between align-items-center">
-        <div className="d-flex align-items-center gap-2">
-          {showBackIcon && (
-            <button
-              className="btn btn-sm btn-outline-secondary"
-              onClick={() => router.back()}
-            >
-              ← Back
-            </button>
-          )}
-          {showTextHeader && <h5 className="mb-0">{showTextHeader}</h5>}
-          {!showTextHeader && !showBackIcon && (
-            <Link href="/home" className="text-decoration-none">
-              <h5 className="mb-0">NusaQuest</h5>
-            </Link>
-          )}
-        </div>
-
-        <nav className="d-flex gap-3 align-items-center">
-          <Link href="/information" className="text-decoration-none">
-            Info
-          </Link>
-          {isLoggedIn && (
-            <>
-              <span className="text-muted">{user?.displayName}</span>
-              <Link href="/profile" className="text-decoration-none">
-                Profile
-              </Link>
-              <button className="btn btn-sm btn-danger" onClick={handleLogout}>
-                Logout
-              </button>
-            </>
-          )}
-          {!isLoggedIn && (
-            <Link href="/login" className="btn btn-sm btn-primary">
-              Login
-            </Link>
-          )}
-        </nav>
+    <header className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-md shadow-sm">
+      <div className="flex items-center gap-3">
+        {showBackIcon && (
+          <button
+            onClick={() => window.history.back()}
+            className="rounded-lg p-2 text-slate-700 hover:bg-slate-100 transition-colors"
+            aria-label="Kembali"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </button>
+        )}
+        <Link href="/home" className="font-bold text-lg text-slate-800">
+          NusaQuest
+        </Link>
       </div>
+
+      <Link href="/profile" className="h-9 w-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
+        N
+      </Link>
     </header>
   );
 }

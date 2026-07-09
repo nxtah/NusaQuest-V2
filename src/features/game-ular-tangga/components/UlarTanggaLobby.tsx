@@ -25,11 +25,11 @@ export default function UlarTanggaLobby({
          style={{
            // Fallback background yang bagus jika tidak ada gambar (atau bisa pakai gambar background lobby jika ada)
            background: 'linear-gradient(to bottom, #1e3c72, #2a5298)',
-           fontFamily: '"Poppins", sans-serif'
+           fontFamily: 'Poppins, sans-serif'
          }}
     >
       <div className="absolute top-8 text-center w-full z-10">
-        <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-md" style={{ fontFamily: 'var(--font-spicy-rice)' }}>
+        <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-md" style={{ fontFamily: 'var(--font-bauhaus)' }}>
           Welcome to {topicID.toUpperCase()} {roomID}
         </h1>
       </div>
@@ -125,7 +125,7 @@ export default function UlarTanggaLobby({
                             ${isMeOwner 
                               ? 'bg-[#8cc63f] hover:bg-[#7ab033] text-white active:scale-95' 
                               : 'bg-gray-500 text-gray-300 cursor-not-allowed opacity-70'}`}
-                style={{ fontFamily: 'var(--font-spicy-rice)' }}
+                style={{ fontFamily: 'var(--font-bauhaus)' }}
               >
                 Mulai Permainan
               </button>

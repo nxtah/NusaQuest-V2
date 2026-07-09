@@ -12,10 +12,10 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useRouter, useParams} from 'next/navigation';
-import {useAuth} from '../../../../../../../features/auth/hooks/useAuth';
-import GameBackground from '../../../../../../../features/game-ular-tangga/components/GameBackground';
-import Board from '../../../../../../../features/game-ular-tangga/components/Board';
-import PlayerTurnBox from '../../../../../../../features/game-ular-tangga/components/PlayerTurnBox';
+
+import GameBackground from '../../../../@/src/features/game-ular-tangga/components/GameBackground';
+import Board from '../../../../@/src/features/game-ular-tangga/components/Board';
+import PlayerTurnBox from '../../../../@/src/features/game-ular-tangga/components/PlayerTurnBox';
 import {ularTangga} from '../../../../../../../assets/images/ular-tangga/cloudinaryAssets';
 import RotateDeviceOverlay from '../../../../../../../components/layout/RotateDeviceOverlay';
 import PauseModal from '../../../../../../../components/layout/PauseModal';
@@ -40,10 +40,10 @@ import {
   type UlarTanggaGameState,
   type GamePlayer,
   type UlarTanggaQuestion,
-} from '../../../../../../../features/game-ular-tangga/services/ular-tangga-game.service';
-import {playerJoinRoom, playerLeaveRoom} from '../../../../../../../features/lobby/services/lobby.service';
-import UlarTanggaLobby from '../../../../../../../features/game-ular-tangga/components/UlarTanggaLobby';
-import {LADDERS} from '../../../../../../../features/game-ular-tangga/utils/board-rules';
+} from '../../../../@/src/features/game-ular-tangga/services/ular-tangga-game.service';
+import {playerJoinRoom, playerLeaveRoom} from '../../../../@/src/features/lobby/services/lobby.service';
+import UlarTanggaLobby from '../../../../@/src/features/game-ular-tangga/components/UlarTanggaLobby';
+import {LADDERS} from '../../../../@/src/features/game-ular-tangga/utils/board-rules';
 
 // Data tangga dan ular sekarang dikelola oleh board-rules.ts dan service layer.
 
@@ -71,7 +71,7 @@ export default function UlarTanggaPage() {
   const roomID = params?.roomID as string;
 
   // ── Auth ─────────────────────────────────────────────────────────────────
-  const {user} = useAuth();
+  const user = null;
   const myUID = user?.uid ?? null;
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -381,7 +381,7 @@ export default function UlarTanggaPage() {
       <main className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-[#59a87d]">
         <div className="flex flex-col items-center justify-center gap-6 p-8 bg-black/50 backdrop-blur-md rounded-2xl border-2 border-red-500 shadow-2xl max-w-lg text-center">
           <span className="text-6xl">🔒</span>
-          <h2 className="text-white text-3xl font-bold" style={{fontFamily: 'var(--font-spicy-rice)'}}>Akses Ditolak</h2>
+          <h2 className="text-white text-3xl font-bold" style={{fontFamily: 'var(--font-bauhaus)'}}>Akses Ditolak</h2>
           <p className="text-gray-200 text-lg">Ada yang sedang bermain di room ini. Silakan tunggu hingga permainan selesai, atau bergabung dengan room lain.</p>
           <button
             onClick={() => router.push(`/room/${params?.gameID}/${params?.topicID}/${params?.roomID}`)}

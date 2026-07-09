@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-import { getUserRoleClaim, updateUserRoleClaim } from '../../../../../lib/firebase/admin';
-import { parseUserRoleClaimPayload } from '../../../../../lib/schemas/auth.schema';
-import { verifyServerSession } from '../../../../../lib/utils/server-session';
+import { getUserRoleClaim, updateUserRoleClaim } from '@/src/lib/firebase/admin';
+import { parseUserRoleClaimPayload } from '@/src/lib/schemas/auth.schema';
+import { verifyServerSession } from '@/src/lib/utils/server-session';
 
 async function ensureAdminAccess() {
   const session = await verifyServerSession(await cookies());

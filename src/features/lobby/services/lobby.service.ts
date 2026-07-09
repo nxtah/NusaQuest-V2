@@ -137,7 +137,7 @@ export async function playerJoinRoom(
   roomID: string,
   userId: string,
   userName: string,
-  userPhoto?: string,
+  userPhoto?: string | null,
 ): Promise<void> {
   if (!firebaseDb || roomID === 'room5') return;
 
@@ -224,7 +224,7 @@ export async function playerJoinRoom(
       currentPlayersData[playerKey] = {
         uid: userId,
         name: userName,
-        photoURL: userPhoto,
+        photoURL: userPhoto ?? null,
         joinedAt: new Date().toISOString(),
       };
 
