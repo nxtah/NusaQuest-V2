@@ -1,190 +1,71 @@
-@import '../styles/fonts.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@theme inline {
-}
-
-@keyframes moveCloud {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(20px); }
-}
-
-.animate-cloud {
-  animation: moveCloud 6s ease-in-out infinite;
-}
-
-.rumah-hover {
-  @apply transition-all duration-300 ease-in-out cursor-pointer drop-shadow-xl;
-}
-
-.rumah-aktif {
-  @apply scale-125 -translate-y-4 z-50 drop-shadow-[0_0_20px_rgba(255,255,255,0.8)];
-}
-
 :root {
-  color-scheme: light;
+  /* ─── BREAKPOINTS ────────────────────────────────────── */
+  --breakpoint-mobile: 480px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+
+  /* ─── SPACING ──────────────────────────────────────────── */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+
+  /* ─── COLORS ────────────────────────────────────────────── */
+  --color-nq-primary: #FFB703;
+  --color-nq-primary-light: #FFC857;
+  --color-nq-primary-dark: #FF9502;
+  --color-nq-sky: #87CEEB;
+  --color-nq-sky-light: #E0F6FF;
+  --color-nq-sea: #59A87D;
+  --color-nq-text-dark: #1a1200;
+
+  /* ─── GRADIENTS ─────────────────────────────────────────── */
+  --gradient-label-pill: linear-gradient(135deg, #FFC857 0%, #FFB703 70%);
+  --gradient-label-pill-hover: linear-gradient(135deg, #FFDB6B 0%, #FFC857 100%);
+  --gradient-sky: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+  --gradient-modal-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+  /* ─── Z-INDEX ──────────────────────────────────────────── */
+  --z-bg: 0;
+  --z-clouds: 8;
+  --z-islands: 10;
+  --z-ornaments: 40;
+  --z-labels: 60;
+  --z-corner-island: 15;
+  --z-modal-overlay: 90;
+  --z-modal: 100;
+  --z-rotate: 110;
+
+  /* ─── SHADOWS ──────────────────────────────────────────── */
+  --shadow-label: 0 8px 22px rgba(255, 184, 0, 0.14);
+  --shadow-label-hover: 0 8px 22px rgba(255, 184, 0, 0.28);
+  --shadow-island: 0 0.8vh 1.5vh rgba(0, 0, 0, 0.4);
+  --shadow-board: 0 1vh 1.5vh rgba(0, 0, 0, 0.5);
+
+  /* ─── ANIMATION ──────────────────────────────────────── */
+  --animation-fast: 0.2s;
+  --animation-base: 0.3s;
+  --animation-slow: 0.5s;
+  --animation-ease-out: cubic-bezier(0.175, 0.885, 0.32, 1);
+  --animation-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ─── TOUCH TARGET ─────────────────────────────────── */
+  --touch-min: 44px;
 }
 
-body {
-  margin: 0;
-}
-
-/* ==================== HIDE SCROLLBAR ==================== */
-/* Keep scroll functionality but hide the scrollbar */
-
-/* Chrome, Safari and Opera */
-::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: transparent;
-}
-
-/* Firefox */
 * {
-  scrollbar-width: none;
-}
-
-/* IE and Edge */
-html {
-  -ms-overflow-style: none;
-}
-
-@layer components {
-  /* ==================== TYPOGRAPHY HEADING ==================== */
-  
-  /* Display - Extra Large Heading */
-  .heading-display {
-    @apply text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight;
-  }
-  
-  /* Heading 1 - Largest main heading */
-  .heading-1 {
-    @apply text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight;
-  }
-  
-  /* Heading 2 - Section heading */
-  .heading-2 {
-    @apply text-2xl sm:text-3xl lg:text-4xl font-bold leading-snug;
-  }
-  
-  /* Heading 3 - Subsection heading */
-  .heading-3 {
-    @apply text-xl sm:text-2xl lg:text-3xl font-semibold leading-snug;
-  }
-  
-  /* Heading 4 - Component heading */
-  .heading-4 {
-    @apply text-lg sm:text-xl lg:text-2xl font-semibold leading-snug;
-  }
-  
-  /* Heading 5 - Small heading */
-  .heading-5 {
-    @apply text-base sm:text-lg lg:text-xl font-semibold leading-normal;
-  }
-  
-  /* Heading 6 - Extra small heading */
-  .heading-6 {
-    @apply text-sm sm:text-base lg:text-lg font-semibold leading-normal;
-  }
-
-  /* ==================== TYPOGRAPHY BODY ==================== */
-  
-  /* Body Large - Main content */
-  .body-lg {
-    @apply text-base sm:text-lg leading-relaxed;
-  }
-  
-  /* Body Regular - Default body text */
-  .body-md {
-    @apply text-sm sm:text-base leading-relaxed;
-  }
-  
-  /* Body Small - Secondary text */
-  .body-sm {
-    @apply text-xs sm:text-sm leading-relaxed;
-  }
-
-  /* ==================== TYPOGRAPHY LABELS ==================== */
-  
-  /* Label Large */
-  .label-lg {
-    @apply text-base sm:text-lg font-semibold tracking-wide;
-  }
-  
-  /* Label Regular */
-  .label-md {
-    @apply text-sm sm:text-base font-semibold tracking-wide;
-  }
-  
-  /* Label Small */
-  .label-sm {
-    @apply text-xs sm:text-sm font-semibold tracking-widest;
-  }
-
-  /* ==================== TYPOGRAPHY BUTTONS ==================== */
-  
-  /* Button Text Large */
-  .button-lg {
-    @apply text-base sm:text-lg font-semibold;
-  }
-  
-  /* Button Text Regular */
-  .button-md {
-    @apply text-sm sm:text-base font-semibold;
-  }
-  
-  /* Button Text Small */
-  .button-sm {
-    @apply text-xs sm:text-sm font-semibold;
-  }
-
-  /* ==================== TYPOGRAPHY CAPTION & HELPER ==================== */
-  
-  /* Caption - Smallest readable text */
-  .caption {
-    @apply text-xs leading-tight opacity-75;
-  }
-  
-  /* Hint - Hint text for forms */
-  .hint {
-    @apply text-xs sm:text-sm leading-relaxed opacity-60;
-  }
-  
-  /* Badge Text */
-  .badge-text {
-    @apply text-xs font-bold tracking-widest uppercase;
-  }
-
-  /* ==================== CUSTOM FONTS ==================== */
-  
-  .profiletitle {
-    font-family: 'Bauhaus', sans-serif;
-  }
-
-  .font-bauhaus {
-    font-family: 'Bauhaus', sans-serif;
-  }
-  
-  .poppins-bold {
-    font-family: var(--font-poppins-bold), sans-serif;
-    font-weight: 700;
-  }
+  box-sizing: border-box;
 }
 
 html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
-  width: 100%;
-  overflow: hidden; 
+  font-family: var(--font-poppins), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }

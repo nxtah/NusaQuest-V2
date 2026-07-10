@@ -7,6 +7,7 @@ export const pulau = {
   mercusuar: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774362913/mercusuar_s7fw5p.webp',
   papan1: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774363085/papan-1_gzqa2m.webp',
   kapal: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1777813377/kapal_xln7tf.webp',
+  gunung: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1783665471/gunung_rl81yp.webp'
 } as const;
 
 export const awan = {
