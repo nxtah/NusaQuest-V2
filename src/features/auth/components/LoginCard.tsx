@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import {useRouter} from 'next/navigation';
-import {useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {getLogoImage} from '@/src/assets/images/home/cloudinaryAssets';
 import {getBackgroundImage} from '@/src/assets/images/background/cloudinaryAssets';
 import {ROUTES} from '@/src/lib/constants/routes';
@@ -23,10 +23,17 @@ export default function LoginCard() {
   const router = useRouter();
   const {login} = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       login();
       router.push(ROUTES.public.home);
     }, 600);

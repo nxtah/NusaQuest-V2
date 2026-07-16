@@ -54,7 +54,7 @@ export default function ProfilePage() {
 
       <div className="profile-ui-layer">
         <div style={{ position: 'absolute', top: '2rem', left: '3rem', zIndex: 50, pointerEvents: 'auto' }}>
-          <BackButton href="/home" />
+          <BackButton href={ROUTES.public.home} />
         </div>
         <div className="profile-main-layout">
 
