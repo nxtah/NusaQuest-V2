@@ -2,6 +2,7 @@ import Image from 'next/image';
 import LoginCard from '@/src/features/auth/components/LoginCard';
 import BackButton from '@/src/components/ui/BackButton';
 import {getBackgroundImage} from '@/src/assets/images/background/cloudinaryAssets';
+import {ROUTES} from '@/src/lib/constants/routes';
 import './login.css';
 
 export default function LoginPage() {
@@ -30,7 +31,7 @@ export default function LoginPage() {
       </div>
 
       <div className="login-back-button">
-        <BackButton href="/home" />
+        <BackButton href={ROUTES.public.home} />
       </div>
 
       <div className="login-ui-layer">
