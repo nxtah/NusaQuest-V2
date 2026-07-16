@@ -11,9 +11,10 @@ type ProfileCardProps = {
   email: string;
   avatarSrc: string;
   woodSrc: string;
+  onLogout: () => void;
 };
 
-export default function ProfileCard({ username, email, avatarSrc, woodSrc }: ProfileCardProps) {
+export default function ProfileCard({ username, email, avatarSrc, woodSrc, onLogout }: ProfileCardProps) {
   
   const [isEditOpen, setIsEditOpen] = useState(false);
   // const [isLoggingOut] = useState(false);
@@ -53,10 +54,11 @@ export default function ProfileCard({ username, email, avatarSrc, woodSrc }: Pro
               </button>
               <button
                 type="button"
+                id="btn-logout"
                 className="profile-action-btn logout poppins-bold"
-                disabled
+                onClick={onLogout}
               >
-                Login (coming soon)
+                Keluar
               </button>
             </div>
           </div>

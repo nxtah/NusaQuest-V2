@@ -1,8 +1,11 @@
 'use client';
 
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { background } from '../../assets/images/background/cloudinaryAssets';
 import { information } from '../../assets/images/information/cloudinaryAssets';
+import { ROUTES } from '../../lib/constants/routes';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 import BackButton from '../../components/ui/BackButton';
 import AchievementSection from '../../components/profile/AchievementSection';
 import AttributeSection from '../../components/profile/AttributeSection';
@@ -13,9 +16,17 @@ import ProfilePanel from '../../components/profile/ProfilePanel';
 import './profile.css';
 
 export default function ProfilePage() {
-  const avatarSrc = information.kertas;
-  const username  = 'Nusa Player';
-  const email     = 'player@nusaquest.com';
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  const avatarSrc = user?.firebasePhotoURL || user?.googlePhotoURL || information.kertas;
+  const username  = user?.displayName ?? 'Nusa Player';
+  const email     = user?.email ?? '';
+
+  const handleLogout = () => {
+    logout();
+    router.push(ROUTES.public.home);
+  };
 
   return (
     <div className="profile-scene">
@@ -53,6 +64,7 @@ export default function ProfilePage() {
               email={email}
               avatarSrc={avatarSrc}
               woodSrc={background.kayu}
+              onLogout={handleLogout}
             />
           </div>
 
