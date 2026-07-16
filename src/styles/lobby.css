@@ -111,19 +111,17 @@
   pointer-events: none;
 }
 
-.tanaman-kiri {
+/* Single panoramic asset: a vine curled at its far-left edge and another
+   curled at its far-right edge, joined by a wide transparent gap in the
+   middle — not two separate images, so it's placed once at full width and
+   the corner vines land at the actual screen corners on their own. */
+.tanaman-strip {
   position: absolute;
-  bottom: -4%;
-  left: -2%;
-  width: clamp(160px, 34vw, 560px);
-}
-
-.tanaman-kanan {
-  position: absolute;
-  bottom: -4%;
-  right: -2%;
-  width: clamp(160px, 34vw, 560px);
-  transform: scaleX(-1);
+  bottom: -3%;
+  left: 0;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
 }
 
 .melati-kiri {
@@ -208,10 +206,8 @@
     bottom: -20%;
   }
 
-  .tanaman-kiri,
-  .tanaman-kanan {
-    width: clamp(140px, 30vw, 400px);
-    bottom: -6%;
+  .tanaman-strip {
+    bottom: -5%;
   }
 
   .papan-hiasan {
