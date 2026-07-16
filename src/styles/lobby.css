@@ -120,7 +120,7 @@
   position: absolute;
   bottom: -3%;
   left: -2%;
-  width: clamp(200px, 32vw, 520px);
+  width: clamp(260px, 40vw, 660px);
   pointer-events: none;
 }
 
@@ -128,7 +128,7 @@
   position: absolute;
   bottom: -3%;
   right: -2%;
-  width: clamp(200px, 32vw, 520px);
+  width: clamp(260px, 40vw, 660px);
   transform: scaleX(-1);
   pointer-events: none;
 }
