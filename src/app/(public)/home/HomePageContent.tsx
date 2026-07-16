@@ -6,6 +6,7 @@ import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import HomeIslandLabel from '@/src/components/home/HomeIslandLabel';
 import HomeSea from '@/src/components/home/HomeSea';
 import IslandGameLabel from '@/src/features/home/components/IslandGameLabel';
+import ProfileHudButton from '@/src/features/auth/components/ProfileHudButton';
 
 export default function HomePageContent() {
   return (
@@ -93,13 +94,7 @@ export default function HomePageContent() {
         </a>
       </div>
 
-      <div className="home-hud-profile">
-        <Link href="/profile" className="block transition-transform hover:scale-105">
-          <div className="h-[clamp(2.8rem,3.4vw,4rem)] w-[clamp(2.8rem,3.4vw,4rem)] rounded-full border-2 border-white/60 shadow-lg bg-blue-400 flex items-center justify-center text-white font-bold text-base">
-            N
-          </div>
-        </Link>
-      </div>
+      <ProfileHudButton />
     </div>
   );
 }
