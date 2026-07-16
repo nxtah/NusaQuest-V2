@@ -183,6 +183,16 @@
   }
 }
 
+/* Icon image inside the card — was a fixed 128px (w-32) regardless of
+   viewport, which overflowed the card on short mobile screens and pushed
+   the label out of view. Scales with viewport width instead, capped to
+   match the desktop proportions. */
+.game-option-icon-img {
+  width: clamp(56px, 16vw, 110px);
+  height: clamp(56px, 16vw, 110px);
+  object-fit: contain;
+}
+
 /* Option Label */
 .game-option-label {
   font-weight: 700;
