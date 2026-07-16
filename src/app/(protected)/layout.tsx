@@ -7,6 +7,7 @@ import { onAuthStateChanged, User } from 'firebase/auth'
 import { signOutUser } from '@/features/auth/services/auth.service'
 import '../../styles/lobby.css'
 
+<<<<<<< HEAD
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
@@ -77,4 +78,12 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <div>{children}</div>
     </>
   )
+=======
+export default function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <>{children}</>;
+>>>>>>> origin/Panji2
 }

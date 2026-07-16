@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import type { GameMap, Region } from "@/src/types/firestore";
 import type { GameType } from "@/src/types/game";
 
@@ -45,4 +46,21 @@ export interface RegionCardProps {
   onClick: () => void;
   isSelected?: boolean;
   questionsCount?: number;
+=======
+export interface Topic {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface Destination {
+  id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  topic: string;
+  type?: string;
+  content?: string;
+  details?: Record<string, unknown>;
+>>>>>>> origin/Panji2
 }

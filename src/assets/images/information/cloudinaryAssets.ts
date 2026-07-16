@@ -1,3 +1,5 @@
+// Mapping for information images from Cloudinary CDN.
+// Add new entries in one place.
 export const information = {
 	imagePopup: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370185/image-popup_bvtwoq.webp',
 	board1: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370178/board-1_hlxc1z.webp',
@@ -8,6 +10,7 @@ export const information = {
 	tanaman2: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370075/tanaman-2_bzxsip.webp',
 	tanamankiri:'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774535531/tanaman-kiri_rpyqus.webp',
 	tanamankanan:'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774536119/tanaman-kanan_ozzohx.webp',
+	tanamanFinal: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1784198236/tanaman-final_ncsvhz.webp',
 	teratai: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774370059/teratai_xgpfvi.webp',
 	informationCard: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774917531/information_1_1_gioxap.webp',
 	imagePopupMask: 'https://res.cloudinary.com/dprxjzfxp/image/upload/q_auto/f_auto/v1775105711/Vector_1_qn0ynm.webp',

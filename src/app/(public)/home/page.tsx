@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client'
 
 import { useState } from 'react'
@@ -18,6 +19,10 @@ const ISLAND_MAP: Record<string, string> = {
   pulau4: 'map_wisata',
   mercusuar: 'map_pahlawan',
 }
+=======
+import HomePageClient from './HomePageClient';
+import HomePageContent from './HomePageContent';
+>>>>>>> origin/Panji2
 
 export default function HomePage() {
   const router = useRouter()
@@ -55,6 +60,7 @@ export default function HomePage() {
   }
 
   return (
+<<<<<<< HEAD
     <main className="home-container">
       {/* Background */}
       <div className="home-bg"></div>
@@ -231,4 +237,10 @@ export default function HomePage() {
       />
     </main>
   )
+=======
+    <HomePageClient>
+      <HomePageContent />
+    </HomePageClient>
+  );
+>>>>>>> origin/Panji2
 }

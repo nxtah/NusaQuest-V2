@@ -5,6 +5,7 @@ import { background } from "../../../../../assets/images/background/cloudinaryAs
 import RotateDeviceOverlay from "../../../../../components/layout/RotateDeviceOverlay";
 import { Poppins } from "next/font/google";
 import localFont from "next/font/local";
+import { getInformationItem } from "../../../../../services/firebase/firestore/information.service";
 
 const poppins = Poppins({
     subsets: ["latin"],
@@ -16,62 +17,6 @@ const bauhausLace = localFont({
     variable: "--font-bauhaus-lace",
 });
 
-const dummyDatabase: Record<string, { subCategory: string; items: any[] }[]> = {
-    Daerah: [
-        {
-            subCategory: "Perkotaan & Industri",
-            items: [
-                {
-                    id: 1,
-                    title: "Kota Bandung",
-                    description:
-                        "Bandung adalah ibukota provinsi Jawa Barat yang terkenal dengan keindahan alam, cuaca sejuk, dan kulinernya yang beragam. Kota ini juga sarat akan nilai sejarah.",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-                {
-                    id: 2,
-                    title: "Kota Bekasi",
-                    description:
-                        "Bekasi merupakan salah satu kota industri terbesar di Jawa Barat yang berbatasan langsung dengan Jakarta, memainkan peran penting dalam perekonomian nasional.",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80",
-                },
-            ],
-        },
-        {
-            subCategory: "Sejarah & Budaya",
-            items: [
-                {
-                    id: 3,
-                    title: "Gedung Sate",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-            ],
-        },
-    ],
-    Kuliner: [
-        {
-            subCategory: "Makanan Khas",
-            items: [
-                {
-                    id: 4,
-                    title: "Soto Ayam",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-                {
-                    id: 5,
-                    title: "Nasi Goreng",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80",
-                },
-            ],
-        },
-    ],
-};
-
 export default async function InformationPicturePage({
     params,
 }: {
@@ -80,15 +25,8 @@ export default async function InformationPicturePage({
     const resolvedParams = await params;
     const currentId = resolvedParams.id;
 
-    let currentItem = null;
-    for (const category of Object.values(dummyDatabase)) {
-        for (const sub of category) {
-            const found = sub.items.find(
-                (item) => item.id.toString() === currentId
-            );
-            if (found) currentItem = found;
-        }
-    }
+    const result = await getInformationItem(currentId);
+    const currentItem = result.success ? result.data : null;
 
     const title = currentItem?.title || "Judul Tidak Ditemukan";
     const description =

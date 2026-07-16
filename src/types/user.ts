@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // Re-export from firestore
 export type { User, Achievement } from "./firestore";
 
@@ -108,4 +109,11 @@ export interface AchievementProgress {
   requiredProgress: number;
   isUnlocked: boolean;
   unlockedAt?: number;
+=======
+import type {AppUser} from './auth';
+
+export interface UserProfile extends AppUser {
+  createdAt?: number;
+  updatedAt?: number;
+>>>>>>> origin/Panji2
 }

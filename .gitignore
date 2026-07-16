@@ -33,9 +33,31 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Firebase service account keys — never commit, contains a live private key
+*firebase-adminsdk*.json
+serviceAccountKey*.json
+
+# Firebase database exports — contain real user data (names, emails, photo
+# URLs), same privacy class as the service account key above
+*rtdb-export*.json
+*firestore-export*.json
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editor/IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+desktop.ini
+
+# local scratch/tmp
+*.local.md
+.tmp/

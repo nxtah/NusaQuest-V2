@@ -8,7 +8,7 @@
   50%       { transform: translateX(2vw); }
 }
 
-.font-irish { font-family: 'Irish Grover', cursive; }
+.font-irish { font-family: 'Bauhaus', sans-serif; }
 
 /* ─── CONTAINER ─────────────────────────────────────────── */
 .lobby-container {
@@ -111,19 +111,26 @@
   pointer-events: none;
 }
 
+/* Single left-facing vine asset (curl top-left, tail trailing down-right),
+   used twice: as-is for the left corner, mirrored for the right corner.
+   Negative left/right offsets pull the curl past the true corner (asset has
+   ~3% transparent margin around the curl, same corner-hugging issue as
+   before). */
 .tanaman-kiri {
   position: absolute;
-  bottom: -4%;
-  left: -2%;
-  width: clamp(120px, 26vw, 380px);
+  bottom: -11%;
+  left: -4%;
+  width: clamp(260px, 40vw, 800px);
+  pointer-events: none;
 }
 
 .tanaman-kanan {
   position: absolute;
-  bottom: -4%;
-  right: -2%;
-  width: clamp(120px, 26vw, 380px);
+  bottom: -11%;
+  right: -4%;
+  width: clamp(260px, 40vw, 900px);
   transform: scaleX(-1);
+  pointer-events: none;
 }
 
 .melati-kiri {
@@ -210,8 +217,8 @@
 
   .tanaman-kiri,
   .tanaman-kanan {
-    width: clamp(100px, 22vw, 280px);
-    bottom: -6%;
+    width: clamp(160px, 28vw, 360px);
+    bottom: -4%;
   }
 
   .papan-hiasan {

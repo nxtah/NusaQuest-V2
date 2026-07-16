@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read/write their own profile document.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Public content for the /information page. Read is public by design.
+    // Write is intentionally open: the admin panel is a hardcoded
+    // username/password gate with no real Firebase Auth behind it, so these
+    // rules have no way to distinguish "the admin" from any other client —
+    // same trust level the existing RTDB-backed admin tables already have
+    // (no rules file covers RTDB either). Tighten this once admin sessions
+    // are backed by real Firebase Auth + a custom claim.
+    match /informationItems/{itemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

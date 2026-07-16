@@ -1,4 +1,4 @@
-import RoomSelect from '../../../../../features/lobby/components/RoomSelect';
+import RoomSelect from '@/src/features/lobby/components/RoomSelect';
 
 export default async function LobbyPage({ 
   params 

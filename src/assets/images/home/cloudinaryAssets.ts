@@ -1,24 +1,3 @@
-// Usage (direct map):
-// import { pulau } from '@/assets/images/hero/cloudinaryAssets';
-// const src = pulau.pulau1;
-//
-// Usage (dynamic key):
-// import { getPulauImage, type PulauImageKey } from '@/assets/images/hero/cloudinaryAssets';
-// const key: PulauImageKey = 'pulau1';
-// const src = getPulauImage(key);
-//
-// Usage (awan):
-// import { awan, getAwanImage, type AwanImageKey } from '@/assets/images/hero/cloudinaryAssets';
-// const a1 = awan.awan1;
-// const aSrc = getAwanImage('awan2');
-//
-// Usage (popup):
-// import { popup, getPopupImage, type PopupImageKey } from '@/assets/images/hero/cloudinaryAssets';
-// const p1 = popup.nucaIcon;
-// const pSrc = getPopupImage('ularTanggaIcon');
-
-// Mapping for hero images from Cloudinary CDN.
-// Add new entries (pulau2, pulau3, dst) in one place.
 export const pulau = {
   pulau1: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1773464922/NQM4_1_dkiuuv.webp',
   pulau2: 'https://res.cloudinary.com/dprxjzfxp/image/upload/v1774362912/pulau-2_mqld23.webp',

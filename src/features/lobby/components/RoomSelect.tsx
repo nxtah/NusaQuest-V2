@@ -59,8 +59,8 @@ export default function RoomSelect({ topicID, gameID, onSelect }: RoomSelectProp
         ))}
 
         <div className="ornament-layer">
-          <img src={getInformationImage('tanaman1')} className="tanaman-kiri" alt="t1" />
-          <img src={getInformationImage('tanaman1')} className="tanaman-kanan" alt="t2" />
+          <img src={getInformationImage('tanamanFinal')} className="tanaman-kiri" alt="Tanaman kiri" />
+          <img src={getInformationImage('tanamanFinal')} className="tanaman-kanan" alt="Tanaman kanan" />
           <img src={getInformationImage('melati')} className="melati-kiri" alt="m1" />
           <img src={getInformationImage('melati')} className="melati-kanan" alt="m2" />
 

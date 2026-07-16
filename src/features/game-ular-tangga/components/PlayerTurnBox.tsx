@@ -1,10 +1,10 @@
 'use client';
 
-import React, { ReactNode } from 'react';
+import React, {ReactNode} from 'react';
 import InitialPanel from './InitialPanel';
 import QuestionPanel from './QuestionPanel';
 import PlayerList from './PlayerList';
-import Dice, { DiceState } from './Dice';
+import Dice, {DiceState} from './Dice';
 
 interface Player {
   id: number;
@@ -16,6 +16,8 @@ interface PlayerTurnBoxProps {
   children?: ReactNode;
   diceState?: DiceState | undefined;
   isMyTurn?: boolean;
+  disabled?: boolean;
+  onDiceRollStart?: (num: number) => void;
   onDiceRollComplete?: (num: number, isUserAction: boolean) => void;
   onSelectAnswer?: (index: number) => void;
   question?: {
@@ -36,6 +38,8 @@ export default function PlayerTurnBox({
   children,
   diceState,
   isMyTurn = true,
+  disabled = false,
+  onDiceRollStart,
   onDiceRollComplete,
   onSelectAnswer,
   question = null,
@@ -67,10 +71,11 @@ export default function PlayerTurnBox({
         {/* Dice Component */}
         <div className="flex shrink-0 items-center justify-center relative z-10 lg:mt-0">
           <Dice
-            onRollComplete={onDiceRollComplete ?? (() => {})}
+            onRollStart={onDiceRollStart}
+            onRollComplete={onDiceRollComplete ?? (() => { })}
             diceState={diceState}
             isMyTurn={isMyTurn}
-            disabled={false}
+            disabled={disabled}
             myPlayerId={myPlayerId}
           />
         </div>
