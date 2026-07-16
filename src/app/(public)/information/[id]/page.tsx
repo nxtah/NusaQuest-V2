@@ -3,58 +3,7 @@ import Link from "next/link";
 import { information } from "../../../../assets/images/information/cloudinaryAssets";
 import { background } from "../../../../assets/images/background/cloudinaryAssets";
 import RotateDeviceOverlay from "../../../../components/layout/RotateDeviceOverlay";
-
-const dummyDatabase: Record<string, { subCategory: string; items: any[] }[]> = {
-    Daerah: [
-        {
-            subCategory: "Perkotaan & Industri",
-            items: [
-                {
-                    id: 1,
-                    title: "Kota Bandung",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-                {
-                    id: 2,
-                    title: "Kota Bekasi",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80",
-                },
-            ],
-        },
-        {
-            subCategory: "Sejarah & Budaya",
-            items: [
-                {
-                    id: 3,
-                    title: "Gedung Sate",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-            ],
-        },
-    ],
-    Kuliner: [
-        {
-            subCategory: "Makanan Khas",
-            items: [
-                {
-                    id: 4,
-                    title: "Soto Ayam",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-                {
-                    id: 5,
-                    title: "Nasi Goreng",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80",
-                },
-            ],
-        },
-    ],
-};
+import { getInformationItem } from "../../../../services/firebase/firestore/information.service";
 
 export default async function InformationPicturePage({
     params,
@@ -64,19 +13,10 @@ export default async function InformationPicturePage({
     const resolvedParams = await params;
     const currentId = resolvedParams.id;
 
-    let currentItem = null;
-    for (const category of Object.values(dummyDatabase)) {
-        for (const sub of category) {
-            const found = sub.items.find(
-                (item) => item.id.toString() === currentId
-            );
-            if (found) currentItem = found;
-        }
-    }
+    const result = await getInformationItem(currentId);
+    const currentItem = result.success ? result.data : null;
 
-    const imageUrl =
-        currentItem?.imageUrl ||
-        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=1200&q=80";
+    const imageUrl = currentItem?.imageUrl || background.bgNusa;
 
     return (
         <main className="relative flex items-center justify-center h-[100dvh] w-full p-8 overflow-hidden">
@@ -97,17 +37,35 @@ export default async function InformationPicturePage({
 
             {/* Content */}
             <div className="relative w-full h-[70vh] sm:h-[80vh] flex items-center justify-center border-2 border-black p-2 sm:p-4 lg:p-8 rounded-3xl">
-                {/* Image Container */}
-                <div className="relative sm:w-[90%] lg:w-full max-w-full max-h-full aspect-[2.2/1] flex items-center justify-center">
+                {/* Image Container — aspect ratio matches the frame asset's own
+                    (2490x984 ≈ 2.53:1), not a guessed value.
+                    The mask asset (imagePopupMask, 2456x948) and the visible
+                    frame asset (imagePopup, 2490x984) are two SEPARATE files
+                    with slightly different intrinsic ratios (2.591 vs 2.530).
+                    Sizing each with `contain` — which fits using each asset's
+                    OWN ratio — let them drift apart by a few percent, so the
+                    mask's cutout edge landed in a different place than the
+                    frame's drawn border, letting a sliver of unmasked photo
+                    show through the gap. Stretching both to a fixed "100% 100%"
+                    forces them onto the exact same box regardless of their
+                    individual source ratios, so the cutout and the border
+                    can't drift relative to each other (the ~1-4% non-uniform
+                    scale this introduces is not visible). */}
+                <div
+                    className="relative sm:w-[90%] lg:w-full max-w-full max-h-full flex items-center justify-center"
+                    style={{ aspectRatio: "2490 / 984" }}
+                >
                     <div
-                        className="absolute inset-0 z-10"
+                        className="absolute inset-0 z-10 overflow-hidden"
                         style={{
                             WebkitMaskImage: `url(${information.imagePopupMask})`,
+                            maskImage: `url(${information.imagePopupMask})`,
                             WebkitMaskRepeat: "no-repeat",
-                            WebkitMaskSize: "contain",
+                            maskRepeat: "no-repeat",
+                            WebkitMaskSize: "100% 100%",
+                            maskSize: "100% 100%",
                             WebkitMaskPosition: "center",
-                            WebkitMaskComposite: "xor",
-                            maskComposite: "exclude",
+                            maskPosition: "center",
                         }}
                     >
                         <Image

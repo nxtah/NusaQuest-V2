@@ -1,5 +1,4 @@
 import {create} from 'zustand';
-import {persist} from 'zustand/middleware';
 import type {AppUser} from '@/src/types/auth';
 
 interface AuthStoreState {
@@ -12,25 +11,17 @@ interface AuthStoreState {
   reset: () => void;
 }
 
-export const useAuthStore = create<AuthStoreState>()(
-  persist(
-    (set) => ({
+export const useAuthStore = create<AuthStoreState>((set) => ({
+  user: null,
+  isInitialized: false,
+  isLoading: false,
+  setUser: (user) => set({user}),
+  setInitialized: (isInitialized) => set({isInitialized}),
+  setLoading: (isLoading) => set({isLoading}),
+  reset: () =>
+    set({
       user: null,
       isInitialized: false,
       isLoading: false,
-      setUser: (user) => set({user}),
-      setInitialized: (isInitialized) => set({isInitialized}),
-      setLoading: (isLoading) => set({isLoading}),
-      reset: () =>
-        set({
-          user: null,
-          isInitialized: false,
-          isLoading: false,
-        }),
     }),
-    {
-      name: 'nusaquest-auth-storage',
-      partialize: (state) => ({user: state.user}),
-    },
-  ),
-);
+}));

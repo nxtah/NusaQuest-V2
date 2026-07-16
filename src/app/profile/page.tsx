@@ -23,8 +23,8 @@ export default function ProfilePage() {
   const username  = user?.displayName ?? 'Nusa Player';
   const email     = user?.email ?? '';
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push(ROUTES.public.home);
   };
 

@@ -1,10 +1,26 @@
 .room-scene {
-  position: relative; min-height: 100dvh; width: 100%;
-  overflow: hidden; display: flex; flex-direction: column; align-items: center;
+  /* height (not min-height): body has global overflow:hidden for this app's
+     fixed-viewport pages, so room-scene must be capped to the viewport and
+     scroll internally — otherwise it just grows past 100dvh and the tail
+     end of the content (info bar, actions) becomes unreachable. */
+  position: relative; height: 100dvh; width: 100%;
+  overflow: hidden auto; display: flex; flex-direction: column; align-items: center;
+  /* Content was flex-start (default), so on any viewport taller than the
+     content's natural height everything huddled at the top with a big
+     empty wood panel below. Centering it as one block reads as an
+     intentional composition instead of a top-pinned list. */
+  justify-content: center;
+  padding: clamp(1rem, 4vh, 3rem) 1rem;
+  gap: clamp(0.5rem, 1.6vh, 1.25rem);
+  box-sizing: border-box;
   font-family: 'Poppins', sans-serif;
 }
-.room-bg { position: fixed; inset: 0; z-index: 0; }
-.room-bg-img { object-fit: cover; }
+.room-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+/* kayu.webp has a faint 1px lighter edge baked into its top row (compression
+   artifact) that reads as a hairline across the full width once stretched
+   to viewport size. Scaling slightly past 100% pushes that edge — and any
+   other border artifact — outside the visible area on every side. */
+.room-bg-img { object-fit: cover; transform: scale(1.03); }
 .room-wall-overlay {
   position: fixed; inset: 0; z-index: 1;
   background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.6) 100%);
@@ -22,8 +38,6 @@
   width: clamp(300px, 50vw, 500px);
   height: clamp(90px, 15vh, 150px);
   pointer-events: none; overflow: visible;
-  margin-top: clamp(0.25rem, 0.8vh, 0.75rem);
-  margin-bottom: clamp(0.1rem, 0.5vh, 0.4rem);
 }
 .room-header-board { position: absolute; inset: 0; z-index: 2; }
 .room-board-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5)); }
@@ -46,9 +60,9 @@
 .room-subtitle {
   flex-shrink: 0; position: relative; z-index: 5;
   font-family: 'Poppins', sans-serif; font-weight: 600;
-  font-size: clamp(0.55rem, 1.2vw, 0.8rem);
-  color: rgba(255,255,255,0.8);
-  margin: clamp(0.05rem, 0.3vh, 0.35rem) 0;
+  font-size: clamp(0.75rem, 1.6vw, 1.05rem);
+  color: rgba(255,255,255,0.85);
+  margin: 0;
   text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
@@ -56,8 +70,8 @@
 .room-arena {
   position: relative; z-index: 5;
   width: 100%;
-  max-width: 800px;
-  margin: clamp(0.15rem, 0.8vh, 0.75rem) auto;
+  max-width: 900px;
+  margin: 0 auto;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -113,63 +127,62 @@
 
 .room-player-avatar-ring {
   position: relative;
-  width: clamp(110px, 22vw, 160px);
-  height: clamp(110px, 22vw, 160px);
+  width: clamp(110px, 22vw, 180px);
+  height: clamp(110px, 22vw, 180px);
   border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(200,160,50,0.1));
   border: 2px solid rgba(255,215,0,0.3);
 }
 .room-player-avatar {
-  width: clamp(92px, 18vw, 135px);
-  height: clamp(92px, 18vw, 135px);
+  width: clamp(92px, 18vw, 152px);
+  height: clamp(92px, 18vw, 152px);
   border-radius: 50%; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.1);
 }
 .room-player-img { width: 100%; height: 100%; object-fit: cover; }
-.room-player-initial { font-family: 'Bauhaus', sans-serif; font-size: clamp(0.7rem, 2vh, 1.3rem); color: #facc15; }
+.room-player-initial { font-family: 'Bauhaus', sans-serif; font-size: clamp(0.7rem, 2vh, 1.5rem); color: #facc15; }
 .room-player-icon { color: rgba(255,255,255,0.25); display: flex; }
-.room-player-icon svg { width: clamp(14px, 2vh, 22px); height: clamp(14px, 2vh, 22px); }
+.room-player-icon svg { width: clamp(14px, 2vh, 24px); height: clamp(14px, 2vh, 24px); }
 
 .room-player-owner-badge {
   position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%);
-  font-size: clamp(0.35rem, 0.7vh, 0.5rem); font-weight: 800;
-  padding: 1px 5px; border-radius: 6px;
+  font-size: clamp(0.55rem, 1vh, 0.7rem); font-weight: 800;
+  padding: 2px 7px; border-radius: 6px;
   background: #facc15; color: #000; white-space: nowrap;
 }
-.room-player-name { font-size: clamp(0.7rem, 1.5vh, 1rem); font-weight: 600; color: white; text-align: center; }
+.room-player-name { font-size: clamp(0.75rem, 1.7vh, 1.1rem); font-weight: 600; color: white; text-align: center; }
 .room-player-name.dim { color: rgba(255,255,255,0.3); font-weight: 400; }
 
 /* Info */
 .room-info-bar {
   position: relative; z-index: 5; flex-shrink: 0;
   display: flex; justify-content: center;
-  margin-top: clamp(0.1rem, 0.4vh, 0.4rem);
+  margin-top: 0;
 }
 .room-info-chip {
-  display: flex; align-items: center; gap: 0.25rem;
-  padding: clamp(0.1rem, 0.3vh, 0.3rem) clamp(0.4rem, 0.8vw, 0.65rem);
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: clamp(0.3rem, 0.6vh, 0.5rem) clamp(0.6rem, 1vw, 0.9rem);
   background: rgba(0,0,0,0.3); backdrop-filter: blur(4px);
   border: 1px solid rgba(255,255,255,0.1); border-radius: 30px;
-  font-size: clamp(0.45rem, 0.9vw, 0.65rem); color: rgba(255,255,255,0.7);
+  font-size: clamp(0.65rem, 1vw, 0.85rem); color: rgba(255,255,255,0.75);
 }
-.room-info-chip svg { width: clamp(8px, 1vw, 12px); height: clamp(8px, 1vw, 12px); flex-shrink: 0; }
+.room-info-chip svg { width: clamp(11px, 1.1vw, 15px); height: clamp(11px, 1.1vw, 15px); flex-shrink: 0; }
 
 /* Actions */
 .room-actions {
   position: relative; z-index: 5; flex-shrink: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
-  width: 88%; max-width: 300px;
-  margin: clamp(0.2rem, 0.8vh, 0.75rem) auto;
-  padding-bottom: clamp(0.3rem, 1vh, 1rem);
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  width: 88%; max-width: 340px;
+  margin: 0 auto;
 }
 .room-btn-start {
   width: 100%;
-  padding: clamp(0.4rem, 1vh, 0.8rem) clamp(0.75rem, 1.5vw, 1.25rem);
+  padding: clamp(0.6rem, 1.2vh, 0.95rem) clamp(0.75rem, 1.5vw, 1.25rem);
   border: 2px solid #eab308; border-radius: 0.65rem;
   font-family: 'Bauhaus', sans-serif;
-  font-size: clamp(0.55rem, 1.3vw, 0.85rem); font-weight: 700;
+  font-size: clamp(0.7rem, 1.4vw, 1rem); font-weight: 700;
   background: linear-gradient(180deg, #facc15, #eab308 40%, #ca8a04);
   color: #1e293b; cursor: pointer; text-align: center;
   box-shadow: 0 3px 0 #a16207, inset 0 2px 0 rgba(255,255,255,0.3);
@@ -177,13 +190,13 @@
 .room-btn-start:active { transform: translateY(2px); box-shadow: 0 1px 0 #a16207; }
 .room-btn-start:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .room-btn-back {
-  width: 100%; padding: clamp(0.3rem, 0.6vh, 0.5rem) clamp(0.75rem, 1.5vw, 1.25rem);
+  width: 100%; padding: clamp(0.45rem, 0.9vh, 0.65rem) clamp(0.75rem, 1.5vw, 1.25rem);
   border-radius: 0.65rem; border: 1px solid rgba(255,255,255,0.15);
   background: rgba(255,255,255,0.06); backdrop-filter: blur(4px);
-  color: rgba(255,255,255,0.6); cursor: pointer; text-align: center;
-  font-size: clamp(0.45rem, 1vw, 0.7rem);
+  color: rgba(255,255,255,0.65); cursor: pointer; text-align: center;
+  font-size: clamp(0.65rem, 1.1vw, 0.85rem);
 }
-.room-waiting-msg { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; font-size: clamp(0.45rem, 1vw, 0.65rem); color: rgba(255,255,255,0.6); }
+.room-waiting-msg { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; font-size: clamp(0.6rem, 1.1vw, 0.8rem); color: rgba(255,255,255,0.65); }
 .room-waiting-dots { display: flex; gap: 3px; }
 .room-waiting-dots span { width: 5px; height: 5px; border-radius: 50%; background: #facc15; opacity: 0.4; animation: dotPulse 1.5s ease-in-out infinite; }
 .room-waiting-dots span:nth-child(2) { animation-delay: 0.3s; }

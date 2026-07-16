@@ -1,16 +1,11 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import AdminDashboard from '@/src/features/admin-v2/components/AdminDashboard';
+import AdminLogin from '@/src/features/admin-v2/auth/components/AdminLogin';
+import { useAdminAuth } from '@/src/features/admin-v2/auth/hooks/useAdminAuth';
 
 export default function AdminPage() {
-  const router = useRouter();
+  const { isLoggedIn, logout } = useAdminAuth();
 
-  return (
-    <AdminDashboard
-      onLogout={() => {
-        router.push('/home');
-      }}
-    />
-  );
+  return isLoggedIn ? <AdminDashboard onLogout={logout} /> : <AdminLogin />;
 }

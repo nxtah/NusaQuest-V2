@@ -4,58 +4,16 @@ import PageHeader from "../../../components/information/PageHeader";
 import NavBar from "../../../components/information/NavBar";
 import CardList from "../../../components/information/CardList";
 import RotateDeviceOverlay from "../../../components/layout/RotateDeviceOverlay";
+import {
+    getInformationItemsByTab,
+    groupInformationItemsBySection,
+    INFORMATION_TABS,
+    type InformationTab,
+} from "../../../services/firebase/firestore/information.service";
 
-const dummyDatabase: Record<string, { subCategory: string; items: any[] }[]> = {
-    Daerah: [
-        {
-            subCategory: "Perkotaan & Industri",
-            items: [
-                {
-                    id: 1,
-                    title: "Kota Bandung",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-                {
-                    id: 2,
-                    title: "Kota Bekasi",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80",
-                },
-            ],
-        },
-        {
-            subCategory: "Sejarah & Budaya",
-            items: [
-                {
-                    id: 3,
-                    title: "Gedung Sate",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-            ],
-        },
-    ],
-    Kuliner: [
-        {
-            subCategory: "Makanan Khas",
-            items: [
-                {
-                    id: 4,
-                    title: "Soto Ayam",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1549473889-14f410d83298?w=500&q=80",
-                },
-                {
-                    id: 5,
-                    title: "Nasi Goreng",
-                    imageUrl:
-                        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80",
-                },
-            ],
-        },
-    ],
-};
+function isInformationTab(value: string): value is InformationTab {
+    return (INFORMATION_TABS as readonly string[]).includes(value);
+}
 
 export default async function InformationPage({
     searchParams,
@@ -63,9 +21,14 @@ export default async function InformationPage({
     searchParams: Promise<{ category?: string; search?: string }>;
 }) {
     const params = await searchParams;
-    const currentCategory = params.category || "Daerah";
+    const requestedCategory = params.category || "Daerah";
+    const currentCategory = isInformationTab(requestedCategory) ? requestedCategory : "Daerah";
     const searchQuery = params.search?.toLowerCase() || "";
-    const categoryData = dummyDatabase[currentCategory] || [];
+
+    const result = await getInformationItemsByTab(currentCategory);
+    const categoryItems = result.success ? result.data : [];
+    const categoryData = groupInformationItemsBySection(categoryItems);
+
     const filteredData = categoryData
         .map((section) => ({
             ...section,
@@ -103,7 +66,7 @@ export default async function InformationPage({
                         filteredData.map((section, index) => (
                             <CardList
                                 key={index}
-                                subCategoryTitle={section.subCategory}
+                                subCategoryTitle={section.sectionTitle}
                                 items={section.items}
                             />
                         ))

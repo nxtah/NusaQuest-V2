@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Poppins } from "next/font/google";
-import { information } from "../../assets/images/information/cloudinaryAssets";
 
 const poppins = Poppins({
     subsets: ["latin"],
@@ -27,24 +26,17 @@ export default function CardList({ subCategoryTitle, items }: CardListProps) {
                 {subCategoryTitle}
             </h2>
 
-            {/* Card List */}
-            <div className="flex flex-wrap gap-3 sm:gap-5 lg:gap-8">
+            {/* Card List — max 6 per row (desktop); fewer columns on narrower
+                viewports; a 7th+ item wraps to the next row automatically. */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
                 {items.map((item) => (
                     <Link
                         key={item.id}
                         href={`/information/${item.id}`}
-                        className="relative flex flex-col items-center justify-start p-1.5 lg:p-3 w-28 h-36 sm:w-36 sm:h-48 lg:w-48 lg:h-60 hover:scale-105 transition-transform cursor-pointer"
+                        className="group flex flex-col items-center gap-1.5 sm:gap-2 w-full aspect-[4/5] rounded-xl sm:rounded-2xl border-2 sm:border-[3px] border-[#7fb3da] bg-[#254a68] p-1.5 sm:p-2 lg:p-2.5 shadow-lg hover:scale-105 hover:border-white transition-all cursor-pointer"
                     >
-                        {/* Card Container */}
-                        <Image
-                            src={information.informationCard}
-                            alt="Information Card"
-                            fill
-                            className="object-fill -z-10 drop-shadow-md rounded-lg lg:rounded-xl"
-                        />
-
                         {/* Image Section */}
-                        <div className="relative h-20 sm:h-32 lg:h-40 w-32 sm:w-32 lg:w-full rounded-md lg:rounded-lg overflow-hidden border border-black mb-1 sm:mb-2 lg:mb-3">
+                        <div className="relative w-full flex-1 min-h-0 rounded-lg sm:rounded-xl overflow-hidden border border-black/40">
                             <Image
                                 src={item.imageUrl}
                                 alt={item.title}
@@ -54,7 +46,7 @@ export default function CardList({ subCategoryTitle, items }: CardListProps) {
                         </div>
 
                         {/* Title Section */}
-                        <h3 className={`text-white text-center text-[10px] sm:text-xs lg:text-base tracking-wide font-bold ${poppins.className}`}>
+                        <h3 className={`w-full text-white text-center text-[10px] sm:text-xs lg:text-base tracking-wide font-bold truncate ${poppins.className}`}>
                             {item.title}
                         </h3>
                     </Link>

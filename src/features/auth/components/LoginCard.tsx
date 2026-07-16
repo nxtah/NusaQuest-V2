@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import {useRouter} from 'next/navigation';
-import {useEffect, useRef, useState} from 'react';
+import {useState} from 'react';
 import {getLogoImage} from '@/src/assets/images/home/cloudinaryAssets';
 import {getBackgroundImage} from '@/src/assets/images/background/cloudinaryAssets';
 import {ROUTES} from '@/src/lib/constants/routes';
@@ -19,24 +19,37 @@ function GoogleIcon() {
   );
 }
 
+function getErrorMessage(error: unknown): string {
+  const code = (error as {code?: string})?.code;
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+    return 'Login dibatalkan. Coba lagi ya!';
+  }
+  if (code === 'auth/network-request-failed') {
+    return 'Gagal terhubung ke internet. Periksa koneksi lalu coba lagi.';
+  }
+  return 'Gagal masuk dengan Google. Coba lagi ya!';
+}
+
 export default function LoginCard() {
   const router = useRouter();
   const {login} = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
-    timerRef.current = setTimeout(() => {
-      login();
-      router.push(ROUTES.public.home);
-    }, 600);
+    setError(null);
+
+    try {
+      const success = await login();
+      if (success) {
+        router.push(ROUTES.public.home);
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -58,6 +71,10 @@ export default function LoginCard() {
         <p className="login-subtitle poppins-bold">
           Lanjutkan petualangan budaya Nusantara-mu
         </p>
+
+        {error && (
+          <p className="login-error" role="alert">{error}</p>
+        )}
 
         <button
           type="button"
