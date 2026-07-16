@@ -34,7 +34,7 @@ export default function HomePageContent() {
           <div className="home-grid">
             <div className="island-item island-tl">
               <img src={pulau.pulau1} alt="Pulau 1" className="island-image" />
-              <IslandGameLabel label="Daerah Jawa Barat" className="left-[38%] top-[68%]" />
+              <IslandGameLabel label="Daerah Jawa Barat" className="left-[38%] top-[64%]" />
             </div>
 
             <div className="island-item island-center">
@@ -44,14 +44,14 @@ export default function HomePageContent() {
 
             <div className="island-item island-tr">
               <img src={pulau.pulau4} alt="Pulau 4" className="island-image" />
-              <IslandGameLabel label="Kuliner Jawa Barat" className="left-[-4%] top-[63%]" />
+              <IslandGameLabel label="Kuliner Jawa Barat" className="left-[-7%] top-[63%]" />
             </div>
           </div>
 
           <div className="home-grid-bottom">
             <div className="island-item island-bl">
               <img src={pulau.pulau2} alt="Pulau 2" className="island-image" />
-              <IslandGameLabel label="Permainan Daerah" className="left-[42%] top-[25%]" />
+              <IslandGameLabel label="Permainan Daerah" className="left-[41%] top-[25%]" />
             </div>
 
             <div className="island-item island-br">
@@ -67,7 +67,7 @@ export default function HomePageContent() {
 
         <div className="kapal-wrapper">
           <img src={pulau.kapal} alt="Kapal" className="kapal-image" />
-          <HomeIslandLabel label="Credit" className="!top-0 !-translate-y-[140%]" href="/credit" />
+          <HomeIslandLabel label="Credit" className="!top-3 !-translate-y-[140%]" href="/credit" />
         </div>
 
         <Link href="/information" aria-label="Buka halaman Informasi" className="papan1-wrapper">
