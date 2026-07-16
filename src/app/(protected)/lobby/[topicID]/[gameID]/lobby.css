@@ -115,14 +115,14 @@
   position: absolute;
   bottom: -4%;
   left: -2%;
-  width: clamp(120px, 26vw, 380px);
+  width: clamp(160px, 34vw, 560px);
 }
 
 .tanaman-kanan {
   position: absolute;
   bottom: -4%;
   right: -2%;
-  width: clamp(120px, 26vw, 380px);
+  width: clamp(160px, 34vw, 560px);
   transform: scaleX(-1);
 }
 
@@ -201,7 +201,7 @@
 
   .tanaman-kiri,
   .tanaman-kanan {
-    width: clamp(100px, 22vw, 280px);
+    width: clamp(140px, 30vw, 400px);
     bottom: -6%;
   }
 

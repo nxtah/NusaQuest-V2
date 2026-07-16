@@ -21,8 +21,8 @@ export default function ProfilePage() {
     <div className="profile-scene">
       <div className="profile-bg-layer">
         <Image
-          src={background.langit}
-          alt="Langit"
+          src={background.laut}
+          alt="Laut"
           fill
           sizes="100vw"
           className="profile-image"

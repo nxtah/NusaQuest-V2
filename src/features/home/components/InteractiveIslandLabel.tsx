@@ -24,7 +24,7 @@ export default function InteractiveIslandLabel({
       {label}
       <span
         aria-hidden="true"
-        className="absolute -bottom-[0.42rem] left-1/2 h-[0.7rem] w-[0.7rem] -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-white/95 home-label-tail-game"
+        className="absolute -bottom-[0.42rem] left-1/2 h-[0.7rem] w-[0.7rem] -translate-x-1/2 rotate-45 home-label-tail-game"
       />
     </button>
   );

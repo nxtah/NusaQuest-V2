@@ -29,26 +29,45 @@
   background-image: url('https://res.cloudinary.com/dprxjzfxp/image/upload/v1777425296/kertas_dkkqen.webp');
   background-size: 100% 100%;
   background-position: center;
-  padding: clamp(3rem, 6vw, 4rem);
+  padding: clamp(3.25rem, 6vw, 4rem) clamp(3rem, 6vw, 4rem) clamp(3.5rem, 6.5vw, 4.25rem);
   max-width: clamp(520px, 90vw, 800px);
   width: 100%;
   min-height: 340px;
+  max-height: 92vh;
+  overflow-y: auto;
   animation: gameModalSlideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   font-family: var(--font-poppins), sans-serif;
+  display: flex;
+  flex-direction: column;
 }
 
 .game-modal-container--large {
   width: 95vw;
   max-width: 1400px;
-  min-height: 700px;
-  padding: clamp(2rem, 5vw, 3rem);
+  /* min() instead of a fixed 700px: on short viewports a hard floor pushed the
+     container (and its bottom rows) past the visible window with nothing to
+     scroll it back into view, since .game-modal-overlay has no overflow rule. */
+  min-height: min(700px, 88vh);
+  /* Top/bottom padding use vh, not vw: the parchment's jagged edge scales with
+     the container's rendered HEIGHT (background-size: 100% 100%), so a vw-based
+     value undershoots badly on wide/short viewports. */
+  padding: clamp(4rem, 8vh, 5.5rem) clamp(2rem, 5vw, 3rem) clamp(3.5rem, 8vh, 5rem);
+}
+
+.game-modal-container--large .game-modal-header {
+  padding-top: 1.5rem;
 }
 
 .game-modal-container--large .game-modal-content {
+  width: 100%;
   max-width: 1100px;
-  margin-left: auto;
-  margin-right: auto;
+  align-self: center;
+}
+
+.game-modal-container--large .game-modal-close {
+  top: clamp(4.25rem, 8.5vh, 6rem);
+  right: clamp(3.25rem, 6.5vw, 4rem);
 }
 
 @keyframes gameModalSlideUp {
@@ -65,7 +84,7 @@
 /* Modal Header */
 .game-modal-header {
   margin-bottom: clamp(0.75rem, 3vw, 1rem);
-  padding-top: 3rem;
+  padding-top: 0.75rem;
 }
 
 /* Modal Title */
@@ -95,7 +114,9 @@
   display: flex;
   flex-direction: column;
   gap: clamp(0.75rem, 2vw, 1rem);
-  margin-top: 4rem;
+  margin-top: 1rem;
+  flex: 1;
+  justify-content: center;
 }
 
 /* Options Grid */
@@ -200,7 +221,12 @@
 
 /* Provinces List */
 .game-provinces-list {
-  max-height: clamp(260px, 40vh, 400px);
+  /* flex:1 (not a vh-guessed max-height) so the grid always fills exactly the
+     space actually left inside the parchment's safe zone, whatever the
+     viewport height — it can never grow past what the container has room for. */
+  flex: 1;
+  min-height: 0;
+  max-height: 400px;
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -287,8 +313,8 @@
 /* Close Button */
 .game-modal-close {
   position: absolute;
-  top: clamp(2.5rem, 4vw, 3rem);
-  right: clamp(0.75rem, 2vw, 1rem);
+  top: clamp(2.75rem, 6vw, 3.5rem);
+  right: clamp(2rem, 5vw, 2.75rem);
   background: #3b82f6;
   border: 2px solid #2563eb;
   border-radius: 50%;
