@@ -438,7 +438,10 @@
    there's barely any vertical room. Re-derive every size from vh instead. */
 @media (max-height: 500px) and (orientation: landscape) {
   .game-modal-container {
-    padding: clamp(1.25rem, 7vh, 2rem) clamp(1.5rem, 4vw, 2.5rem) clamp(0.85rem, 5vh, 1.25rem);
+    /* Top padding floor raised well past the others: the parchment's jagged
+       top edge needs real clearance regardless of how little vertical room
+       there is, or the title/close button visually collide with the peaks. */
+    padding: clamp(2.1rem, 9vh, 2.5rem) clamp(1.5rem, 4vw, 2.5rem) clamp(0.85rem, 5vh, 1.25rem);
     max-height: 94vh;
   }
 
@@ -457,8 +460,8 @@
   }
 
   .game-modal-close {
-    top: clamp(0.6rem, 4vh, 1rem);
-    right: clamp(0.6rem, 3vw, 1rem);
+    top: clamp(1.4rem, 6.5vh, 1.8rem);
+    right: clamp(1rem, 3.5vw, 1.4rem);
     width: 2rem;
     height: 2rem;
     font-size: 0.85rem;
