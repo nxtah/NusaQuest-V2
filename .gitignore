@@ -37,9 +37,27 @@ yarn-error.log*
 *firebase-adminsdk*.json
 serviceAccountKey*.json
 
+# Firebase database exports — contain real user data (names, emails, photo
+# URLs), same privacy class as the service account key above
+*rtdb-export*.json
+*firestore-export*.json
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editor/IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+desktop.ini
+
+# local scratch/tmp
+*.local.md
+.tmp/
