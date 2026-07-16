@@ -114,12 +114,16 @@
 /* Single panoramic asset: a vine curled at its far-left edge and another
    curled at its far-right edge, joined by a wide transparent gap in the
    middle — not two separate images, so it's placed once at full width and
-   the corner vines land at the actual screen corners on their own. */
+   the corner vines land at the actual screen corners on their own.
+   Oversized + negative left/right so the curls push past the true corners
+   (the lobby-container's overflow:hidden clips the excess) — at exactly
+   100% the asset's own ~1% transparent edge margin plus the curl's round
+   shape leaves a visible gap at the corner instead of hugging it. */
 .tanaman-strip {
   position: absolute;
-  bottom: -3%;
-  left: 0;
-  width: 100%;
+  bottom: -10%;
+  left: -3%;
+  width: 106%;
   height: auto;
   pointer-events: none;
 }
