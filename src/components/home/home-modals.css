@@ -438,10 +438,12 @@
    there's barely any vertical room. Re-derive every size from vh instead. */
 @media (max-height: 500px) and (orientation: landscape) {
   .game-modal-container {
-    /* Top padding floor raised well past the others: the parchment's jagged
-       top edge needs real clearance regardless of how little vertical room
-       there is, or the title/close button visually collide with the peaks. */
-    padding: clamp(2.1rem, 9vh, 2.5rem) clamp(1.5rem, 4vw, 2.5rem) clamp(0.85rem, 5vh, 1.25rem);
+    /* Top padding matches the desktop layout's proportion (~13.6% of container
+       height), not an ad-hoc small value — the parchment's jagged top edge
+       needs the same relative clearance regardless of how little vertical
+       room there is, or title/close button sit visibly closer to the peaks
+       than on desktop. */
+    padding: clamp(2.4rem, 11.8vh, 2.9rem) clamp(1.5rem, 4vw, 2.5rem) clamp(0.85rem, 5vh, 1.25rem);
     max-height: 94vh;
   }
 
@@ -460,8 +462,11 @@
   }
 
   .game-modal-close {
-    top: clamp(1.4rem, 6.5vh, 1.8rem);
-    right: clamp(1rem, 3.5vw, 1.4rem);
+    /* Matches desktop's ~11.9% of container height / ~5.5% of width, so the
+       button sits at the same relative spot near the corner instead of
+       tucked further in than the desktop reference. */
+    top: clamp(2.1rem, 10.4vh, 2.6rem);
+    right: clamp(1.6rem, 5vw, 2.6rem);
     width: 2rem;
     height: 2rem;
     font-size: 0.85rem;
