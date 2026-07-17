@@ -51,7 +51,7 @@ export const COMMON_ACHIEVEMENTS: Record<string, AchievementDef> = {
     rewardPoints: 50,
     rarity: "common",
   },
-  10_wins: {
+  '10_wins': {
     achievementId: "10_wins",
     name: "Petualang Sejati",
     description: "Menangkan 10 permainan",
@@ -61,7 +61,7 @@ export const COMMON_ACHIEVEMENTS: Record<string, AchievementDef> = {
     rewardPoints: 200,
     rarity: "uncommon",
   },
-  50_wins: {
+  '50_wins': {
     achievementId: "50_wins",
     name: "Master Penjelajah",
     description: "Menangkan 50 permainan",

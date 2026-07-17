@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Modal } from '@/components/ui/Modal'
-import Button from '@/components/ui/Button'
-import { getRegions } from '@/features/destination/services/regions.service'
+import { Modal } from '@/src/components/ui/Modal'
+import Button from '@/src/components/ui/Button'
+import { getRegions } from '@/src/features/destination/services/regions.service'
 import { Region } from '@/src/types/firestore'
 
 export interface RegionSelectionModalProps {

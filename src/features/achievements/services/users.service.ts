@@ -1,8 +1,13 @@
-import { db } from '@/lib/firebase/config'
+import { firebaseFirestore } from '@/src/lib/firebase/client'
 import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore'
 import { User } from '@/src/types/firestore'
 
 const USERS_COLLECTION = 'users'
+
+function requireFirestore() {
+  if (!firebaseFirestore) throw new Error('Firestore not configured');
+  return firebaseFirestore;
+}
 
 /**
  * Get or create user profile
@@ -16,7 +21,7 @@ export async function getOrCreateUser(
   }
 ): Promise<User> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId)
+    const userRef = doc(requireFirestore(), USERS_COLLECTION, userId)
     const userSnap = await getDoc(userRef)
 
     if (userSnap.exists()) {
@@ -51,7 +56,7 @@ export async function getOrCreateUser(
  */
 export async function getUserProfile(userId: string): Promise<User | null> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId)
+    const userRef = doc(requireFirestore(), USERS_COLLECTION, userId)
     const userSnap = await getDoc(userRef)
 
     if (!userSnap.exists()) {
@@ -70,7 +75,7 @@ export async function getUserProfile(userId: string): Promise<User | null> {
  */
 export async function updateLastLogin(userId: string): Promise<void> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId)
+    const userRef = doc(requireFirestore(), USERS_COLLECTION, userId)
     await updateDoc(userRef, {
       lastLoginAt: Date.now(),
     })
@@ -88,7 +93,7 @@ export async function addUserPoints(
   points: number
 ): Promise<void> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId)
+    const userRef = doc(requireFirestore(), USERS_COLLECTION, userId)
     await updateDoc(userRef, {
       totalPoints: increment(points),
     })
@@ -106,7 +111,7 @@ export async function recordGamePlayed(
   isWin: boolean = false
 ): Promise<void> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId)
+    const userRef = doc(requireFirestore(), USERS_COLLECTION, userId)
     const updates: Record<string, any> = {
       totalGamesPlayed: increment(1),
     }
@@ -131,7 +136,7 @@ export async function addInventoryItem(
   count: number = 1
 ): Promise<void> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId)
+    const userRef = doc(requireFirestore(), USERS_COLLECTION, userId)
     const user = await getUserProfile(userId)
 
     if (!user) {
@@ -156,7 +161,7 @@ export async function unlockAchievement(
   achievementId: string
 ): Promise<void> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId)
+    const userRef = doc(requireFirestore(), USERS_COLLECTION, userId)
     const user = await getUserProfile(userId)
 
     if (!user) {
@@ -189,7 +194,7 @@ export async function updateAchievementProgress(
   progress: number
 ): Promise<void> {
   try {
-    const userRef = doc(db, USERS_COLLECTION, userId)
+    const userRef = doc(requireFirestore(), USERS_COLLECTION, userId)
     await updateDoc(userRef, {
       [`achievements.${achievementId}.progress`]: progress,
     })

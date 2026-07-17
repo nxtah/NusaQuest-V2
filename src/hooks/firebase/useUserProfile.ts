@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
-  getUserById,
+  getUserProfile,
   updateUserProfile,
-} from '../../services/firebase/rtdb/users.service';
-import type { UserProfile } from '../../types/firebase.types';
+} from '../../services/firebase/firestore/users.service';
+import type { AppUser } from '../../types/auth';
 
 type UseUserProfileResult = {
-  profile: UserProfile | null;
+  profile: AppUser | null;
   loading: boolean;
   error: string | null;
   refreshProfile: () => Promise<void>;
@@ -17,7 +17,7 @@ type UseUserProfileResult = {
 };
 
 export function useUserProfile(uid: string): UseUserProfileResult {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +28,7 @@ export function useUserProfile(uid: string): UseUserProfileResult {
     }
 
     setLoading(true);
-    const result = await getUserById(uid);
+    const result = await getUserProfile(uid);
     if (result.success) {
       setProfile(result.data);
       setError(null);

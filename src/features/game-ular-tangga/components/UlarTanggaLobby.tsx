@@ -1,9 +1,15 @@
 import React from 'react';
 import Image from 'next/image';
-import { GamePlayer } from '../services/ular-tangga-game.service';
+
+interface LobbyPlayer {
+  uid: string;
+  displayName?: string;
+  name?: string;
+  photoURL?: string;
+}
 
 interface UlarTanggaLobbyProps {
-  players: GamePlayer[];
+  players: LobbyPlayer[];
   onStartGame: () => void;
   topicID: string;
   roomID: string;

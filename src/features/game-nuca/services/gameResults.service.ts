@@ -1,8 +1,13 @@
-import { db } from '@/lib/firebase/config'
+import { firebaseFirestore } from '@/src/lib/firebase/client'
 import { collection, addDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import { GameResult } from '@/src/types/firestore'
 
 const GAME_RESULTS_COLLECTION = 'gameResults'
+
+function requireFirestore() {
+  if (!firebaseFirestore) throw new Error('Firestore not configured');
+  return firebaseFirestore;
+}
 
 /**
  * Save game result
@@ -11,7 +16,7 @@ export async function saveGameResult(
   result: Omit<GameResult, 'resultId'>
 ): Promise<string> {
   try {
-    const docRef = await addDoc(collection(db, GAME_RESULTS_COLLECTION), result)
+    const docRef = await addDoc(collection(requireFirestore(), GAME_RESULTS_COLLECTION), result)
     return docRef.id
   } catch (error) {
     console.error('Error saving game result:', error)
@@ -28,7 +33,7 @@ export async function getUserGameHistory(
 ): Promise<GameResult[]> {
   try {
     const q = query(
-      collection(db, GAME_RESULTS_COLLECTION),
+      collection(requireFirestore(), GAME_RESULTS_COLLECTION),
       where('finalRanking', 'array-contains-any', [{ userId }]),
       orderBy('createdAt', 'desc'),
       limit(limit_count)
@@ -54,7 +59,7 @@ export async function getLeaderboard(
 ): Promise<Array<{ userId: string; totalWins: number; avgScore: number }>> {
   try {
     const q = query(
-      collection(db, GAME_RESULTS_COLLECTION),
+      collection(requireFirestore(), GAME_RESULTS_COLLECTION),
       where('mapId', '==', mapId),
       where('regionId', '==', regionId),
       orderBy('createdAt', 'desc'),

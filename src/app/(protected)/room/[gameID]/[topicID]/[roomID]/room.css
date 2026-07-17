@@ -66,6 +66,14 @@
   text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
+.room-join-error {
+  flex-shrink: 0; position: relative; z-index: 5;
+  font-size: clamp(0.65rem, 1.4vw, 0.9rem); font-weight: 600;
+  color: #fca5a5; background: rgba(127, 29, 29, 0.35);
+  border: 1px solid rgba(252, 165, 165, 0.4);
+  border-radius: 0.5rem; padding: 0.35rem 0.75rem; margin: 0;
+}
+
 /* Arena */
 .room-arena {
   position: relative; z-index: 5;
@@ -206,6 +214,29 @@
 /* Medium screens */
 @media (min-width: 640px) {
   .room-slots-container { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Mobile portrait: sama kayak desktop — 4 slot sejajar dalam satu baris,
+   cuma diskalain lebih kecil, bukan ditumpuk 2x2 (yang bikin konten kepanjangan
+   sampai header & tombol "Mulai Game" ke-cut dari viewport). */
+@media (max-width: 639px) {
+  .room-slots-container { grid-template-columns: repeat(4, 1fr); gap: clamp(0.3rem, 1.5vw, 0.6rem); }
+  .room-player-slot {
+    padding: clamp(0.5rem, 2.5vh, 1.1rem) clamp(0.2rem, 1vw, 0.4rem) clamp(1rem, 4vh, 1.8rem);
+    min-height: clamp(130px, 30vh, 200px);
+  }
+  .room-player-avatar-ring {
+    width: clamp(48px, 16vw, 78px);
+    height: clamp(48px, 16vw, 78px);
+  }
+  .room-player-avatar {
+    width: clamp(40px, 13vw, 66px);
+    height: clamp(40px, 13vw, 66px);
+  }
+  .room-player-initial { font-size: clamp(0.55rem, 2.6vw, 0.85rem); }
+  .room-player-icon svg { width: clamp(11px, 2.8vw, 16px); height: clamp(11px, 2.8vw, 16px); }
+  .room-player-owner-badge { font-size: clamp(0.42rem, 1.5vw, 0.6rem); padding: 1px 5px; bottom: -2px; }
+  .room-player-name { font-size: clamp(0.5rem, 2.1vw, 0.75rem); }
 }
 
 /* Mobile landscape: compact — no scroll */

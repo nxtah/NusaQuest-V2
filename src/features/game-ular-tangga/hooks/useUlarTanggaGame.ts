@@ -86,7 +86,7 @@ export function useUlarTanggaGame(
       return; // BLOCK jawaban jika bukan giliran
     }
 
-    await submitAnswer(topicID, gameID, roomID, selectedIndex, userUID); // ===== TAMBAH: Pass userUID =====
+    await submitAnswer(topicID, gameID, roomID, selectedIndex);
 
     // Beri jeda 2 detik agar user bisa melihat highlight (Green/Red)
     setTimeout(async () => {

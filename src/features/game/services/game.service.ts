@@ -1,5 +1,17 @@
-import {firebaseDb} from '@/src/lib/firebase/client';
-import {ref, onValue, get, set, update} from 'firebase/database';
+import { doc, updateDoc } from 'firebase/firestore';
+import { firebaseFirestore } from '@/src/lib/firebase/client';
+import { getQuestions as getFsQuestions } from '@/src/features/game-nuca/services/questions.service';
+import { getRegionById } from '@/src/features/destination/services/regions.service';
+import {
+  createGameState,
+  getGameState,
+  updateGameState as updateFsGameState,
+  subscribeToGameState as subscribeFsGameState,
+  advanceTurn,
+} from '@/src/services/firebase/firestore/game-states.service';
+import type { GameState } from '@/src/types/firestore';
+
+const ROOMS_COLLECTION = 'rooms';
 
 export interface GamePlayer {
   uid: string;
@@ -14,14 +26,6 @@ export interface GameQuestion {
   options: string[];
   correctAnswer: number;
   topic: string;
-}
-
-interface QuestionRecord {
-  question: string;
-  options: string[];
-  correctAnswer: number;
-  topic: string;
-  [key: string]: unknown;
 }
 
 export interface BaseGameState {
@@ -51,53 +55,24 @@ export interface UlarTanggaGameState extends BaseGameState {
   turnPhase?: string;
 }
 
-const ROOMS_PATH = 'rooms';
-const QUESTIONS_PATH = 'questions';
-const GAME_STATE_PATH = 'gameState';
-
-function getRoomGameStateRef(topicID: string, gameID: string, roomID: string) {
-  if (!firebaseDb) {
-    throw new Error('Firebase database is not initialized');
-  }
-
-  return ref(firebaseDb, `${ROOMS_PATH}/${topicID}/${gameID}/${roomID}/${GAME_STATE_PATH}`);
+function requireFirestore() {
+  if (!firebaseFirestore) throw new Error('Firestore not configured');
+  return firebaseFirestore;
 }
 
-function getRoomRef(topicID: string, gameID: string, roomID: string) {
-  if (!firebaseDb) {
-    throw new Error('Firebase database is not initialized');
-  }
-
-  return ref(firebaseDb, `${ROOMS_PATH}/${topicID}/${gameID}/${roomID}`);
-}
-
-/**
- * Fetch questions for a topic
- */
 export async function getQuestions(topicID: string): Promise<GameQuestion[]> {
-  if (!firebaseDb) return [];
-
-  try {
-    const questionsRef = ref(firebaseDb, `${QUESTIONS_PATH}/${topicID}`);
-    const snapshot = await get(questionsRef);
-
-    if (snapshot.exists()) {
-      const data = snapshot.val() as Record<string, QuestionRecord>;
-      return Object.entries(data).map(([id, q]) => ({
-        id,
-        ...q,
-      }));
-    }
-    return [];
-  } catch (error) {
-    console.error('Error fetching questions:', error);
-    return [];
-  }
+  const region = await getRegionById(topicID);
+  if (!region) return [];
+  const questions = await getFsQuestions(region.mapId, topicID, 100);
+  return questions.map((q) => ({
+    id: q.questionId,
+    question: q.text,
+    options: q.options,
+    correctAnswer: q.correctIndex,
+    topic: q.regionId,
+  }));
 }
 
-/**
- * Shuffle array helper
- */
 export function shuffle<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -107,9 +82,6 @@ export function shuffle<T>(array: T[]): T[] {
   return shuffled;
 }
 
-/**
- * Initialize NusaCard game state
- */
 export async function initializeNusaCardGameState(
   topicID: string,
   gameID: string,
@@ -117,31 +89,10 @@ export async function initializeNusaCardGameState(
   players: GamePlayer[],
   questions: GameQuestion[],
 ): Promise<void> {
-  if (!firebaseDb) return;
-
-  try {
-    const gameStateRef = getRoomGameStateRef(topicID, gameID, roomID);
-
-    const initialState: NusaCardGameState = {
-      players,
-      currentPlayerIndex: 0,
-      gameStatus: 'playing',
-      questions,
-      gameStartedAt: new Date().toISOString(),
-      gameWinnerUID: null,
-      gameWinnerDisplayName: null,
-      achievementAwarded: false,
-    };
-
-    await set(gameStateRef, initialState);
-  } catch (error) {
-    console.error('Error initializing NusaCard game state:', error);
-  }
+  const playerIds = players.map((p) => p.uid);
+  await createGameState(roomID, playerIds);
 }
 
-/**
- * Initialize Ular Tangga game state
- */
 export async function initializeUlarTanggaGameState(
   topicID: string,
   gameID: string,
@@ -149,36 +100,37 @@ export async function initializeUlarTanggaGameState(
   players: GamePlayer[],
   questions: GameQuestion[],
 ): Promise<void> {
-  if (!firebaseDb) return;
-
-  try {
-    const gameStateRef = getRoomGameStateRef(topicID, gameID, roomID);
-
-    const pionPositions = new Array(players.length).fill(0);
-    const playerTimers = new Array(players.length).fill(30);
-
-    const initialState: UlarTanggaGameState = {
-      players,
-      currentPlayerIndex: 0,
-      gameStatus: 'playing',
-      questions,
-      pionPositions,
-      playerTimers,
-      gameStartedAt: new Date().toISOString(),
-      gameWinnerUID: null,
-      gameWinnerDisplayName: null,
-      achievementAwarded: false,
-    };
-
-    await set(gameStateRef, initialState);
-  } catch (error) {
-    console.error('Error initializing Ular Tangga game state:', error);
+  const playerIds = players.map((p) => p.uid);
+  await createGameState(roomID, playerIds);
+  const gs = await getGameState(roomID);
+  if (gs) {
+    for (const uid of playerIds) {
+      if (gs.playerStates[uid]) {
+        gs.playerStates[uid].position = 0;
+      }
+    }
+    await updateFsGameState(roomID, {
+      playerStates: gs.playerStates,
+      updatedAt: Date.now(),
+    });
   }
 }
 
-/**
- * Listen to game state changes
- */
+export function subscribeToTypedGameState<TGameState extends BaseGameState>(
+  topicID: string,
+  gameID: string,
+  roomID: string,
+  callback: (gameState: TGameState | null) => void,
+): () => void {
+  return subscribeFsGameState(roomID, (state) => {
+    if (!state) {
+      callback(null);
+      return;
+    }
+    callback(state as unknown as TGameState);
+  });
+}
+
 export function subscribeToGameState(
   topicID: string,
   gameID: string,
@@ -188,183 +140,88 @@ export function subscribeToGameState(
   return subscribeToTypedGameState<BaseGameState>(topicID, gameID, roomID, callback);
 }
 
-export function subscribeToTypedGameState<TGameState extends BaseGameState>(
-  topicID: string,
-  gameID: string,
-  roomID: string,
-  callback: (gameState: TGameState | null) => void,
-): () => void {
-  if (!firebaseDb) {
-    callback(null);
-    return () => { };
-  }
-
-  try {
-    const gameStateRef = getRoomGameStateRef(topicID, gameID, roomID);
-    return onValue(gameStateRef, (snapshot) => {
-      if (snapshot.exists()) {
-        callback(snapshot.val() as TGameState);
-      } else {
-        callback(null);
-      }
-    });
-  } catch {
-    callback(null);
-    return () => { };
-  }
-}
-
-/**
- * Update game state
- */
 export async function updateGameState(
   topicID: string,
   gameID: string,
   roomID: string,
   updates: Partial<BaseGameState> & Record<string, unknown>,
 ): Promise<void> {
-  if (!firebaseDb) return;
-
-  try {
-    const gameStateRef = getRoomGameStateRef(topicID, gameID, roomID);
-    await update(gameStateRef, updates);
-  } catch (error) {
-    console.error('Error updating game state:', error);
-  }
+  await updateFsGameState(roomID, updates as Partial<GameState>);
 }
 
-/**
- * Advance current player turn
- */
 export async function advanceGameTurn(
   topicID: string,
   gameID: string,
   roomID: string,
 ): Promise<number | null> {
-  if (!firebaseDb) return null;
-
   try {
-    const gameStateRef = getRoomGameStateRef(topicID, gameID, roomID);
-    const snapshot = await get(gameStateRef);
-
-    if (!snapshot.exists()) return null;
-
-    const gameState = snapshot.val();
-    const players = Array.isArray(gameState.players) ? gameState.players : [];
-
-    if (!players.length) return null;
-
-    const nextPlayerIndex = ((gameState.currentPlayerIndex || 0) + 1) % players.length;
-    await update(gameStateRef, {currentPlayerIndex: nextPlayerIndex});
-
-    return nextPlayerIndex;
-  } catch (error) {
-    console.error('Error advancing game turn:', error);
+    const gs = await getGameState(roomID);
+    if (!gs) return null;
+    const playerCount = Object.keys(gs.playerStates).length;
+    return await advanceTurn(roomID, playerCount);
+  } catch {
     return null;
   }
 }
 
-/**
- * Mark the game finished and store winner metadata
- */
 export async function finishGame(
   topicID: string,
   gameID: string,
   roomID: string,
-  winner?: {uid: string; displayName: string},
+  winner?: { uid: string; displayName: string },
 ): Promise<void> {
-  if (!firebaseDb) return;
-
-  try {
-    const gameStateRef = getRoomGameStateRef(topicID, gameID, roomID);
-    const payload = {
-      gameStatus: 'finished',
-      gameWinnerUID: winner?.uid || null,
-      gameWinnerDisplayName: winner?.displayName || null,
-      finishedAt: new Date().toISOString(),
-    };
-
-    await update(gameStateRef, payload);
-    await setGameStatus(topicID, gameID, roomID, 'finished');
-  } catch (error) {
-    console.error('Error finishing game:', error);
-  }
+  await updateFsGameState(roomID, {
+    winner: winner?.uid,
+    updatedAt: Date.now(),
+  } as Partial<GameState>);
+  await setGameStatus(topicID, gameID, roomID, 'finished');
 }
 
-/**
- * Set game status to 'playing' or 'finished'
- */
 export async function setGameStatus(
   topicID: string,
   gameID: string,
   roomID: string,
   status: 'playing' | 'finished',
 ): Promise<void> {
-  if (!firebaseDb) return;
-
-  try {
-    const statusRef = ref(firebaseDb, `${ROOMS_PATH}/${topicID}/${gameID}/${roomID}/gameStatus`);
-    await set(statusRef, status);
-  } catch (error) {
-    console.error('Error setting game status:', error);
-  }
+  const db = requireFirestore();
+  const roomRef = doc(db, ROOMS_COLLECTION, roomID);
+  await updateDoc(roomRef, {
+    status: status,
+    ...(status === 'finished' ? { finishedAt: Date.now() } : { startedAt: Date.now() }),
+  });
 }
 
-/**
- * Update Ular Tangga board positions in one call
- */
 export async function updatePionPositions(
   topicID: string,
   gameID: string,
   roomID: string,
   pionPositions: number[],
 ): Promise<void> {
-  if (!firebaseDb) return;
-
-  try {
-    const gameStateRef = getRoomGameStateRef(topicID, gameID, roomID);
-    await update(gameStateRef, {pionPositions});
-  } catch (error) {
-    console.error('Error updating pion positions:', error);
+  const gs = await getGameState(roomID);
+  if (!gs) return;
+  const uids = Object.keys(gs.playerStates);
+  for (let i = 0; i < Math.min(uids.length, pionPositions.length); i++) {
+    gs.playerStates[uids[i]].position = pionPositions[i];
   }
+  await updateFsGameState(roomID, { playerStates: gs.playerStates });
 }
 
-/**
- * Reset a room after a game ends or is abandoned.
- */
 export async function resetRoomGameState(
   topicID: string,
   gameID: string,
   roomID: string,
 ): Promise<void> {
-  if (!firebaseDb) return;
-
-  try {
-    const roomRef = getRoomRef(topicID, gameID, roomID);
-    await update(roomRef, {
-      gameStatus: 'waiting',
-      currentPlayers: 0,
-      gameState: null,
-      lastResetAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Error resetting room game state:', error);
-  }
+  const db = requireFirestore();
+  const roomRef = doc(db, ROOMS_COLLECTION, roomID);
+  await updateDoc(roomRef, {
+    status: 'waiting',
+  });
 }
 
-/**
- * Cleanup game when players leave
- */
 export async function cleanupGame(
   topicID: string,
   gameID: string,
   roomID: string,
 ): Promise<void> {
-  if (!firebaseDb) return;
-
-  try {
-    await resetRoomGameState(topicID, gameID, roomID);
-  } catch (error) {
-    console.error('Error cleaning up game:', error);
-  }
+  await resetRoomGameState(topicID, gameID, roomID);
 }

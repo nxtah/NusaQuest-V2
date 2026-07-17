@@ -2,17 +2,17 @@
 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { background } from '../../assets/images/background/cloudinaryAssets';
-import { information } from '../../assets/images/information/cloudinaryAssets';
-import { ROUTES } from '../../lib/constants/routes';
-import { useAuth } from '../../features/auth/hooks/useAuth';
-import BackButton from '../../components/ui/BackButton';
-import AchievementSection from '../../components/profile/AchievementSection';
-import AttributeSection from '../../components/profile/AttributeSection';
-import BadgeSection from '../../components/profile/BadgeSection';
-import ProfileCard from '../../components/profile/ProfileCard';
-import ProfileHeader from '../../components/profile/ProfileHeader';
-import ProfilePanel from '../../components/profile/ProfilePanel';
+import { background } from '@/src/assets/images/background/cloudinaryAssets';
+import { information } from '@/src/assets/images/information/cloudinaryAssets';
+import { ROUTES } from '@/src/lib/constants/routes';
+import { useAuth } from '@/src/features/auth/hooks/useAuth';
+import BackButton from '@/src/components/ui/BackButton';
+import AchievementSection from '@/src/components/profile/AchievementSection';
+import AttributeSection from '@/src/components/profile/AttributeSection';
+import BadgeSection from '@/src/components/profile/BadgeSection';
+import ProfileCard from '@/src/components/profile/ProfileCard';
+import ProfileHeader from '@/src/components/profile/ProfileHeader';
+import ProfilePanel from '@/src/components/profile/ProfilePanel';
 import './profile.css';
 
 export default function ProfilePage() {

@@ -15,6 +15,9 @@ interface QuestionModalProps {
   question?: string;
   choices?: string[];
   avatarUrl?: string;
+  /** Kalau dikasih, dipanggil dengan index pilihan alih-alih langsung onClose. */
+  onSelectChoice?: (index: number) => void;
+  disabled?: boolean;
 }
 
 const defaultChoices = ["Surabaya", "Bandung", "Jakarta", "Medan"];
@@ -25,6 +28,8 @@ export default function QuestionModal({
   question = "Apa ibu kota Indonesia?",
   choices = defaultChoices,
   avatarUrl,
+  onSelectChoice,
+  disabled = false,
 }: QuestionModalProps) {
   return (
     <AnimatePresence>
@@ -92,11 +97,12 @@ export default function QuestionModal({
                 max-[640px]:mt-3
                 max-[640px]:gap-2
                 ">
-                {choices.map((choice) => (
+                {choices.map((choice, index) => (
                   <button
                     key={choice}
                     type="button"
-                    onClick={onClose}
+                    disabled={disabled}
+                    onClick={() => (onSelectChoice ? onSelectChoice(index) : onClose())}
                     className="
                       mx-auto
                       w-[88%]
@@ -114,6 +120,8 @@ export default function QuestionModal({
                       text-[#45321a]
                       transition
                       hover:bg-[#f9ebcf]
+                      disabled:cursor-not-allowed
+                      disabled:opacity-50
                     "
                   >
                     {choice}

@@ -4,13 +4,8 @@ export interface GameFlowState {
   isGameModalOpen: boolean;
   isProvinceModalOpen: boolean;
   selectedGame: GameType | null;
-  selectedDestinationId: number | null;
+  selectedRegionId: string | null;
   islandLabel: string | null;
-}
-
-export interface Province {
-  id: number;
-  name: string;
 }
 
 export const GAME_TYPES: Record<GameType, { label: string; description: string }> = {
@@ -24,39 +19,12 @@ export const GAME_TYPES: Record<GameType, { label: string; description: string }
   },
 };
 
-export const PROVINCES: Province[] = [
-  { id: 1, name: 'Aceh' },
-  { id: 2, name: 'Sumatera Utara' },
-  { id: 3, name: 'Sumatera Barat' },
-  { id: 4, name: 'Riau' },
-  { id: 5, name: 'Jambi' },
-  { id: 6, name: 'Sumatera Selatan' },
-  { id: 7, name: 'Bengkulu' },
-  { id: 8, name: 'Lampung' },
-  { id: 9, name: 'Kepulauan Bangka Belitung' },
-  { id: 10, name: 'Kepulauan Riau' },
-  { id: 11, name: 'DKI Jakarta' },
-  { id: 12, name: 'Jawa Barat' },
-  { id: 13, name: 'Jawa Tengah' },
-  { id: 14, name: 'Daerah Istimewa Yogyakarta' },
-  { id: 15, name: 'Jawa Timur' },
-  { id: 16, name: 'Banten' },
-  { id: 17, name: 'Bali' },
-  { id: 18, name: 'Nusa Tenggara Barat' },
-  { id: 19, name: 'Nusa Tenggara Timur' },
-  { id: 20, name: 'Kalimantan Barat' },
-  { id: 21, name: 'Kalimantan Tengah' },
-  { id: 22, name: 'Kalimantan Selatan' },
-  { id: 23, name: 'Kalimantan Timur' },
-  { id: 24, name: 'Kalimantan Utara' },
-  { id: 25, name: 'Sulawesi Utara' },
-  { id: 26, name: 'Sulawesi Tengah' },
-  { id: 27, name: 'Sulawesi Selatan' },
-  { id: 28, name: 'Sulawesi Tenggara' },
-  { id: 29, name: 'Gorontalo' },
-  { id: 30, name: 'Sulawesi Barat' },
-  { id: 31, name: 'Maluku' },
-  { id: 32, name: 'Maluku Utara' },
-  { id: 33, name: 'Papua Barat' },
-  { id: 34, name: 'Papua' },
-];
+// Label pulau di home page dipetakan ke mapId di Firestore (koleksi `maps`,
+// id-nya slug dari nama map — lihat scripts/seed-firestore.ts).
+export const ISLAND_TO_MAP_ID: Record<string, string> = {
+  'Kuliner': 'kuliner',
+  'Pariwisata': 'pariwisata',
+  'Sejarah & Legenda': 'sejarah-legenda',
+  'Budaya': 'budaya',
+  'Alam & Satwa': 'alam-satwa',
+};

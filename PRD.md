@@ -212,19 +212,22 @@ Desa Wisata, Sejarah dan Budaya, serta kategori lain yang dikelola melalui dashb
 
 ## 6. Model Data
 
-Struktur berikut merefleksikan kondisi RTDB saat ini. Skema target Firestore didefinisikan pada saat migrasi (§7).
+Struktur berikut merefleksikan skema Firestore yang sekarang aktif dipakai aplikasi (lihat `firestore.rules` dan `src/types/firestore.ts` sebagai sumber kebenaran). RTDB tersisa hanya untuk jalur admin questions API (§7).
 
 | Entitas | Field Utama |
 |---|---|
-| **User** | `uid`, `displayName`, `email`, `photoURL`, `updatedAt` |
-| **Room** | `capacity`, `currentPlayers`, `gameStatus`, `gameStarted`, `players`, `isSinglePlayer`, `startedAt` |
-| **GameState** | `currentPlayerIndex`, `currentPlayerUID`, `pionPositions`, `diceState`, `playerActivity`, `questions`, `gameStatus`, `gameWinnerUID` |
-| **Question** | `question_text`, `multiple_choices` (A–D dengan `answer_text` + `is_correct`), `topic`, `gameId`, `hint`, `destination` |
-| **Destination** | `nama`, `provinsi`, `deskripsi`, `type`, `image`, `latitude`, `longitude` |
-| **Informasi** | `title`, `description`, `content`, `category`, `image` |
-| **Achievement** | `key`, `progress`, `unlocked`, `updatedAt` |
-| **Inventory Item** | `item_name`, `item_count`, `item_img` |
-| **ChatMessage** | `sender`, `message`, `timestamp` |
+| **User** (`users/{uid}`) | `uid`, `displayName`, `email`, `photoURL`, `role`, `updatedAt` |
+| **Map** (`maps/{mapId}`) | `name`, `icon`, `description`, `order`, `isActive` |
+| **Region** (`regions/{regionId}`) | `regionId`, `name`, `code`, `mapId`, `description`, `isActive` |
+| **Topic** (`topics/{topicId}`) | dipakai halaman destinasi; baca publik, tulis admin |
+| **Room** (`rooms/{roomId}`) | `gameType`, `mapId`, `regionId`, `maxPlayers`, `currentPlayers`, `status`, `players` (map UID → `RoomPlayer`: `joinedAt`, `role`, `isActive`, `name`, `photoURL`) |
+| **GameState** (`gameStates/{roomId}`) | model generik di `types/firestore.ts` (`playerStates`, `currentPlayerIndex`, `round`); Ular Tangga punya model konkret sendiri di `ular-tangga-game.service.ts` (`pionPositions`, `diceState`, `playerActivity`, `questions`, `gameStatus`) — dua model ini belum disatukan, lihat §10 |
+| **Question** (`questions/{id}`) | `text`, `options` (4 pilihan), `correctIndex`, `mapId`, `regionId`, `difficulty`, `isActive`, `isApproved` |
+| **Destination** (`destinations/{id}`) | `nama`, `provinsi`, `deskripsi`, `type`, `image`, `latitude`, `longitude` |
+| **InformationItem** (`informationItems/{id}`) | `tab`, `sectionTitle`, `title`, `description`, `imageUrl`, `order` |
+| **GameResult** (`gameResults/{id}`) | hasil akhir game per room (tidak ada pemanggil aktif saat ini) |
+| **AdminLog** (`adminLogs/{id}`) | audit log admin, append-only |
+| **ChatMessage** (`rooms/{roomId}/chat/{id}`) | subcollection, append-only |
 
 ---
 
@@ -232,24 +235,19 @@ Struktur berikut merefleksikan kondisi RTDB saat ini. Skema target Firestore did
 
 ### 7.1 Keputusan
 
-Database akan dimigrasikan dari Firebase Realtime Database ke **Cloud Firestore**.
+Database sudah dimigrasikan dari Firebase Realtime Database ke **Cloud Firestore** untuk hampir seluruh data aplikasi (§6). Keputusan awal untuk mendesain ulang skema (bukan salin struktur apa adanya) sudah dijalankan.
 
-### 7.2 Prinsip Migrasi
+### 7.2 Prinsip Migrasi (sudah diterapkan)
 
-Migrasi **bukan** penyalinan struktur apa adanya. Skema Firestore dirancang ulang sekaligus merapikan inkonsistensi yang ada di RTDB saat ini:
+- Penamaan node ganda `topic`/`topics` disatukan jadi collection `topics` + field `mapId`/`regionId` yang konsisten di `questions`.
+- Chat disatukan ke satu lokasi kanonik: subcollection `rooms/{roomId}/chat`.
+- Game state disatukan ke koleksi `gameStates/{roomId}` (meski secara internal masih ada dua bentuk skema yang belum disatukan — lihat §10).
+- Struktur soal disatukan ke koleksi `questions` datar dengan `mapId`/`regionId`.
 
-- Penamaan node ganda: `topic` (tunggal) dan `topics` (jamak) disatukan menjadi satu penamaan konsisten.
-- Chat tersimpan di dua konvensi path berbeda, disatukan ke satu lokasi kanonik.
-- Game state tersimpan di dua lokasi berbeda (`rooms/.../gameState` dan `games/state/{roomId}`), disatukan ke satu lokasi kanonik.
-- Nesting soal tidak konsisten antar service, disatukan ke satu struktur koleksi.
+### 7.3 Sisa Pekerjaan RTDB
 
-### 7.3 Cakupan Terdampak
-
-- Service layer `src/services/firebase/*`
-- Service level fitur di `src/features/*/services/*`
-- Hooks `src/hooks/firebase/*`
-- Script migrasi data di `scripts/`
-- Security rules Firestore (perlu dibuat dan disimpan dalam version control)
+- `src/lib/firebase/admin.ts` (`getFirebaseAdminDb`) dan `src/app/api/admin/questions/route.ts` masih memakai `firebase-admin/database` (RTDB) — belum dipindah ke Firestore.
+- Security rules Firestore (`firestore.rules`, `firestore.indexes.json`) sudah ada dan masuk version control, tapi deploy ke project Firebase masih manual (lewat Firebase Console atau `firebase deploy --only firestore:rules,firestore:indexes`) — bukan bagian dari CI/CD.
 
 ---
 
@@ -301,7 +299,6 @@ Dicatat sebagai konteks perencanaan, bukan komitmen jadwal:
 |---|---|---|
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Client | Inisialisasi Firebase |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Client | Firebase Auth |
-| `NEXT_PUBLIC_FIREBASE_DATABASE_URL` | Client | Realtime Database |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Client | Identitas proyek |
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Client | Firebase Storage |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Client | Firebase |

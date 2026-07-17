@@ -1,4 +1,4 @@
-import { auth } from '@/lib/firebase/config'
+import { firebaseAuth as auth } from '@/src/lib/firebase/client'
 import {
   signInWithPopup,
   GoogleAuthProvider,
@@ -9,12 +9,17 @@ import {
 
 const googleProvider = new GoogleAuthProvider()
 
+function getAuth() {
+  if (!auth) throw new Error('Firebase Auth is not configured')
+  return auth
+}
+
 /**
  * Sign in with Google
  */
 export async function signInWithGoogle(): Promise<User> {
   try {
-    const result = await signInWithPopup(auth, googleProvider)
+    const result = await signInWithPopup(getAuth(), googleProvider)
     return result.user
   } catch (error) {
     console.error('Google Sign-in Error:', error)
@@ -27,7 +32,7 @@ export async function signInWithGoogle(): Promise<User> {
  */
 export async function signOutUser(): Promise<void> {
   try {
-    await signOut(auth)
+    await signOut(getAuth())
   } catch (error) {
     console.error('Sign-out Error:', error)
     throw error
@@ -40,15 +45,16 @@ export async function signOutUser(): Promise<void> {
 export function onAuthStateChange(
   callback: (user: User | null) => void
 ): () => void {
-  return onAuthStateChanged(auth, callback)
+  return onAuthStateChanged(getAuth(), callback)
 }
 
 /**
  * Get current user ID token
  */
 export async function getIdToken(): Promise<string | null> {
-  if (auth.currentUser) {
-    return await auth.currentUser.getIdToken()
+  const currentUser = getAuth().currentUser
+  if (currentUser) {
+    return await currentUser.getIdToken()
   }
   return null
 }

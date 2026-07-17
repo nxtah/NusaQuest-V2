@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, ReactNode } from 'react'
+import { useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase/config'
+import { firebaseAuth as auth } from '@/src/lib/firebase/client'
 import { onAuthStateChanged } from 'firebase/auth'
 
 interface ProtectedRouteProps {
@@ -11,16 +11,17 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useEffect(true)
-  const [isAuthorized, setIsAuthorized] = useEffect(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthorized, setIsAuthorized] = useState(false)
 
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setIsAuthorized(true)
         setIsLoading(false)
       } else {
-        // Redirect to home if not logged in
+        setIsLoading(false)
         router.push('/home')
       }
     })

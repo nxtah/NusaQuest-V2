@@ -42,7 +42,7 @@ Environment variable ada di `.env.local` (tidak di-commit). Daftar lengkap di `P
 
 ## Tech Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript strict · Zustand · Zod · Tailwind CSS · Konva/react-konva (papan game) · GSAP + Framer Motion · Firebase (Auth, Realtime Database, Storage) · Cloudinary (CDN gambar) · Path alias `@/*` ke root proyek.
+Next.js 16 (App Router) · React 19 · TypeScript strict · Zustand · Zod · Tailwind CSS · Konva/react-konva (papan game) · GSAP + Framer Motion · Firebase (Auth, Cloud Firestore, Storage) · Cloudinary (CDN gambar) · Path alias `@/*` ke root proyek.
 
 ---
 
@@ -89,12 +89,13 @@ src/
 
 ## Migrasi Database: RTDB ke Firestore
 
-Database akan dimigrasikan dari Realtime Database ke **Cloud Firestore**. Saat ini basis kode masih **100% RTDB** — belum ada Firestore sama sekali.
+Migrasi dari Realtime Database ke **Cloud Firestore** sudah dilakukan untuk hampir semua data aplikasi. Collection aktif: `maps`, `regions`, `topics`, `destinations`, `questions`, `users`, `rooms` (+ subcollection `chat`), `gameStates`, `gameResults`, `adminLogs`, `informationItems`.
 
-- Migrasi **bukan** salin struktur apa adanya. Skema Firestore dirancang ulang sekaligus merapikan inkonsistensi RTDB yang ada: `topic` vs `topics`, chat di dua path berbeda, game state di dua lokasi berbeda (`rooms/.../gameState` dan `games/state/{roomId}`), nesting soal tidak konsisten antar service.
-- Jangan menambah node RTDB baru tanpa mempertimbangkan dampak migrasi.
+- `firestore.rules` dan `firestore.indexes.json` ada, masuk version control, dan sudah **live di production** (`nusaquest-v2-bd551`, di-deploy lewat Firebase CLI). Redeploy lewat `firebase deploy --only firestore:rules,firestore:indexes` kalau ada perubahan rules/index.
+- **RTDB sudah dihapus total** dari codebase — gak ada `firebase/database` atau `firebase-admin/database` tersisa. Admin SDK pakai `getFirebaseAdminFirestore()` (`src/lib/firebase/admin.ts`).
+- Ada dua model game-state yang belum disatukan: `types/firestore.ts` (`GameState`/`playerStates`, generik) vs `features/game-ular-tangga/services/ular-tangga-game.service.ts` (`UlarTanggaGameState`, konkret dan yang benar-benar dipakai). `features/game/services/game.service.ts` melakukan unchecked cast di antara keduanya — hati-hati saat menyentuh area ini.
+- Admin-v2 (`src/features/admin-v2`) masih pakai password hardcode client-side, bukan Firebase Auth custom claim `role: 'admin'`. Karena itu rule write `destinations` cuma butuh login (`isAuth()`), bukan `isAdmin()` — kalau mau di-gate admin-only, sambungkan admin-v2 ke Firebase Auth dulu, atau write via admin-v2 bakal gagal.
 - Akses data selalu lewat service layer supaya penggantian SDK terisolasi di satu lapisan.
-- Security rules Firestore perlu dibuat dan masuk version control. Repositori saat ini **tidak memuat file rules sama sekali** (`firebase.json`, `firestore.rules`, `database.rules.json`, `storage.rules` tidak ada).
 
 ---
 
@@ -118,12 +119,14 @@ Sudah diketahui dan masuk antrean perbaikan. **Jangan diperluas, jangan dicontoh
 | Service duplikat | Ada dua `room.service.ts` dan dua `game.service.ts` di fitur berbeda — pastikan impor yang benar. |
 | Tipe duplikat | `features/admin/types.ts` dan `features/admin/types/admin.types.ts` berdampingan. |
 | File stub kosong | `lib/constants/game.ts`, `features/game-nuca/utils/nuca-rules.ts`, `lib/cloudinary/client.ts`, `lib/cloudinary/upload.ts` hanya berisi `export {}`. |
-| Data terputus | `/information` dan `/profile` memakai data dummy hardcoded, bukan data dari database. |
+| Data terputus | `/information` dan `/profile` sudah pakai data Firestore asli; sisa halaman lain yang masih dummy dicek per kasus. |
 | Cloudinary hardcode | `src/lib/cloudinaryHelper.ts` hardcode cloud name. Route signature upload membaca `CLOUDINARY_CLOUD_NAME` tanpa prefix `NEXT_PUBLIC_` — tidak cocok dengan env var yang tersedia. |
 | Tailwind campur | `tailwind.config.js` (v3) berdampingan dengan dependensi `@tailwindcss/postcss` v4, dan ada dua file konfigurasi postcss. |
 | Docs aspiratif | `docs/FILE_GUIDE.md` mendeskripsikan file yang belum ada (middleware, folder auth, halaman login) — perlakukan sebagai rencana, bukan kondisi saat ini. |
 
-**Auth belum terpasang penuh.** Session cookie API, `withAuth`, dan custom claim role sudah jalan di sisi server. Tapi middleware, halaman login, dan penyambungan AuthProvider **belum ada** — route group `(protected)` belum benar-benar terproteksi saat runtime, dan `/admin` tidak punya gate login. Ini pekerjaan terpisah yang sudah diketahui. Jangan asumsikan proteksi sudah berjalan saat menulis fitur.
+**Auth sudah terpasang di sisi client.** `AuthProvider` (`src/app/providers.tsx`) menyambungkan `onFirebaseAuthStateChanged` ke `useAuthStore` (Zustand); `useAuth()` (`src/features/auth/hooks/useAuth.ts`) adalah hook yang benar buat dipakai di komponen/halaman. `(protected)/layout.tsx` redirect ke `/login` kalau belum login. Gunakan `useAuth()` di setiap halaman/hook yang butuh identitas user — jangan hardcode `user = null` atau UID tamu acak, itu pola lama yang sudah dibuang.
+
+Yang **masih belum ada**: `middleware.ts` (proteksi route masih murni client-side, bukan di edge), dan `/admin` (legacy, akan dihapus) tidak punya gate login. Session cookie API (`/api/auth/session`) dan `withAuth()` jalan di server tapi tidak pernah dipanggil dari client — `/api/admin/questions` dan `/api/upload/signature` (yang pakai `withAuth`) efektif tidak ke-reach lewat flow normal. Admin-v2 (`src/features/admin-v2`) pakai password hardcode client-side, bukan Firebase Auth.
 
 ---
 

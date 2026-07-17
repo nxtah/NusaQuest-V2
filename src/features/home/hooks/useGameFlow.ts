@@ -6,7 +6,7 @@ export function useGameFlow() {
     isGameModalOpen: false,
     isProvinceModalOpen: false,
     selectedGame: null,
-    selectedDestinationId: null,
+    selectedRegionId: null,
     islandLabel: null,
   });
 
@@ -42,10 +42,10 @@ export function useGameFlow() {
     }));
   }, []);
 
-  const selectProvince = useCallback((destinationId: number) => {
+  const selectProvince = useCallback((regionId: string) => {
     setState((prev) => ({
       ...prev,
-      selectedDestinationId: destinationId,
+      selectedRegionId: regionId,
       isProvinceModalOpen: false,
     }));
   }, []);
@@ -55,7 +55,7 @@ export function useGameFlow() {
       isGameModalOpen: false,
       isProvinceModalOpen: false,
       selectedGame: null,
-      selectedDestinationId: null,
+      selectedRegionId: null,
       islandLabel: null,
     });
   }, []);

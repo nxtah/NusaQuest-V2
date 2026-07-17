@@ -1,15 +1,20 @@
-import { db } from '@/lib/firebase/config'
+import { firebaseFirestore } from '@/src/lib/firebase/client'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { GameMap } from '@/src/types/firestore'
 
 const MAPS_COLLECTION = 'maps'
+
+function requireFirestore() {
+  if (!firebaseFirestore) throw new Error('Firestore not configured');
+  return firebaseFirestore;
+}
 
 /**
  * Fetch all active maps
  */
 export async function getMaps(): Promise<GameMap[]> {
   try {
-    const q = query(collection(db, MAPS_COLLECTION), orderBy('order', 'asc'))
+    const q = query(collection(requireFirestore(), MAPS_COLLECTION), orderBy('order', 'asc'))
     const snapshot = await getDocs(q)
     const maps: GameMap[] = snapshot.docs.map((doc) => ({
       ...doc.data(),

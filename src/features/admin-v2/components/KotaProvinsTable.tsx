@@ -7,7 +7,7 @@ import {
   updateDestination,
   deleteDestination,
   type KotaProvinsi,
-} from '@/src/services/firebase/rtdb/admin.destination.service';
+} from '@/src/services/firebase/firestore/admin-destination.service';
 
 const DESTINATION_TYPES = [
   'Desa Wisata',
@@ -81,7 +81,20 @@ export default function KotaProvinsTable() {
       const result = await getAllDestinations();
 
       if (result.success) {
-        setDestinations(result.data || {});
+        const record: Record<string, KotaProvinsi> = {};
+        (result.data || []).forEach((item) => {
+          record[item.id] = {
+            id: item.id,
+            nama: item.nama,
+            provinsi: item.provinsi,
+            deskripsi: item.deskripsi,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            type: item.type,
+            image: item.image,
+          };
+        });
+        setDestinations(record);
       } else {
         setError('Failed to load destinations');
       }

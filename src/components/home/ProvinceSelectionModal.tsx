@@ -1,27 +1,56 @@
 'use client';
 
-import React, { useState } from 'react';
-import { PROVINCES, GameType, GAME_TYPES } from '../../features/home/types';
+import React, { useEffect, useState } from 'react';
+import { GameType, GAME_TYPES } from '../../features/home/types';
+import { getRegions } from '../../features/destination/services/regions.service';
+import type { Region } from '../../types/firestore';
 
 interface ProvinceSelectionModalProps {
   isOpen: boolean;
   selectedGame: GameType | null;
-  onSelectProvince: (provinceId: number) => void;
+  mapId: string | null;
+  onSelectProvince: (regionId: string) => void;
   onClose: () => void;
 }
 
 export default function ProvinceSelectionModal({
   isOpen,
   selectedGame,
+  mapId,
   onSelectProvince,
   onClose,
 }: ProvinceSelectionModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !mapId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getRegions(mapId)
+      .then((data) => {
+        if (!cancelled) setRegions(data);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Gagal memuat daftar provinsi. Coba lagi.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, mapId]);
 
   if (!isOpen || !selectedGame) return null;
 
-  const filteredProvinces = PROVINCES.filter((province) =>
-    province.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRegions = regions.filter((region) =>
+    region.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const gameLabel = GAME_TYPES[selectedGame].label;
@@ -54,20 +83,29 @@ export default function ProvinceSelectionModal({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="game-search-input"
               aria-label="Search provinces"
+              disabled={loading || Boolean(error)}
             />
           </div>
 
           {/* Provinces List */}
           <div className="game-provinces-list">
-            {filteredProvinces.length > 0 ? (
-              filteredProvinces.map((province) => (
+            {loading ? (
+              <div className="game-empty-state">
+                <p>Memuat provinsi...</p>
+              </div>
+            ) : error ? (
+              <div className="game-empty-state">
+                <p>{error}</p>
+              </div>
+            ) : filteredRegions.length > 0 ? (
+              filteredRegions.map((region) => (
                 <button
-                  key={province.id}
-                  onClick={() => onSelectProvince(province.id)}
+                  key={region.regionId}
+                  onClick={() => onSelectProvince(region.regionId)}
                   className="game-province-item"
-                  aria-label={`Pilih ${province.name}`}
+                  aria-label={`Pilih ${region.name}`}
                 >
-                  {province.name}
+                  {region.name}
                 </button>
               ))
             ) : (

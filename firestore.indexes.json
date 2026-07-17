@@ -1,4 +1,107 @@
 {
-  "indexes": [],
+  "indexes": [
+    // ── questions ──────────────────────────────────────────────────────
+    {
+      "collectionGroup": "questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "regionId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "regionId", "order": "ASCENDING" },
+        { "fieldPath": "isApproved", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mapId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mapId", "order": "ASCENDING" },
+        { "fieldPath": "isApproved", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isApproved", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+
+    // ── rooms ──────────────────────────────────────────────────────────
+    {
+      "collectionGroup": "rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "gameType", "order": "ASCENDING" },
+        { "fieldPath": "regionId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+
+    // ── gameResults ────────────────────────────────────────────────────
+    {
+      "collectionGroup": "gameResults",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "gameType", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gameResults",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "winner", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+
+    // ── adminLogs ──────────────────────────────────────────────────────
+    {
+      "collectionGroup": "adminLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "adminUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+
+    // ── regions ────────────────────────────────────────────────────────
+    {
+      "collectionGroup": "regions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "mapId", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

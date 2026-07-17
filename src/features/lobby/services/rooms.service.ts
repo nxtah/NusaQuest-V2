@@ -1,4 +1,9 @@
-import { db } from '@/lib/firebase/config'
+import { firebaseFirestore } from '@/src/lib/firebase/client'
+
+function requireFirestore() {
+  if (!firebaseFirestore) throw new Error('Firestore not configured');
+  return firebaseFirestore;
+}
 import {
   collection,
   addDoc,
@@ -19,14 +24,16 @@ const GAME_STATES_COLLECTION = 'gameStates'
  * Create a new game room
  */
 export async function createRoom(params: {
-  gameType: string
+  gameType: 'ular-tangga' | 'nusa-card'
   mapId: string
   regionId: string
   maxPlayers: number
   hostId: string
+  hostName?: string
+  hostPhoto?: string | null
 }): Promise<Room> {
   try {
-    const { gameType, mapId, regionId, maxPlayers, hostId } = params
+    const { gameType, mapId, regionId, maxPlayers, hostId, hostName, hostPhoto } = params
 
     const room: Omit<Room, 'roomId'> = {
       gameType,
@@ -40,16 +47,15 @@ export async function createRoom(params: {
           joinedAt: Date.now(),
           role: 'host',
           isActive: true,
-          finalPosition: null,
+          ...(hostName ? { name: hostName } : {}),
+          ...(hostPhoto ? { photoURL: hostPhoto } : {}),
         },
       },
       createdAt: Date.now(),
-      startedAt: null,
-      finishedAt: null,
       totalQuestionsUsed: 0,
     }
 
-    const docRef = await addDoc(collection(db, ROOMS_COLLECTION), room)
+    const docRef = await addDoc(collection(requireFirestore(), ROOMS_COLLECTION), room)
     return { roomId: docRef.id, ...room }
   } catch (error) {
     console.error('Error creating room:', error)
@@ -62,7 +68,7 @@ export async function createRoom(params: {
  */
 export async function getRoomById(roomId: string): Promise<Room | null> {
   try {
-    const docRef = doc(db, ROOMS_COLLECTION, roomId)
+    const docRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
     const snapshot = await getDoc(docRef)
     if (!snapshot.exists()) {
       return null
@@ -79,17 +85,23 @@ export async function getRoomById(roomId: string): Promise<Room | null> {
  */
 export async function joinRoom(
   roomId: string,
-  userId: string
+  userId: string,
+  userName?: string,
+  userPhoto?: string | null
 ): Promise<void> {
   try {
-    const roomRef = doc(db, ROOMS_COLLECTION, roomId)
+    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
     const room = await getRoomById(roomId)
 
     if (!room) {
       throw new Error('Room not found')
     }
 
-    if (room.currentPlayers >= room.maxPlayers) {
+    if (room.players?.[userId]) {
+      return
+    }
+
+    if (room.maxPlayers != null && room.currentPlayers >= room.maxPlayers) {
       throw new Error('Room is full')
     }
 
@@ -98,7 +110,8 @@ export async function joinRoom(
         joinedAt: Date.now(),
         role: 'player',
         isActive: true,
-        finalPosition: null,
+        ...(userName ? { name: userName } : {}),
+        ...(userPhoto ? { photoURL: userPhoto } : {}),
       },
       currentPlayers: room.currentPlayers + 1,
     })
@@ -113,7 +126,7 @@ export async function joinRoom(
  */
 export async function startGame(roomId: string): Promise<void> {
   try {
-    const roomRef = doc(db, ROOMS_COLLECTION, roomId)
+    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
     await updateDoc(roomRef, {
       status: 'playing',
       startedAt: Date.now(),
@@ -141,14 +154,13 @@ export async function startGame(roomId: string): Promise<void> {
           {} as Record<string, any>
         ),
         questionsUsed: [],
-        winner: null,
         updatedAt: Date.now(),
       }
 
-      const gsRef = doc(db, GAME_STATES_COLLECTION, roomId)
+      const gsRef = doc(requireFirestore(), GAME_STATES_COLLECTION, roomId)
       await updateDoc(gsRef, gameState).catch(() => {
         // If document doesn't exist, create it
-        return addDoc(collection(db, GAME_STATES_COLLECTION), {
+        return addDoc(collection(requireFirestore(), GAME_STATES_COLLECTION), {
           roomId,
           ...gameState,
         })
@@ -166,10 +178,10 @@ export async function startGame(roomId: string): Promise<void> {
 export async function leaveRoom(
   roomId: string,
   userId: string,
-  finalPosition: number | null = null
+  finalPosition?: number
 ): Promise<void> {
   try {
-    const roomRef = doc(db, ROOMS_COLLECTION, roomId)
+    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
     const room = await getRoomById(roomId)
 
     if (!room) {
@@ -177,14 +189,17 @@ export async function leaveRoom(
     }
 
     // Mark player as inactive
-    await updateDoc(roomRef, {
+    const updates: Record<string, unknown> = {
       [`players.${userId}.isActive`]: false,
-      [`players.${userId}.finalPosition`]: finalPosition,
-    })
+    };
+    if (finalPosition !== undefined) {
+      updates[`players.${userId}.finalPosition`] = finalPosition;
+    }
+    await updateDoc(roomRef, updates)
 
     // If game is playing, update game state
     if (room.status === 'playing') {
-      const gsRef = doc(db, GAME_STATES_COLLECTION, roomId)
+      const gsRef = doc(requireFirestore(), GAME_STATES_COLLECTION, roomId)
       await updateDoc(gsRef, {
         [`playerStates.${userId}.isWaiting`]: true,
       })
@@ -199,7 +214,7 @@ export async function leaveRoom(
  * Listen to room updates
  */
 export function listenToRoom(roomId: string, callback: (room: Room | null) => void): () => void {
-  const roomRef = doc(db, ROOMS_COLLECTION, roomId)
+  const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
   return onSnapshot(roomRef, (snapshot) => {
     if (!snapshot.exists()) {
       callback(null)
@@ -216,7 +231,7 @@ export function listenToGameState(
   roomId: string,
   callback: (state: GameState | null) => void
 ): () => void {
-  const gsRef = doc(db, GAME_STATES_COLLECTION, roomId)
+  const gsRef = doc(requireFirestore(), GAME_STATES_COLLECTION, roomId)
   return onSnapshot(gsRef, (snapshot) => {
     if (!snapshot.exists()) {
       callback(null)
@@ -234,7 +249,7 @@ export async function getActiveRooms(
 ): Promise<Room[]> {
   try {
     const q = query(
-      collection(db, ROOMS_COLLECTION),
+      collection(requireFirestore(), ROOMS_COLLECTION),
       where('gameType', '==', gameType),
       where('status', '==', 'waiting')
     )

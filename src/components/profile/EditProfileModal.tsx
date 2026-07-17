@@ -2,6 +2,9 @@
 
 import Image from 'next/image';
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
+import type { AppUser } from '@/src/types/auth';
+import { uploadProfilePhoto } from '@/src/features/room/services/room.service';
+import { updateUserProfile } from '@/src/services/firebase/firestore/users.service';
 
 
 
@@ -44,8 +47,6 @@ export default function EditProfileModal({
   initialUsername = 'Nusa Player',
   avatarSrc,
 }: EditProfileModalProps) {
-  const user = null;
-
   const [username, setUsername] = useState(initialUsername);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -76,24 +77,19 @@ export default function EditProfileModal({
   };
 
   const handleSave = async () => {
-    if (!user) return;
-
     setIsSaving(true);
     setSaveError(null);
 
     try {
-      let firebasePhotoURL = user.firebasePhotoURL ?? null;
+      let firebasePhotoURL: string | null = null;
 
       // Upload foto baru ke Firebase Storage jika ada yang dipilih
       if (selectedFile) {
-        const { downloadURL } = await uploadPhoto(selectedFile, user.uid);
-        firebasePhotoURL = downloadURL;
+        firebasePhotoURL = await uploadProfilePhoto('user', selectedFile);
       }
 
-      // Simpan perubahan ke Realtime Database
-      await updateUserData({
-        ...user,
-        displayName: username.trim() || user.displayName,
+      await updateUserProfile('user', {
+        displayName: username.trim(),
         firebasePhotoURL,
       });
 

@@ -1,18 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { auth } from '@/lib/firebase/config'
+import { firebaseAuth as auth } from '@/src/lib/firebase/client'
 import { onAuthStateChanged, User } from 'firebase/auth'
-import { signOutUser } from '@/features/auth/services/auth.service'
+import { signOutUser } from '@/src/features/auth/services/auth.service'
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser)
       setLoading(false)
@@ -28,6 +30,12 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
     } catch (error) {
       console.error('Logout error:', error)
     }
+  }
+
+  // Home punya UI immersive sendiri (peta pulau full-bleed) — header putih ini
+  // nabrak temanya, jadi disembunyikan khusus di /home.
+  if (pathname === '/home') {
+    return <>{children}</>
   }
 
   return (

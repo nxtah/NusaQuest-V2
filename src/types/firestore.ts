@@ -80,6 +80,8 @@ export interface RoomPlayer {
   role: "host" | "player" | "ai";
   isActive: boolean; // false if eliminated
   finalPosition?: number; // null if still playing
+  name?: string;
+  photoURL?: string;
 }
 
 /**
@@ -228,11 +230,11 @@ export interface RegionFilter {
 /**
  * Generic document response from Firestore
  */
-export interface FirestoreDoc<T> extends T {
+export type FirestoreDoc<T> = T & {
   _id?: string;
   _createdAt?: number;
   _updatedAt?: number;
-}
+};
 
 /**
  * Pagination metadata

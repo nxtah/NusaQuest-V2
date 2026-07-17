@@ -34,29 +34,29 @@ export default function HomePageContent() {
           <div className="home-grid">
             <div className="island-item island-tl">
               <img src={pulau.pulau1} alt="Pulau 1" className="island-image" />
-              <IslandGameLabel label="Daerah Jawa Barat" className="left-[38%] top-[64%]" />
+              <IslandGameLabel label="Sejarah & Legenda" className="left-[38%] top-[64%]" />
             </div>
 
             <div className="island-item island-center">
               <img src={pulau.mercusuar} alt="Mercusuar" className="island-image mercusuar-image" />
-              <IslandGameLabel label="Pariwisata Bahari" className="left-[70%] top-[130%]" />
+              <IslandGameLabel label="Pariwisata" className="left-[70%] top-[130%]" />
             </div>
 
             <div className="island-item island-tr">
               <img src={pulau.pulau4} alt="Pulau 4" className="island-image" />
-              <IslandGameLabel label="Kuliner Jawa Barat" className="left-[-7%] top-[63%]" />
+              <IslandGameLabel label="Kuliner" className="left-[-7%] top-[63%]" />
             </div>
           </div>
 
           <div className="home-grid-bottom">
             <div className="island-item island-bl">
               <img src={pulau.pulau2} alt="Pulau 2" className="island-image" />
-              <IslandGameLabel label="Permainan Daerah" className="left-[41%] top-[25%]" />
+              <IslandGameLabel label="Alam & Satwa" className="left-[41%] top-[25%]" />
             </div>
 
             <div className="island-item island-br">
               <img src={pulau.pulau3} alt="Pulau 3" className="island-image" />
-              <IslandGameLabel label="Pariwisata Darat" className="left-[68%] top-[25%]" />
+              <IslandGameLabel label="Budaya" className="left-[68%] top-[25%]" />
             </div>
           </div>
         </div>

@@ -1,4 +1,9 @@
-import { db } from '@/lib/firebase/config'
+import { firebaseFirestore } from '@/src/lib/firebase/client'
+
+function requireFirestore() {
+  if (!firebaseFirestore) throw new Error('Firestore not configured');
+  return firebaseFirestore;
+}
 import {
   collection,
   getDocs,
@@ -26,7 +31,7 @@ export async function getQuestions(
 ): Promise<Question[]> {
   try {
     const q = query(
-      collection(db, QUESTIONS_COLLECTION),
+      collection(requireFirestore(), QUESTIONS_COLLECTION),
       and(
         where('mapId', '==', mapId),
         where('regionId', '==', regionId),
@@ -56,7 +61,7 @@ export async function getUnapprovedQuestions(
 ): Promise<Question[]> {
   try {
     const q = query(
-      collection(db, QUESTIONS_COLLECTION),
+      collection(requireFirestore(), QUESTIONS_COLLECTION),
       and(
         where('mapId', '==', mapId),
         where('regionId', '==', regionId),
@@ -171,7 +176,7 @@ export async function saveQuestions(questions: Question[]): Promise<string[]> {
   try {
     const ids: string[] = []
     for (const question of questions) {
-      const docRef = await addDoc(collection(db, QUESTIONS_COLLECTION), question)
+      const docRef = await addDoc(collection(requireFirestore(), QUESTIONS_COLLECTION), question)
       ids.push(docRef.id)
     }
     return ids
@@ -189,7 +194,7 @@ export async function approveQuestion(
   adminUid: string
 ): Promise<void> {
   try {
-    const qRef = doc(db, QUESTIONS_COLLECTION, questionId)
+    const qRef = doc(requireFirestore(), QUESTIONS_COLLECTION, questionId)
     await updateDoc(qRef, {
       isApproved: true,
       approvedAt: Date.now(),
@@ -206,7 +211,7 @@ export async function approveQuestion(
  */
 export async function rejectQuestion(questionId: string): Promise<void> {
   try {
-    const qRef = doc(db, QUESTIONS_COLLECTION, questionId)
+    const qRef = doc(requireFirestore(), QUESTIONS_COLLECTION, questionId)
     await updateDoc(qRef, {
       isActive: false,
     })

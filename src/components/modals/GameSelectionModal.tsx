@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Modal } from '@/components/ui/Modal'
-import Button from '@/components/ui/Button'
+import { Modal } from '@/src/components/ui/Modal'
+import Button from '@/src/components/ui/Button'
 
 export interface GameSelectionModalProps {
   isOpen: boolean

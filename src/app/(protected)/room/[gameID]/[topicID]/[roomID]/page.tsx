@@ -1,18 +1,28 @@
 'use client';
 
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import Image from 'next/image';
 import {
-  subscribeRooms,
-  getCurrentPlayers,
+  listenToRoomPlayers,
   playerJoinRoom,
   playerLeaveRoom,
   subscribeToGameStart,
   startGameInRoom,
-  type RoomData,
-  type RoomPlayer,
+  type RoomPlayerOld,
 } from '@/src/features/lobby/services/lobby.service';
+import {useAuth} from '@/src/features/auth/hooks/useAuth';
+import {
+  getQuestions as getUlarTanggaQuestions,
+  shuffle,
+  initializeUlarTanggaGameState,
+  setGameStatus as setUlarTanggaGameStatus,
+} from '@/src/features/game-ular-tangga/services/ular-tangga-game.service';
+import {
+  getQuestions as getNusaCardQuestions,
+  initializeNusaCardGameState,
+  setGameStatus as setNusaCardGameStatus,
+} from '@/src/features/game-nuca/services/nusa-card-game.service';
 import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import { information } from '@/src/assets/images/information/cloudinaryAssets';
 import './room.css';
@@ -28,85 +38,127 @@ function resolveGameRoute(gameID: string, topicID: string, roomID: string): stri
 export default function RoomPage() {
   const params = useParams();
   const router = useRouter();
-  const playerUID = useMemo(() => 'guest-' + Math.random().toString(36).slice(2, 8), []);
-  const playerName = useRef('Player').current;
-  const isInitialized = true;
+  const {user, isInitialized} = useAuth();
+  const playerUID = user?.uid ?? null;
+  const playerName = user?.displayName || 'Player';
 
   const gameID = params.gameID as string;
   const topicID = params.topicID as string;
   const roomID = params.roomID as string;
+  const isVsAi = gameID === 'nusa-card-vs-ai' || gameID === 'card-vs-ai' || gameID === 'ular-tangga-vs-ai' || gameID === 'snake-ladder-vs-ai';
+  // Dokumen Firestore di-scope per game+topik+slot, bukan cuma slug roomID
+  // mentah ("room1") — kalau enggak, sesi Ular Tangga dan NusaCard yang
+  // kebetulan pakai slot yang sama bakal numpuk ke dokumen yang sama persis.
+  const roomKey = `${gameID}_${topicID}_${roomID}`;
 
-  const [roomData, setRoomData] = useState<RoomData | null>(null);
-  const [players, setPlayers] = useState<RoomPlayer[]>([]);
+  const [players, setPlayers] = useState<RoomPlayerOld[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isFirstPlayer, setIsFirstPlayer] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
+  const [starting, setStarting] = useState(false);
 
+  // Join room begitu auth siap. Dokumen room dibuat kalau belum ada.
   useEffect(() => {
-    if (!topicID || !gameID) return;
-    setLoading(true);
-    let timedOut = false;
-    const unsubRooms = subscribeRooms(topicID, gameID, (rooms) => {
-      if (rooms?.[roomID]) { setRoomData(rooms[roomID]); timedOut = true; setLoading(false); }
-    });
-    setTimeout(() => { if (!timedOut) { setRoomData(null); setLoading(false); } }, 3000);
-    return () => unsubRooms();
-  }, [topicID, gameID, roomID]);
+    if (!isInitialized || !playerUID || hasJoined) return;
+    let isActive = true;
 
-  useEffect(() => {
-    if (!isInitialized || loading) return;
-    const checkAndJoin = async () => {
+    const join = async () => {
       try {
-        if (!hasJoined) {
-          const { ref, set, get } = await import('firebase/database');
-          const { firebaseDb } = await import('@/src/lib/firebase/client');
-          const roomPath = `rooms/${topicID}/${gameID}/${roomID}`;
-          const roomRef = ref(firebaseDb!, roomPath);
-          const snap = await get(roomRef);
-          if (!snap.exists()) {
-            await set(roomRef, {
-              isSinglePlayer: false, capacity: 4, currentPlayers: 0,
-              gameStatus: 'waiting', players: {},
+        const { doc, getDoc, setDoc } = await import('firebase/firestore');
+        const { firebaseFirestore } = await import('@/src/lib/firebase/client');
+        const roomRef = doc(firebaseFirestore!, 'rooms', roomKey);
+        const snap = await getDoc(roomRef);
+        if (!snap.exists()) {
+          try {
+            // `players` sengaja gak diikutkan di sini + pakai merge:true — kalau
+            // 2 orang join room baru barengan, setDoc gak boleh nimpa `players`
+            // yang udah ditulis orang lain lewat playerJoinRoom.
+            await setDoc(roomRef, {
+              isSinglePlayer: isVsAi, capacity: isVsAi ? 1 : 4, currentPlayers: 0,
+              gameStatus: 'waiting',
               lastResetAt: new Date().toISOString(),
-            });
+            }, {merge: true});
+          } catch {
+            // Race lumrah: orang lain udah bikin room-nya duluan sepersekian
+            // detik sebelum kita — bukan error fatal, lanjut aja ke join.
           }
-          await playerJoinRoom(topicID, gameID, roomID, playerUID, playerName, null);
-          setHasJoined(true);
         }
-      } catch {}
+        await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, user?.firebasePhotoURL || user?.googlePhotoURL || null);
+        if (isActive) setHasJoined(true);
+      } catch (error) {
+        console.error('Gagal join room:', error);
+        if (isActive) setJoinError('Gagal masuk ke room. Coba lagi.');
+      } finally {
+        if (isActive) setLoading(false);
+      }
     };
-    checkAndJoin();
-  }, [isInitialized, playerUID, loading, topicID, gameID, roomID, hasJoined, router]);
+    join();
 
+    return () => { isActive = false; };
+  }, [isInitialized, playerUID, playerName, hasJoined, topicID, gameID, roomID, roomKey, user, isVsAi]);
+
+  // Real-time: slot ke-update langsung begitu ada yang join/leave, gak nunggu polling.
   useEffect(() => {
-    if (!roomID || roomID === 'room5') return;
-    const fetchPlayers = async () => {
-      const currentPlayers = await getCurrentPlayers(topicID, gameID, roomID);
+    if (!roomKey) return;
+    const unsub = listenToRoomPlayers(roomKey, (currentPlayers) => {
       setPlayers(currentPlayers);
-      setIsFirstPlayer(currentPlayers.length <= 1);
-    };
-    fetchPlayers();
-    const interval = setInterval(fetchPlayers, 3000);
-    return () => clearInterval(interval);
-  }, [topicID, gameID, roomID]);
+    });
+    return () => unsub();
+  }, [roomKey]);
 
   useEffect(() => {
-    if (!roomID) return;
-    const unsubGameStart = subscribeToGameStart(topicID, gameID, roomID, (gameStarted) => {
+    if (!roomKey) return;
+    const unsubGameStart = subscribeToGameStart(topicID, gameID, roomKey, (gameStarted) => {
       if (gameStarted) router.push(resolveGameRoute(gameID, topicID, roomID));
     });
     return () => unsubGameStart();
-  }, [topicID, gameID, roomID, router]);
+  }, [topicID, gameID, roomID, roomKey, router]);
 
   useEffect(() => {
-    return () => { if (hasJoined && playerUID) void playerLeaveRoom(topicID, gameID, roomID, playerUID); };
-  }, [topicID, gameID, roomID, playerUID, hasJoined]);
+    return () => { if (hasJoined && playerUID) void playerLeaveRoom(topicID, gameID, roomKey, playerUID); };
+  }, [topicID, gameID, roomKey, playerUID, hasJoined]);
 
-  // Deduplicate players by UID
-  const uniquePlayers = players.filter((p, i, arr) => arr.findIndex(x => x.uid === p.uid) === i);
+  // Host menekan "Mulai Game": bootstrap game-state yang BENERAN dulu (soal +
+  // urutan pemain) sebelum flip status room ke 'playing'. Sebelumnya ini cuma
+  // manggil startGameInRoom yang nulis skema gameStates generik yang gak
+  // dipakai game manapun — status room keburu 'playing' duluan sebelum
+  // initializeUlarTanggaGameState/initializeNusaCardGameState sempet jalan,
+  // jadi halaman /play/... nyampe sana dengan gameState kosong (pemain gak
+  // ke-detect / kartu gak ada) karena tombol "Mulai Permainan" versi
+  // masing-masing game gak pernah sempet ke-klik.
+  const handleStartGame = async () => {
+    if (players.length === 0 || starting) return;
+    setStarting(true);
+    try {
+      if (isVsAi) {
+        await startGameInRoom(topicID, gameID, roomKey);
+      } else if (gameID === 'ular-tangga' || gameID === 'snake-ladder') {
+        const questions = shuffle(await getUlarTanggaQuestions(topicID));
+        const indexedPlayers = players.map((p, i) => ({
+          uid: p.uid, displayName: p.name, photoURL: p.photoURL, playerIndex: i,
+        }));
+        await initializeUlarTanggaGameState(topicID, gameID, roomKey, indexedPlayers, questions);
+        await setUlarTanggaGameStatus(topicID, gameID, roomKey, 'playing');
+      } else if (gameID === 'nusa-card' || gameID === 'card') {
+        const questions = shuffle(await getNusaCardQuestions(topicID));
+        const nusaCardPlayers = players.map((p) => ({uid: p.uid, displayName: p.name, photoURL: p.photoURL}));
+        await initializeNusaCardGameState(roomKey, nusaCardPlayers, questions);
+        await setNusaCardGameStatus(roomKey, 'playing');
+      } else {
+        await startGameInRoom(topicID, gameID, roomKey);
+      }
+      router.push(resolveGameRoute(gameID, topicID, roomID));
+    } catch (error) {
+      console.error('Gagal memulai game:', error);
+      setJoinError('Gagal memulai game. Coba lagi.');
+      setStarting(false);
+    }
+  };
+
+  const isFirstPlayer = players.length > 0 && players[0]?.uid === playerUID;
   const maxSlots = 4;
-  const slotPlayers = [...uniquePlayers];
-  while (slotPlayers.length < maxSlots) { slotPlayers.push(null as any); }
+  const slotPlayers: (RoomPlayerOld | null)[] = [...players];
+  while (slotPlayers.length < maxSlots) { slotPlayers.push(null); }
 
   if (loading) {
     return (
@@ -138,13 +190,14 @@ export default function RoomPage() {
 
       {/* Subtitle */}
       <p className="room-subtitle">Pilih pemain yang siap bertanding</p>
+      {joinError && <p className="room-join-error">{joinError}</p>}
 
       {/* Meja arena */}
       <div className="room-arena">
 
         {/* Player slots di sekeliling meja */}
         <div className="room-slots-container">
-          {slotPlayers.map((player: any, idx) => (
+          {slotPlayers.map((player: RoomPlayerOld | null, idx) => (
             <div key={idx} className={`room-player-slot ${player ? 'filled' : 'empty'}`}>
               <div className="room-player-avatar-ring">
                 <div className="room-player-avatar">
@@ -178,17 +231,19 @@ export default function RoomPage() {
       <div className="room-info-bar">
         <span className="room-info-chip">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-          Menunggu {players.length}/{maxSlots} pemain
+          {isVsAi ? 'Siap lawan AI' : `Menunggu ${players.length}/${maxSlots} pemain`}
         </span>
       </div>
 
       {/* Actions */}
       <div className="room-actions">
         {isFirstPlayer ? (
-          <button className="room-btn-start" onClick={async () => {
-            try { await startGameInRoom(topicID, gameID, roomID); router.push(resolveGameRoute(gameID, topicID, roomID)); } catch {}
-          }} disabled={players.length < 2}>
-            {players.length < 2 ? 'Menunggu pemain lain...' : 'Mulai Game'}
+          <button
+            className="room-btn-start"
+            onClick={handleStartGame}
+            disabled={starting || (!isVsAi && players.length < 2)}
+          >
+            {starting ? 'Menyiapkan game...' : isVsAi ? 'Mulai Game' : players.length < 2 ? 'Menunggu pemain lain...' : 'Mulai Game'}
           </button>
         ) : (
           <div className="room-waiting-msg">

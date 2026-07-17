@@ -13,13 +13,14 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useRouter, useParams} from 'next/navigation';
 
-import GameBackground from '../../../../@/src/features/game-ular-tangga/components/GameBackground';
-import Board from '../../../../@/src/features/game-ular-tangga/components/Board';
-import PlayerTurnBox from '../../../../@/src/features/game-ular-tangga/components/PlayerTurnBox';
-import {ularTangga} from '../../../../../../../assets/images/ular-tangga/cloudinaryAssets';
-import RotateDeviceOverlay from '../../../../../../../components/layout/RotateDeviceOverlay';
-import PauseModal from '../../../../../../../components/layout/PauseModal';
-import SettingButton from '../../../../../../../components/layout/SettingButton';
+import GameBackground from '@/src/features/game-ular-tangga/components/GameBackground';
+import Board from '@/src/features/game-ular-tangga/components/Board';
+import PlayerTurnBox from '@/src/features/game-ular-tangga/components/PlayerTurnBox';
+import {ularTangga} from '@/src/assets/images/ular-tangga/cloudinaryAssets';
+import RotateDeviceOverlay from '@/src/components/layout/RotateDeviceOverlay';
+import PauseModal from '@/src/components/layout/PauseModal';
+import SettingButton from '@/src/components/layout/SettingButton';
+import {useAuth} from '@/src/features/auth/hooks/useAuth';
 
 import {
   fetchGamePlayers,
@@ -40,10 +41,10 @@ import {
   type UlarTanggaGameState,
   type GamePlayer,
   type UlarTanggaQuestion,
-} from '../../../../@/src/features/game-ular-tangga/services/ular-tangga-game.service';
-import {playerJoinRoom, playerLeaveRoom} from '../../../../@/src/features/lobby/services/lobby.service';
-import UlarTanggaLobby from '../../../../@/src/features/game-ular-tangga/components/UlarTanggaLobby';
-import {LADDERS} from '../../../../@/src/features/game-ular-tangga/utils/board-rules';
+} from '@/src/features/game-ular-tangga/services/ular-tangga-game.service';
+import {playerJoinRoom, playerLeaveRoom} from '@/src/features/lobby/services/lobby.service';
+import UlarTanggaLobby from '@/src/features/game-ular-tangga/components/UlarTanggaLobby';
+import {LADDERS} from '@/src/features/game-ular-tangga/utils/board-rules';
 
 // Data tangga dan ular sekarang dikelola oleh board-rules.ts dan service layer.
 
@@ -69,9 +70,12 @@ export default function UlarTanggaPage() {
   const gameID = params?.gameID as string;
   const topicID = params?.topicID as string;
   const roomID = params?.roomID as string;
+  // Dokumen Firestore di-scope per game+topik+slot, bukan cuma slug roomID
+  // mentah — biar sesi game beda yang kebetulan pakai slot sama gak numpuk.
+  const roomKey = `${gameID}_${topicID}_${roomID}`;
 
   // ── Auth ─────────────────────────────────────────────────────────────────
-  const user = null;
+  const {user} = useAuth();
   const myUID = user?.uid ?? null;
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -101,7 +105,7 @@ export default function UlarTanggaPage() {
         await playerJoinRoom(
           topicID,
           gameID,
-          roomID,
+          roomKey,
           user.uid,
           user.displayName || 'Pemain',
           user.googlePhotoURL || user.firebasePhotoURL || undefined
@@ -118,7 +122,7 @@ export default function UlarTanggaPage() {
     };
     joinRoom();
 
-    const unsub = fetchGamePlayers(topicID, gameID, roomID, (fetchedPlayers) => {
+    const unsub = fetchGamePlayers(topicID, gameID, roomKey, (fetchedPlayers) => {
       latestPlayersRef.current = fetchedPlayers;
       setPlayers(fetchedPlayers);
     });
@@ -130,25 +134,25 @@ export default function UlarTanggaPage() {
       // Jika game SUDAH mulai, ubah status jadi offline (agar bot jalan & bisa reconnect).
       if (isJoined) {
         if (!gameStartedRef.current) {
-          playerLeaveRoom(topicID, gameID, roomID, user.uid).catch(() => { });
+          playerLeaveRoom(topicID, gameID, roomKey, user.uid).catch(() => { });
         } else {
-          setPlayerOffline(topicID, gameID, roomID, user.uid).catch(() => { });
+          setPlayerOffline(topicID, gameID, roomKey, user.uid).catch(() => { });
         }
       }
     };
-  }, [topicID, gameID, roomID, user]);
+  }, [topicID, gameID, roomKey, user]);
 
   // ── Subscribe ke status Game Started ─────────────────────────────
   useEffect(() => {
     if (!topicID || !gameID || !roomID) return;
-    const unsub = listenToGameStart(topicID, gameID, roomID, (isStarted) => {
+    const unsub = listenToGameStart(topicID, gameID, roomKey, (isStarted) => {
       setGameStarted(isStarted);
       if (!isStarted) {
         setLoading(false); // Sudah masuk lobby, berhenti loading
       }
     });
     return () => unsub();
-  }, [topicID, gameID, roomID]);
+  }, [topicID, gameID, roomKey]);
 
   // ── Langkah 2: Bootstrap game state di Firebase (reset + init baru) ────────
   // ── Handler: Saat tombol Mulai Permainan ditekan ──────────────
@@ -158,7 +162,7 @@ export default function UlarTanggaPage() {
     setLoading(true);
     try {
       // Hapus state lama (jika ada) agar fresh
-      await cleanupGame(topicID, gameID, roomID);
+      await cleanupGame(topicID, gameID, roomKey);
 
       const questions = await getQuestions(topicID);
       if (questions.length === 0) {
@@ -170,11 +174,11 @@ export default function UlarTanggaPage() {
       const indexedPlayers = players.map((p, i) => ({...p, playerIndex: i}));
 
       // Init game state baru (termasuk mapping pion)
-      await initializeUlarTanggaGameState(topicID, gameID, roomID, indexedPlayers, shuffled);
-      await setGameStatus(topicID, gameID, roomID, 'playing');
+      await initializeUlarTanggaGameState(topicID, gameID, roomKey, indexedPlayers, shuffled);
+      await setGameStatus(topicID, gameID, roomKey, 'playing');
 
       // Trigger semua client untuk berpindah ke board game
-      await setGameStartStatus(topicID, gameID, roomID, true);
+      await setGameStartStatus(topicID, gameID, roomKey, true);
     } catch (err) {
       console.error('Gagal bootstrap game Ular Tangga:', err);
       setLoading(false);
@@ -185,10 +189,11 @@ export default function UlarTanggaPage() {
   useEffect(() => {
     if (!topicID || !gameID || !roomID || !gameStarted) return;
 
-    const unsub = listenToGameState(topicID, gameID, roomID, (state) => {
+    const unsub = listenToGameState(topicID, gameID, roomKey, (state) => {
       setGameState(state);
       setLoading(false);
 
+      if (!state) return;
       if (state.gameStatus === 'finished') {
         router.push('/');
       } else if (state.gameStatus === 'abandoned') {
@@ -197,22 +202,22 @@ export default function UlarTanggaPage() {
     });
 
     return () => unsub();
-  }, [topicID, gameID, roomID, gameStarted, router]);
+  }, [topicID, gameID, roomKey, gameStarted, router]);
 
   // ── Update aktivitas pemain secara berkala + auto-cleanup saat keluar ──────
   useEffect(() => {
     if (!myUID || !topicID || !gameID || !roomID || !gameStarted) return;
 
-    updatePlayerActivity(topicID, gameID, roomID, myUID);
+    updatePlayerActivity(topicID, gameID, roomKey, myUID);
 
     activityTimerRef.current = setInterval(() => {
-      updatePlayerActivity(topicID, gameID, roomID, myUID);
+      updatePlayerActivity(topicID, gameID, roomKey, myUID);
     }, ACTIVITY_INTERVAL_MS);
 
     return () => {
       if (activityTimerRef.current) clearInterval(activityTimerRef.current);
     };
-  }, [myUID, topicID, gameID, roomID, gameStarted]);
+  }, [myUID, topicID, gameID, roomKey, gameStarted]);
 
   // ── Computed values ──────────────────────────────────────────────────────
   const currentPlayerIndex = gameState?.currentPlayerIndex ?? 0;
@@ -279,7 +284,7 @@ export default function UlarTanggaPage() {
     async (rolledNumber: number) => {
       if ((!isMyTurn && !isBotActing) || !gameState || gameState.isMoving) return;
 
-      await updateGameState(topicID, gameID, roomID, {
+      await updateGameState(topicID, gameID, roomKey, {
         isMoving: true,
         diceState: {
           isRolling: true,
@@ -289,7 +294,7 @@ export default function UlarTanggaPage() {
         },
       });
     },
-    [isMyTurn, isBotActing, gameState, topicID, gameID, roomID],
+    [isMyTurn, isBotActing, gameState, topicID, gameID, roomKey],
   );
 
   // ── Handler: Setelah dice selesai animasi ────────────────────────────────
@@ -312,9 +317,9 @@ export default function UlarTanggaPage() {
       });
 
       // Panggil movePawn dengan userUID untuk validasi UID-based
-      await movePawn(topicID, gameID, roomID, gameState.currentPlayerIndex, rolledNumber, myUID);
+      await movePawn(topicID, gameID, roomKey, gameState.currentPlayerIndex, rolledNumber);
     },
-    [isMyTurn, isBotActing, gameState, topicID, gameID, roomID, myUID],
+    [isMyTurn, isBotActing, gameState, topicID, gameID, roomKey, myUID],
   );
 
   // ── Handler: Jawab soal ───────────────────────────────────────────────────
@@ -322,14 +327,14 @@ export default function UlarTanggaPage() {
     async (selectedIndex: number) => {
       if ((!isMyTurn && !isBotActing) || !gameState) return;
       // ===== PERBAIKI: Pass myUID untuk validasi UID =====
-      await submitAnswer(topicID, gameID, roomID, selectedIndex, myUID || '');
+      await submitAnswer(topicID, gameID, roomKey, selectedIndex);
 
       // Delay 2 detik agar user bisa melihat highlight sebelum ganti turn
       setTimeout(async () => {
-        await nextTurn(topicID, gameID, roomID);
+        await nextTurn(topicID, gameID, roomKey);
       }, 2000);
     },
-    [isMyTurn, isBotActing, gameState, topicID, gameID, roomID, myUID],
+    [isMyTurn, isBotActing, gameState, topicID, gameID, roomKey, myUID],
   );
 
   // Ref untuk mencegah bot melempar dadu berkali-kali pada giliran yang sama (saat pion sedang berjalan)

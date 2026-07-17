@@ -6,12 +6,15 @@ import {
   createQuestion,
   updateQuestion,
   deleteQuestion,
-  type Question,
-} from '@/src/services/firebase/rtdb/admin.questions.service';
+  type AdminQuestion as Question,
+} from '@/src/services/firebase/firestore/admin-questions.service';
 
 const GAMES = [
-  {id: 'game1', name: 'Game Ular Tangga'},
-  {id: 'game2', name: 'Game Nusa Card'},
+  {id: 'map_kuliner', name: 'Kuliner Tradisional'},
+  {id: 'map_sejarah', name: 'Sejarah'},
+  {id: 'map_budaya', name: 'Seni Budaya'},
+  {id: 'map_wisata', name: 'Destinasi Wisata'},
+  {id: 'map_pahlawan', name: 'Pahlawan & Tokoh'},
 ];
 
 const TOPICS = [
@@ -38,7 +41,7 @@ function getQuestionTopic(question: Question) {
 }
 
 export default function QuestionsTable() {
-  const [selectedGame, setSelectedGame] = useState('game1');
+  const [selectedGame, setSelectedGame] = useState('map_kuliner');
   const [questions, setQuestions] = useState<Record<string, Question>>({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);

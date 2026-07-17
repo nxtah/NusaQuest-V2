@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { auth } from '@/lib/firebase/config'
+import { firebaseAuth as auth } from '@/src/lib/firebase/client'
 import { onAuthStateChanged } from 'firebase/auth'
-import Button from '@/components/ui/Button'
-import { getActiveRooms, createRoom, joinRoom } from '@/features/lobby/services/rooms.service'
-import { updateLastLogin } from '@/features/achievements/services/users.service'
-import { getOrCreateUser } from '@/features/achievements/services/users.service'
+import Button from '@/src/components/ui/Button'
+import { getActiveRooms, createRoom, joinRoom } from '@/src/features/lobby/services/rooms.service'
+import { updateLastLogin } from '@/src/features/achievements/services/users.service'
+import { getOrCreateUser } from '@/src/features/achievements/services/users.service'
 import { Room } from '@/src/types/firestore'
 
 export default function LobbyPage() {
@@ -26,6 +26,7 @@ export default function LobbyPage() {
 
   // Check auth state and validate params
   useEffect(() => {
+    if (!auth) return
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid)

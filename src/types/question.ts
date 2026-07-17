@@ -1,11 +1,7 @@
 // Re-export from firestore types
-export type { Question } from "./firestore";
-export type {
-  QuestionFilter,
-  AIQuestionGenerationRequest,
-  AIQuestionGenerationResponse,
-  QuestionApprovalRequest,
-} from "./firestore";
+import type { Question as QuestionType } from "./firestore";
+export type { QuestionFilter, AIQuestionGenerationRequest, AIQuestionGenerationResponse, QuestionApprovalRequest } from "./firestore";
+export type Question = QuestionType;
 
 /**
  * Question with metadata for display
