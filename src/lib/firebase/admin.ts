@@ -1,6 +1,6 @@
 import {cert, getApps, initializeApp, type App} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
-import {getDatabase} from 'firebase-admin/database';
+import {getFirestore} from 'firebase-admin/firestore';
 
 function readServiceAccountFromEnv() {
   const base64 = process.env.FIREBASE_ADMIN_SDK_BASE64;
@@ -39,7 +39,6 @@ function getFirebaseAdminApp(): App {
   }
 
   const serviceAccount = readServiceAccountFromEnv();
-  const databaseURL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
 
   return initializeApp({
     credential: cert({
@@ -47,7 +46,6 @@ function getFirebaseAdminApp(): App {
       clientEmail: serviceAccount.client_email,
       privateKey: serviceAccount.private_key,
     }),
-    ...(databaseURL ? {databaseURL} : {}),
   });
 }
 
@@ -55,8 +53,8 @@ export function getFirebaseAdminAuth() {
   return getAuth(getFirebaseAdminApp());
 }
 
-export function getFirebaseAdminDb() {
-  return getDatabase(getFirebaseAdminApp());
+export function getFirebaseAdminFirestore() {
+  return getFirestore(getFirebaseAdminApp());
 }
 
 // Backward-compatible aliases used by server/session utilities.

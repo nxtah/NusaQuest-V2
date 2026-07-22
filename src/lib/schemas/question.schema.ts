@@ -1,69 +1,20 @@
 import {z} from 'zod';
 
-export const questionChoiceSchema = z.object({
-  answer_text: z.string().min(1),
-  is_correct: z.boolean(),
-});
-
 export const questionRecordSchema = z.object({
-  question_text: z.string().min(1),
-  multiple_choices: z
-    .record(z.string(), questionChoiceSchema)
-    .refine((choices) => Object.keys(choices).length >= 1, {
-      message: 'At least one choice is required',
-    }),
-  topic: z.string().min(1),
-  gameId: z.string().min(1).optional(),
-  createdBy: z.string().min(1).optional(),
-  destination: z.string().min(1).optional(),
-  hint: z.string().min(1).optional(),
-  createdAt: z.number().int().nonnegative().optional(),
-  updatedAt: z.number().int().nonnegative().optional(),
+  mapId: z.string().min(1),
+  regionId: z.string().min(1),
+  text: z.string().min(1),
+  options: z.tuple([z.string().min(1), z.string().min(1), z.string().min(1), z.string().min(1)]),
+  correctIndex: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+  difficulty: z.literal('easy').default('easy'),
+  isActive: z.boolean().default(true),
+  isApproved: z.boolean().default(false),
+  generatedBy: z.enum(['ai', 'manual']).default('manual'),
 });
 
-export const questionUpsertSchema = z
-  .object({
-    question: z.string().min(1).optional(),
-    answer: z.string().min(1).optional(),
-    topic: z.string().min(1),
-    gameId: z.string().min(1),
-    question_text: z.string().min(1).optional(),
-    multiple_choices: z.record(z.string(), questionChoiceSchema).optional(),
-    destination: z.string().min(1).optional(),
-    hint: z.string().min(1).optional(),
-  })
-  .refine((data) => Boolean(data.question || data.question_text), {
-    message: 'question or question_text is required',
-    path: ['question'],
-  });
+export const questionSchema = questionRecordSchema;
 
-export const questionPatchSchema = z
-  .object({
-    question: z.string().min(1).optional(),
-    answer: z.string().min(1).optional(),
-    topic: z.string().min(1).optional(),
-    gameId: z.string().min(1).optional(),
-    question_text: z.string().min(1).optional(),
-    multiple_choices: z.record(z.string(), questionChoiceSchema).optional(),
-    destination: z.string().min(1).optional(),
-    hint: z.string().min(1).optional(),
-  })
-  .refine(
-    (data) =>
-      Boolean(
-        data.question ||
-        data.question_text ||
-        data.answer ||
-        data.topic ||
-        data.gameId ||
-        data.multiple_choices ||
-        data.destination ||
-        data.hint,
-      ),
-    {
-      message: 'At least one field must be provided',
-      path: ['question'],
-    },
-  );
-
-export const questionSchema = questionUpsertSchema;
+export const questionPatchSchema = questionRecordSchema.partial().refine(
+  (data) => Object.keys(data).length > 0,
+  {message: 'At least one field must be provided'},
+);
