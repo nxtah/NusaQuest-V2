@@ -386,3 +386,139 @@ User coba lagi pake 2 akun beneran, kena crash runtime: `Cannot read properties 
 - [x] Diverifikasi lewat integration test: bikin sesi Ular Tangga "selesai" (status `'playing'`) di scoped-key slot `room1`, terus coba baca/tulis slot NusaCard di slug mentah yang sama — dokumennya kebukti BEDA (gak numpuk), NusaCard dapet room/gameState fresh (`status` bukan `'playing'` warisan, gameState gak eksis).
 - [x] **Lapis pertahanan tambahan**: `gameState.playerHands[myUID]` dan `gameState.players[gameState.throwerIndex]` di `nusa-card/page.tsx` dan `nusa-card-vs-ai/page.tsx` di-guard pake optional chaining (`?.`) — kalaupun suatu saat ada gameState yang formatnya gak sesuai (skenario tak terduga lain), halaman fallback ke array kosong / `null` alih-alih crash total.
 - [x] `tsc --noEmit` bersih, `npm run build` sukses, lint gak ada error baru (cuma warning exhaustive-deps yang harmless karena `roomID` dipertahankan di dependency array meski cuma dipakai buat guard, bukan lagi buat query).
+
+## 31. Fix Layout Room Lobby Rusak di Mobile Landscape
+
+User konfirmasi fix §30 berhasil, lanjut lapor: mobile portrait udah bener (hasil §28), tapi mobile **landscape** desainnya hancur.
+
+### Akar masalah: dua override di media query landscape yang gak konsisten sama layout barunya
+`@media (max-height: 600px) and (orientation: landscape)` di `room.css` ngubah `.room-player-slot` dari kolom (avatar atas, nama bawah) jadi row (avatar-nama sejajar horizontal) — tapi dua hal gak ikut disesuaikan:
+
+1. `clip-path: polygon(...)` (bentuk "bendera" lancip di bawah, didesain buat box tinggi vertikal) tetap kewarisin dari base rule apa adanya. Diterapkan ke box pendek-lebar hasil `flex-direction: row`, bentuknya jadi motong konten dan nampilin garis bawah bergelombang/pecah di sepanjang baris 4 slot.
+2. `.room-actions` diubah row (`flex-direction: row`), tapi `.room-btn-start`/`.room-btn-back` gak di-override `width` — base rule (buat kolom) masing-masing punya `width:100%`. Dua elemen `width:100%` berdampingan dalam satu row container rebutan tempat, bikin tombol "Mulai Game" ke-squeeze kecil dan teksnya wrap dua baris di sebelah "Kembali ke Lobby".
+
+**Percobaan pertama salah arah:** ronde pertama fix ini ngubah bentuk slot landscape jadi row/kotak biasa (`clip-path:none`) biar gak nabrak lagi — secara teknis gak "pecah" lagi, tapi user gak mau tampilannya BEDA dari desktop, maunya sama persis cuma diskalain kecil. Diulang dengan pendekatan yang bener.
+
+- [x] `room.css` — dalam blok `@media (max-height: 600px) and (orientation: landscape)` SAJA: **dipertahankan** `flex-direction: column` + `clip-path` bendera bawaan dari base rule (gak di-override sama sekali, jadi bentuknya identik sama desktop) — cuma `padding`/`min-height`/ukuran avatar/font di-`clamp()` jauh lebih kecil biar muat di viewport pendek. `.room-actions` juga dikembalikan ke `flex-direction: column` (ikut base rule, sama kayak desktop — tombol "Mulai Game" di atas "Kembali ke Lobby", bukan sejajar), cuma lebar di-cap `max-width:260px` dan font/padding diperkecil.
+- [x] Base rule (dipakai desktop & portrait), media query `min-width:640px` (desktop), dan media query `max-width:639px` (portrait, hasil §28) **tidak disentuh sama sekali**.
+- [x] Diverifikasi visual pakai harness HTML statis (reuse `room.css` asli) + screenshot Playwright headless Brave, dibandingin langsung side-by-side: desktop (1280×800), iPhone SE landscape (667×375), iPhone 14 landscape (844×390), mobile portrait (390×844, regresi check) — landscape sekarang secara visual identik sama desktop (bentuk bendera, avatar bulat di atas nama, tombol bertumpuk vertikal), cuma versi mini yang muat tanpa scroll.
+- [x] `tsc --noEmit` bersih.
+
+**Catatan:** belum diverifikasi di device fisik beneran (cuma emulasi viewport browser) — disaranin user cek langsung di HP.
+
+## 32. Hapus Header Putih Global di Semua Halaman Public
+
+Fix §27 sebelumnya cuma nyembunyiin header putih khusus di `/home`. User laporan header putih itu masih nongol di halaman Informasi dan Login, minta dihapus di semua halaman.
+
+### Akar masalah
+`src/app/(public)/layout.tsx` render `<header>` literal (`bg-white`, sticky top, logo + tombol Login/Logout/Lobby dari sistem auth manual `onAuthStateChanged`) yang wrap SEMUA route dalam route group `(public)`. Cuma `/home` yang di-special-case skip. Halaman lain (`/login`, `/information`, `/information/[id]`, `/credit`, `/destination/[id]`) semua kebagian header putih ini, nabrak tema masing-masing.
+
+- [x] Dicek dulu tiap halaman `(public)` sebelum hapus header: `login`, `credit`, `information`, `information/[id]` semua udah punya `BackButton`/`Link` sendiri ke `/home` (lewat `NavBar`/komponen masing-masing) — navigasi balik gak ilang. Fungsi login/logout juga udah ditangani sendiri di UI `/home`.
+- [x] `src/app/(public)/layout.tsx` disederhanain total — hapus `<header>` beserta logic auth-state/logout yang cuma dipakai buat header itu, tinggal `return <>{children}</>`. Perlakuan yang sebelumnya khusus `/home` sekarang berlaku semua halaman public.
+- [x] `tsc --noEmit` bersih, `npm run lint` gak nambah error/warning baru (error yang ada di output lint semua pre-existing di file lain, gak terkait perubahan ini).
+
+**Catatan:** `npm run build` belum dijalanin ulang buat perubahan ini (diskip atas permintaan user). Disaranin cek visual langsung di browser buat pastiin gak ada halaman public yang kehilangan cara navigasi balik.
+
+## 33. Overlay "Putar HP" Berlaku Global + Redesign Sesuai Tema
+
+User minta overlay instruksi landscape (`RotateDeviceOverlay`) berlaku di **seluruh web**, bukan cuma di beberapa halaman, dan didesain ulang biar cocok sama tema game (bukan lagi kotak polos cyan generik).
+
+### Sebelumnya: cuma dipasang manual di 7 halaman, desain generik
+`RotateDeviceOverlay.tsx` cuma solid `bg-cyan-900` + ikon HP muter polos, dan dipasang manual satu-satu di `nusa-card`, `ular-tangga`, `nusa-card-vs-ai`, `ular-tangga-vs-ai`, `information`, `information/[id]`, `information/[id]/detail` — halaman lain (`/home`, `/login`, `/credit`, `/lobby`, `/room`, `/destination/[id]`, `/profile`, `/admin`) sama sekali gak ada proteksi landscape.
+
+- [x] `src/components/layout/RotateDeviceOverlay.tsx` didesain ulang — pakai `background.bgNusa` (aset yang sama dipakai halaman lain) diblur sebagai backdrop + overlay gradasi hijau tua, kartu tengah bergaya "papan kayu" (`font-bauhaus` heading, palet cream/coklat konsisten sama `PauseModal`/`PageHeader`), ikon HP muter diselimutin cincin kompas (conic-gradient CSS, motif eksplorasi peta khas tema NusaQuest) sebagai elemen signature, animasi rotate custom (`nq-rotate-phone`) — semua pakai `motion-safe:` (otomatis hormat `prefers-reduced-motion`).
+- [x] Overlay dipindah dari dipasang manual per-halaman jadi **satu implementasi** di `src/app/layout.tsx` (root layout, di luar `<Providers>`) — otomatis berlaku ke SEMUA route termasuk yang sebelumnya gak kebagian (`/home`, `/login`, dst).
+- [x] Hapus import + JSX `<RotateDeviceOverlay />` yang lama dari 7 halaman yang sebelumnya pasang manual (termasuk 2 pemakaian dobel di `nusa-card/page.tsx` dan `ular-tangga/page.tsx` — dua return branch beda) — biar gak dobel render.
+- [x] `tsc --noEmit` bersih, lint gak nambah masalah baru di file yang disentuh.
+- [x] Diverifikasi visual via `npm run dev` + Playwright headless Brave: viewport portrait (390×844) di `/login` DAN `/home` (halaman yang sebelumnya gak ada overlay sama sekali) sama-sama nampilin overlay baru; landscape (844×390) dan desktop (1280×800) overlay-nya gak muncul, halaman render normal.
+
+**Catatan:** `npm run build` belum dijalanin ulang.
+
+## 34. Satukan Semua Animasi Loading Jadi Satu Desain (Langit + Awan)
+
+User minta animasi loading di SELURUH halaman web pakai satu desain aja — yang "langit" (gradient biru + dua awan animasi + teks "LOADING NUSAQUEST..."), yang sebelumnya cuma jadi `src/app/loading.tsx` (loading route-level Next.js bawaan, otomatis kepake beberapa tempat via Suspense).
+
+### Sebelumnya: 5+ desain loading beda-beda tersebar di berbagai halaman
+- `(protected)/layout.tsx` — render `<div className="loader" />` tapi class `.loader` **gak pernah didefinisikan di CSS manapun** (bug lama, gate auth semua halaman protected jadi cuma nampilin teks "Memuat..." tanpa animasi sama sekali).
+- `(protected)/lobby/page.tsx` — emoji ⏳ raw dikasih `animate-spin`.
+- `room/[gameID]/[topicID]/[roomID]/page.tsx` — spinner custom CSS (`.room-loading-spinner`, ring putih muter) di `room.css`.
+- 4 halaman play (`nusa-card`, `nusa-card-vs-ai`, `ular-tangga`, `ular-tangga-vs-ai`) — masing-masing spinner ring putih (`border-4 border-white border-t-transparent animate-spin`) atau (di `nusa-card-vs-ai`) malah cuma teks tanpa animasi.
+
+- [x] `src/components/ui/Loader.tsx` — sebelumnya stub kosong (`return null`, gak dipakai di manapun), diisi jadi komponen desain langit yang di-reuse (dipindah dari `src/app/loading.tsx`), lengkap dengan `Loader.module.css` (animasi awan masuk + teks fade). Ditambah prop `message` (custom teks) dan `fullScreen` (default `true` — full-bleed `min-h-screen`; `false` — versi ringkas buat ditempel inline di dalam section halaman yang kontennya lain udah kebuka, pakai animasi "bob" ringan sendiri karena animasi awan versi full-screen pakai unit `vw`/`vh` yang gak masuk akal diterapkan ke container kecil).
+- [x] `src/app/loading.tsx` sekarang cuma `return <Loader />` — satu sumber desain, `loading.module.css` lama di root `app/` dihapus (duplikat, udah pindah ke `components/ui/Loader.module.css`).
+- [x] Ganti semua loading state custom di atas jadi pakai `<Loader />` (full-screen) buat yang gate seluruh halaman (`(protected)/layout.tsx`, `room/.../page.tsx`, 4 halaman play), dan `<Loader fullScreen={false} />` buat yang cuma bagian dari halaman yang udah kebuka (`lobby/page.tsx` — list ruangan). CSS mati (`.room-loading`, `.room-loading-spinner`, `@keyframes spin` custom di `room.css`) dihapus.
+- [x] `src/components/auth/ProtectedRoute.tsx` (punya spinner ⏳ sendiri juga) **sengaja gak disentuh** — dicek dulu, komponen ini gak diimpor dari manapun (dead code), jadi gak kepake di halaman manapun yang beneran jalan.
+- [x] `tsc --noEmit` bersih, `npm run lint` gak nambah error/warning baru dari file yang disentuh (131 problems yang ada semua pre-existing di file lain).
+- [x] Diverifikasi visual: bikin route sementara buat render `<Loader />` (full-screen) dan `<Loader fullScreen={false} />` (compact) lewat `npm run dev` + screenshot Playwright headless Brave — dua-duanya render bener (gradient langit, dua awan, teks), route sementara dihapus lagi setelah itu.
+
+**Catatan:** `npm run build` sengaja SKIP (permintaan user, lama). `tsc --noEmit` + lint + verifikasi visual komponen dipakai sebagai pengganti. Halaman yang gated auth beneran (butuh login OAuth asli) belum diverifikasi end-to-end di browser — cuma komponennya sendiri yang dicek visual.
+
+## 35. Fix Proporsi Modal "Pilih Game" di Mobile — Kartu Kepentok Nempel Pinggir Parchment
+
+User lapor: popup pilih game di mobile keliatan "lebar banget" dan kartu opsinya (Ular Tangga/Nusa Card) juga lebar/kurang bagus dibanding desktop. Diminta screenshot dulu buat bandingin sebelum benerin, dan desktop gak boleh diubah.
+
+### Diagnosa lewat screenshot + pengukuran DOM langsung (bukan nebak dari baca CSS)
+`src/components/home/GameSelectionModal.tsx` (yang dipakai — ada juga `components/modals/GameSelectionModal.tsx` yang gak diimpor dari manapun, dead code, gak disentuh) pakai `.game-modal-container`/`.game-option-card` dari `src/components/home/home-modals.css`. Diukur pakai Playwright (`getBoundingClientRect`) di viewport 390px vs desktop 1280px:
+- Desktop: container 800px, padding 64px, kartu 310×197px (banyak jarak/parchment kelihatan di sekeliling kartu).
+- Mobile (sebelum fix): container 342px (87% dari lebar layar — nyaris penuh), padding cuma 20px/16px (dari override `@media(max-width:480px)`), kartu 136×124px nyaris nempel ke tepi kertas robek. Beda proporsi jauh dari desktop, itu yang kerasa "lebar/kurang bagus" — bukan bug lebar-overflow, tapi memang di-desain kepepet di breakpoint mobile lama.
+
+- [x] `src/components/home/home-modals.css` — HANYA di dalam `@media (max-width: 480px)` dan `@media (max-width: 360px)` (base rule & breakpoint desktop/tablet tidak disentuh): naikin `margin`/`padding` container (0.5rem→1rem margin, 1.25rem/1rem→1.75rem/1.25rem/2rem padding) biar parchment kelihatan lagi di sekeliling kartu; naikin `min-height` kartu (100px→128px di ≤480px, 90px→104px di ≤360px) biar bentuknya gak nyaris kotak sempurna; gap grid dinaikin ke 1rem.
+- [x] Setelah fix, diukur ulang: mobile container 326px (turun dari 342px, lebih banyak jarak dari tepi layar), kartu 123×147px (lebih tinggi dari lebar, gak lagi berbentuk blok kotak nempel edge).
+- [x] Diverifikasi visual — screenshot Playwright headless Brave 4 viewport: mobile 390×844, small phone 360×740, tablet 768×1024, desktop 1280×800. Desktop dicek pixel-sama kayak sebelum perubahan (gak kesentuh). Mobile & small phone sekarang punya jarak parchment yang jelas kelihatan di sekeliling kartu, proporsinya lebih mirip desktop.
+- [x] `tsc --noEmit` bersih (CSS-only, gak ada file TS/TSX yang disentuh).
+
+**Catatan:** `npm run build` belum dijalanin ulang.
+
+## 36. Redesign Modal "Pilih Game" di Mobile — Kertas & Tombol Masih Kerasa Lebar, Ikon Kurang Gede
+
+Setelah fix §35 (nambah jarak/padding), user masih ngerasa kertasnya kelebaran dan dua tombol game (Ular Tangga/Nusa Card) juga lebar, dan minta ikonnya gede jangan kecil. Diminta pakai frontend-design skill khusus buat mikirin ulang layout-nya, tetep gak boleh ubah desktop.
+
+### Root cause struktural, bukan cuma soal ukuran
+Grid 2-kolom side-by-side (`.game-options-grid { grid-template-columns: repeat(auto-fit, minmax(100px,1fr)) }`) di kertas yang sempit maksa tiap kartu jadi sempit-tinggi, dan ikon (`clamp(56px,16vw,110px)`) jadi kelihatan kecil relatif ke kartunya. Nambah padding doang (§35) gak nyelesain masalah struktural ini — kartu tetep berdampingan sempit.
+
+- [x] `src/components/home/home-modals.css`, HANYA di dalam `@media (max-width: 480px)` dan `@media (max-width: 360px)`, khusus modal "Pilih Game" (diisolasi pakai selector `.game-modal-container:not(.game-modal-container--large)` biar modal provinsi yang pakai `--large` — lebih lebar, gak kepenuhin masalah yang sama — tetep sama sekali gak kesentuh):
+  - Kertas modal dipersempit eksplisit (`max-width: 300px` di ≤480px, `260px` di ≤360px) — lebih jauh dari lebar layar, gak lagi "nyaris penuh layar".
+  - Grid opsi game diubah dari 2-kolom sempit jadi **1-kolom bertumpuk**: tiap tombol full-width kertas, layout row (ikon besar di kiri, label besar di kanan) — bukan kartu kotak sempit lagi.
+  - Ikon game (`.game-option-icon-img`) di-set ukuran tetap besar (68px di ≤480px, 56px di ≤360px, gak pakai clamp berbasis vw lagi) biar konsisten gede, gak ikut menyusut ngikutin lebar kartu.
+  - Efek samping ke-detect sendiri & dibenerin: kertas yang lebih sempit bikin judul "Pilih Game" nabrak tombol close bulat di pojok — font judul/subjudul dikecilin dikit + `padding-right` khusus modal ini biar gak tabrakan.
+- [x] Diverifikasi visual — screenshot Playwright headless Brave 4 breakpoint (360, 390, 414, dan desktop 1280) + modal provinsi di mobile (buat mastiin `--large` gak ke-affect). Hasil: kertas jelas lebih sempit & gak nempel edge, dua tombol game full-width bertumpuk dengan ikon gede jelas kelihatan, judul gak nabrak close button di semua ukuran phone yang dites. Desktop & modal provinsi pixel-sama kayak sebelumnya.
+- [x] `tsc --noEmit` bersih (CSS-only).
+
+**Catatan:** `npm run build` belum dijalanin ulang.
+
+## 37. Redesign Warna & Hover "Papan Informasi" di Home
+
+User minta hapus dulu animasi hover papan "Informasi" di home (`papan1-wrapper`, `home.css`), lalu diminta lagi buat balikin tapi versi lebih halus: rotasi ke KIRI (bukan ke kanan kayak sebelumnya) dan cuma aktif di desktop (device yang beneran punya mouse).
+
+- [x] `src/app/(public)/home/home.css` — rule hover `.papan1-wrapper:hover .papan1-image`/`.papan1-wrapper:hover .papan1-text` sempat dihapus total, lalu ditambah ulang dibungkus `@media (hover: hover)` (gak nyangkut di HP/tablet sentuh) dengan rotasi `-14deg` (base `-8deg` → makin miring ke kiri, arah yang sama, bukan lompat ke arah berlawanan kayak sebelumnya) — dipakai ANGKA YANG SAMA persis buat papan (`.papan1-image`) dan teks (`.papan1-text`) biar teksnya keliatan nempel di papan pas dirotasi, bukan gerak sendiri gak sinkron.
+
+## 38. Redesign BackButton — Claymorphism 3D Kuning
+
+User minta redesign komponen `BackButton` (dipakai di `login`, `credit`, `profile`, navbar Informasi, `RoomSelect`) jadi bulat kuning gaya claymorphism 3D, tanpa jalanin `npm run build`.
+
+- [x] `src/components/ui/BackButton.tsx` — style lama (glass translucent putih) diganti gradasi kuning puffy (`linear-gradient(150deg,#ffe28a,#ffc93c,#f5a916)`) + box-shadow berlapis: slab bawah `0 5px 0 #c6841a` (ala tombol game lain di app ini), ambient drop shadow, plus inset highlight/shadow buat kesan "clay" empuk. Hover naik dikit + terang, `:active` turun + shadow ngempis (efek ketekan). Dipindah dari inline `style` prop ke class + `<style>` tag scoped (pola yang sama kayak `RotateDeviceOverlay`) karena `:hover`/`:active` gak bisa didefinisikan lewat inline style React.
+- [x] Dicek dulu: semua 5 pemanggil `<BackButton>` gak ada yang override `className`, jadi redesign ini otomatis konsisten di semua tempat tanpa perlu nyentuh file lain.
+- [x] `tsc --noEmit` bersih, diverifikasi visual via screenshot (halaman login) — gradasi & shadow 3D-nya kebukti render bener.
+
+## 39. Cache Header buat Asset Statis (Font/Icon) + Image Cache TTL
+
+User nanya soal caching biar asset gak perlu di-render ulang tiap buka web lagi. Dijelasin dulu: login persistence itu udah otomatis (`browserLocalPersistence` default Firebase Auth), dan gambar Cloudinary (`<img>` biasa) udah di-cache sendiri sama CDN Cloudinary — yang beneran bisa dioptimasi dari sisi kita cuma cache header buat asset statis `/public` dan TTL cache `next/image`. User minta yang aman aja, gak ganggu logic.
+
+- [x] `next.config.ts` — `images.minimumCacheTTL` dinaikin dari default 60 detik ke 1 tahun (31536000) — aman karena semua URL Cloudinary di app ini udah versioned (`v1774.../`), jadi kalau asset ganti, URL-nya ikut ganti (gak bakal ke-stuck liat gambar basi).
+- [x] Ditambah `headers()` buat `/fonts/:path*` dan `/icons/:path*` (font Bauhaus, logo, logo UPJ/SIF) — `Cache-Control: public, max-age=604800, stale-while-revalidate=86400` (7 hari, bukan "immutable" selamanya, biar kalau file-nya diganti manual suatu saat user gak kejebak kelamaan).
+- [x] Sengaja gak nyentuh gambar Cloudinary yang dipanggil lewat `<img>` biasa (mayoritas app) — itu udah di-cache CDN Cloudinary sendiri di luar kontrol kita, nambahin apa-apa di sisi kita gak ada gunanya.
+- [x] Dijelasin ke user: ini gak butuh pop-up consent apapun — beda sama cookie consent (yang wajib buat tracking/identifikasi user), HTTP cache cuma nyimpen file statis, gak ada data pribadi yang disimpen.
+- [x] `tsc --noEmit` bersih, diverifikasi langsung header-nya kebaca lewat `curl -I` ke `/fonts/Bauhaus.otf` dan `/icons/logo.webp` (dev server yang lagi jalan otomatis reload config), halaman `/home`/`/login` masih 200 normal.
+
+**Catatan:** `npm run build` sengaja SKIP terus di sesi ini (permintaan eksplisit user, lama). Semua verifikasi CSS/config pakai `tsc --noEmit` + curl/screenshot langsung.
+
+## 40. Fix Breakpoint Modal "Pilih Game" — Masih Lebar di Simulator Mobile User
+
+User kirim screenshot dari simulator/preview mobile yang lagi dipakainya — ternyata modal "Pilih Game" MASIH kelihatan 2 kolom lebar (versi lama, sebelum fix §36), bukan versi 1-kolom yang udah dibikin. Root cause: breakpoint redesign sebelumnya `@media (max-width: 480px)`, tapi lebar viewport simulator yang dipakai user ternyata di rentang 480–640px — gak kena breakpoint itu sama sekali, jadi jatuh balik ke grid 2-kolom bawaan.
+
+- [x] `src/components/home/home-modals.css` — breakpoint redesign modal "Pilih Game" dilebarin dari `max-width: 480px` ke `max-width: 640px`, disamain sama breakpoint mobile/desktop yang udah dipakai di tempat lain di app ini (`room.css` pakai `min-width:640px` buat desktop). `@media (max-width: 360px)` (extra-kecil) gak diubah, tetap nested valid di dalam 640.
+- [x] Sekalian nuruti request tambahan: tinggi tombol game (`.game-option-card`) dinaikin lagi (92px → 112px) dan ikon (`.game-option-icon-img`) dibesarin (68px → 78px) biar makin jelas kelihatan; judul "Pilih Game" dibesarin (1.3rem → 1.55rem), `padding-right` header dinaikin ke 2.5rem biar tetep gak nabrak tombol close meski teksnya lebih gede.
+- [x] Diverifikasi visual — screenshot 4 lebar: 390px (HP asli), 600px & 640px (nyimulasiin rentang yang bikin user ngalamin bug ini), dan desktop 1280px. Hasil: 600 & 640 sekarang ikutan render versi 1-kolom yang benar (sebelumnya di lebar segini masih 2-kolom lebar), desktop pixel-sama kayak sebelumnya.
+- [x] `tsc --noEmit` bersih (CSS-only).
+
+**Catatan:** `npm run build` gak dijalanin (skip terus sesuai permintaan user).

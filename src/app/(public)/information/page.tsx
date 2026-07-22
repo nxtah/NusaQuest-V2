@@ -3,7 +3,6 @@ import Image from "next/image";
 import PageHeader from "../../../components/information/PageHeader";
 import NavBar from "../../../components/information/NavBar";
 import CardList from "../../../components/information/CardList";
-import RotateDeviceOverlay from "../../../components/layout/RotateDeviceOverlay";
 import {
     getInformationItemsByTab,
     groupInformationItemsBySection,
@@ -41,7 +40,6 @@ export default async function InformationPage({
     return (
         <main className="relative min-h-screen w-full overflow-x-hidden">
             {/* Overlay untuk Rotasi Perangkat */}
-            <RotateDeviceOverlay />
 
             {/* Background Image */}
             <div className="fixed -inset-16 md:-inset-10 -z-10 bg-[#59a87d]">

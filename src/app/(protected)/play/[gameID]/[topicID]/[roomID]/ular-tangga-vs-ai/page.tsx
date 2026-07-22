@@ -7,9 +7,9 @@ import GameBackground from '@/src/features/game-ular-tangga/components/GameBackg
 import Board from '@/src/features/game-ular-tangga/components/Board';
 import PlayerTurnBox from '@/src/features/game-ular-tangga/components/PlayerTurnBox';
 import {ularTangga} from '@/src/assets/images/ular-tangga/cloudinaryAssets';
-import RotateDeviceOverlay from '@/src/components/layout/RotateDeviceOverlay';
 import PauseModal from '@/src/components/layout/PauseModal';
 import SettingButton from '@/src/components/layout/SettingButton';
+import Loader from '@/src/components/ui/Loader';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
 
 import {
@@ -206,19 +206,11 @@ export default function UlarTanggaVsAiPage() {
   }, [gameState, isBotActing, isPaused, handleSelectAnswer, handleDiceRollStart, handleDiceRollComplete]);
 
   if (loading) {
-    return (
-      <main className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-[#59a87d]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin" />
-          <p className="text-white text-xl font-semibold">Menyiapkan Ular Tangga vs AI...</p>
-        </div>
-      </main>
-    );
+    return <Loader message="Menyiapkan Ular Tangga vs AI..." />;
   }
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden">
-      <RotateDeviceOverlay />
 
       <div className="fixed inset-0 -z-10 bg-[#59a87d]">
         <GameBackground />

@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { information } from "../../../../../assets/images/information/cloudinaryAssets";
 import { background } from "../../../../../assets/images/background/cloudinaryAssets";
-import RotateDeviceOverlay from "../../../../../components/layout/RotateDeviceOverlay";
 import { Poppins } from "next/font/google";
 import localFont from "next/font/local";
 import { getInformationItem } from "../../../../../services/firebase/firestore/information.service";
@@ -35,7 +34,6 @@ export default async function InformationPicturePage({
     return (
         <main className="relative flex items-center justify-center h-[100dvh] w-full p-8 overflow-hidden">
             {/* Overlay untuk Rotasi Perangkat */}
-            <RotateDeviceOverlay />
 
             {/* Background Image */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[100dvw] h-[100dvh] -z-10">

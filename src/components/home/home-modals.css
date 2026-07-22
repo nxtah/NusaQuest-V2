@@ -373,11 +373,15 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .game-modal-container {
-    padding: 1.25rem 1rem;
+    /* Sebelumnya margin 0.5rem + padding 1.25rem/1rem bikin kartu game nempel
+       nyaris ke tepi kertas parchment (beda jauh sama desktop yang punya
+       banyak jarak di sekeliling kartu) — margin & padding dibesarin dikit
+       biar proporsinya lebih mirip desktop, bukan cuma "diperkecil" mentah. */
+    padding: 1.75rem 1.25rem 2rem;
     border-radius: 1.25rem;
-    margin: 0 0.5rem;
+    margin: 0 1rem;
   }
 
   .game-modal-container--large {
@@ -388,13 +392,56 @@
     margin-bottom: 0.25rem;
   }
 
+  /* Kertas modal "Pilih Game" jadi lebih sempit di bawah (300px) — judul
+     dibesarin lagi (1.3rem -> 1.55rem) sesuai request, dikasih jarak lebih
+     dari tombol close bulat di pojok kanan atas biar gak nabrak. Modal
+     provinsi (--large, lebih lebar) gak kesentuh, gak butuh ini. */
+  .game-modal-container:not(.game-modal-container--large) .game-modal-header {
+    padding-right: 2.5rem;
+  }
+
+  .game-modal-container:not(.game-modal-container--large) .game-modal-title {
+    font-size: 1.55rem;
+  }
+
+  .game-modal-container:not(.game-modal-container--large) .game-modal-subtitle {
+    font-size: 0.8rem;
+  }
+
+  /* Modal "Pilih Game" (bukan modal provinsi, yang pakai --large & gak
+     kesentuh sama sekali) — kertasnya dipersempit lagi lebih jauh dari
+     lebar layar, dan 2 tombol game diubah dari grid 2-kolom (bikin tiap
+     tombol sempit, ikonnya jadi keliatan kecil) jadi list 1-kolom
+     bertumpuk: tombol full-width dengan ikon besar di kiri + label di
+     kanan, mirip row picker — bukan kartu kotak sempit lagi. */
+  .game-modal-container:not(.game-modal-container--large) {
+    max-width: 300px;
+  }
+
   .game-options-grid {
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    grid-template-columns: 1fr;
+    gap: 0.875rem;
   }
 
   .game-option-card {
-    min-height: 100px;
-    padding: 0.875rem;
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: left;
+    /* Dinaikin lagi (92px -> 112px) biar ikon game keliatan jelas, gak
+       kepotong/kekecilan di dalam tombol. */
+    min-height: 112px;
+    padding: 0.9rem 1.25rem;
+    gap: 1.1rem;
+  }
+
+  .game-option-icon-img {
+    width: 78px;
+    height: 78px;
+    flex-shrink: 0;
+  }
+
+  .game-option-label {
+    font-size: 1.05rem;
   }
 
   .game-modal-close {
@@ -414,21 +461,27 @@
 }
 
 @media (max-width: 360px) {
+  .game-modal-container:not(.game-modal-container--large) {
+    max-width: 260px;
+  }
+
   .game-modal-container {
-    padding: 1rem;
+    padding: 1.5rem 1rem;
   }
 
   .game-option-card {
-    min-height: 90px;
-    gap: 0.5rem;
+    min-height: 84px;
+    padding: 0.7rem 1rem;
+    gap: 0.85rem;
   }
 
-  .game-option-icon {
-    font-size: 2rem;
+  .game-option-icon-img {
+    width: 56px;
+    height: 56px;
   }
 
   .game-option-label {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
   }
 }
 

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { firebaseAuth as auth } from '@/src/lib/firebase/client'
 import { onAuthStateChanged } from 'firebase/auth'
 import Button from '@/src/components/ui/Button'
+import Loader from '@/src/components/ui/Loader'
 import { getActiveRooms, createRoom, joinRoom } from '@/src/features/lobby/services/rooms.service'
 import { updateLastLogin } from '@/src/features/achievements/services/users.service'
 import { getOrCreateUser } from '@/src/features/achievements/services/users.service'
@@ -152,9 +153,7 @@ export default function LobbyPage() {
           <h2 className="text-2xl font-bold mb-4">Ruangan Tersedia</h2>
 
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="text-6xl animate-spin">⏳</div>
-            </div>
+            <Loader fullScreen={false} message="Memuat ruangan..." />
           ) : rooms.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-lg border-2 border-dashed border-gray-300">
               <p className="text-gray-600 mb-2 text-lg">Belum ada ruangan yang tersedia</p>

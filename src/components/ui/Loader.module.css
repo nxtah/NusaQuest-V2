@@ -15,6 +15,32 @@
   animation: text-fade 1.8s ease-in-out infinite;
 }
 
+.loadingCloudLeftCompact {
+  animation: cloud-bob-left 1.8s ease-in-out infinite alternate;
+}
+
+.loadingCloudRightCompact {
+  animation: cloud-bob-right 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes cloud-bob-left {
+  0% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(6px);
+  }
+}
+
+@keyframes cloud-bob-right {
+  0% {
+    transform: scaleX(-1) translateY(6px);
+  }
+  100% {
+    transform: scaleX(-1) translateY(-6px);
+  }
+}
+
 @keyframes cloud-left-in {
   0% {
     transform: translate(-34vw, -24vh);

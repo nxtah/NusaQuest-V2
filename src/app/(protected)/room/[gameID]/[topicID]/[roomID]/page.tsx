@@ -25,6 +25,7 @@ import {
 } from '@/src/features/game-nuca/services/nusa-card-game.service';
 import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import { information } from '@/src/assets/images/information/cloudinaryAssets';
+import Loader from '@/src/components/ui/Loader';
 import './room.css';
 
 function resolveGameRoute(gameID: string, topicID: string, roomID: string): string {
@@ -161,12 +162,7 @@ export default function RoomPage() {
   while (slotPlayers.length < maxSlots) { slotPlayers.push(null); }
 
   if (loading) {
-    return (
-      <div className="room-loading">
-        <div className="room-loading-spinner" />
-        <p>Loading room...</p>
-      </div>
-    );
+    return <Loader message="Memuat ruangan..." />;
   }
 
   return (

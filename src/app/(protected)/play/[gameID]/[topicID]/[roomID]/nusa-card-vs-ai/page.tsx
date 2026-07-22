@@ -3,9 +3,9 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import GameBackground from '@/src/features/game-nuca/components/GameBackground';
-import RotateDeviceOverlay from '@/src/components/layout/RotateDeviceOverlay';
 import PauseModal from '@/src/components/layout/PauseModal';
 import SettingButton from '@/src/components/layout/SettingButton';
+import Loader from '@/src/components/ui/Loader';
 import PlayerProfileNuca from '@/src/features/game-nuca/components/PlayerProfileNuca';
 import PlayerHandCards, {type PlayerCard} from '@/src/features/game-nuca/components/PlayerHandCards';
 import QuestionModal from '@/src/features/game-nuca/components/QuestionModal';
@@ -174,17 +174,11 @@ export default function NusaCardVsAiPage() {
   }, [isAiAnswering, gameState, roomKey]);
 
   if (loading) {
-    return (
-      <main className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-[#59a87d]">
-        <GameBackground />
-        <p className="relative z-10 text-white">Menyiapkan game NusaCard vs AI...</p>
-      </main>
-    );
+    return <Loader message="Menyiapkan game NusaCard vs AI..." />;
   }
 
   return (
     <main className="relative h-screen w-screen overflow-hidden">
-      <RotateDeviceOverlay />
 
       <div className="fixed inset-0 -z-10 bg-[#59a87d]">
         <GameBackground />

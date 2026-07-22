@@ -511,14 +511,20 @@
     transition: transform 240ms ease, text-shadow 240ms ease;
 }
 
-.papan1-wrapper:hover .papan1-image {
-    transform: rotate(4deg);
-    filter: drop-shadow(0 0.45rem 1rem rgba(0, 0, 0, 0.28));
-}
+/* Hover cuma di desktop (device yang beneran punya mouse) — di HP/tablet
+   sentuh, ":hover" bisa nyangkut nempel abis tap dan gak match device.
+   Papan & teks dirotasi dengan ANGKA YANG SAMA (base -8deg -> -14deg) biar
+   teksnya keliatan nempel di papan, bukan gerak sendiri gak sinkron. */
+@media (hover: hover) {
+    .papan1-wrapper:hover .papan1-image {
+        transform: rotate(-14deg);
+        filter: drop-shadow(0 0.45rem 1rem rgba(0, 0, 0, 0.28));
+    }
 
-.papan1-wrapper:hover .papan1-text {
-    transform: translate(-50%, -180%) rotate(4deg);
-    text-shadow: 0 2px 0 rgba(18, 38, 61, 0.6);
+    .papan1-wrapper:hover .papan1-text {
+        transform: translate(-50%, -180%) rotate(-14deg);
+        text-shadow: 0 2px 0 rgba(18, 38, 61, 0.6);
+    }
 }
 
 /* ==================== HUD CHROME ====================

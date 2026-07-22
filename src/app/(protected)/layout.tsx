@@ -4,6 +4,7 @@ import {useEffect} from 'react';
 import {useRouter} from 'next/navigation';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
 import {ROUTES} from '@/src/lib/constants/routes';
+import Loader from '@/src/components/ui/Loader';
 import '../../styles/lobby.css';
 
 export default function ProtectedLayout({
@@ -21,14 +22,7 @@ export default function ProtectedLayout({
   }, [isInitialized, isLoggedIn, router]);
 
   if (!isInitialized || !isLoggedIn) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="loader" />
-          <p className="mt-4 text-gray-500">Memuat...</p>
-        </div>
-      </div>
-    );
+    return <Loader message="Memuat..." />;
   }
 
   return <>{children}</>;

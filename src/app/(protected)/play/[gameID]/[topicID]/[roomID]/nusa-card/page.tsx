@@ -6,9 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 import GameBackground from "../../../../../../../features/game-nuca/components/GameBackground";
 import GameArea, { type GameAreaPlayer } from "../../../../../../../features/game-nuca/components/GameArea";
 import type { PlayerCard } from "../../../../../../../features/game-nuca/components/PlayerHandCards";
-import RotateDeviceOverlay from "../../../../../../../components/layout/RotateDeviceOverlay";
 import PauseModal from "../../../../../../../components/layout/PauseModal";
 import SettingButton from "../../../../../../../components/layout/SettingButton";
+import Loader from "../../../../../../../components/ui/Loader";
 import UlarTanggaLobby from "../../../../../../../features/game-ular-tangga/components/UlarTanggaLobby";
 import { useAuth } from "../../../../../../../features/auth/hooks/useAuth";
 
@@ -184,20 +184,12 @@ export default function NusaCardPage() {
   }, [myUID, isResolving, roomKey]);
 
   if (loading) {
-    return (
-      <main className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-[#59a87d]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin" />
-          <p className="text-white text-xl font-semibold">Memuat permainan NusaCard...</p>
-        </div>
-      </main>
-    );
+    return <Loader message="Memuat permainan NusaCard..." />;
   }
 
   if (!gameStarted) {
     return (
       <main className="relative h-screen w-screen overflow-hidden">
-        <RotateDeviceOverlay />
         <UlarTanggaLobby players={players} onStartGame={handleStartGame} topicID={topicID} roomID={roomID} myUID={myUID} />
       </main>
     );
@@ -205,7 +197,6 @@ export default function NusaCardPage() {
 
   return (
     <main className="relative h-screen w-screen overflow-hidden">
-      <RotateDeviceOverlay />
 
       <div className="fixed inset-0 -z-10 bg-[#59a87d]">
         <GameBackground />
