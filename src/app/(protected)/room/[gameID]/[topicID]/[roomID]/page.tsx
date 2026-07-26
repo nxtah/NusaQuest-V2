@@ -17,6 +17,7 @@ import {
   shuffle,
   initializeUlarTanggaGameState,
   setGameStatus as setUlarTanggaGameStatus,
+  checkAndResetAbandonedRoom,
 } from '@/src/features/game-ular-tangga/services/ular-tangga-game.service';
 import {
   getQuestions as getNusaCardQuestions,
@@ -57,6 +58,8 @@ export default function RoomPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
   const [starting, setStarting] = useState(false);
+  // true setelah checkAndResetAbandonedRoom selesai — gate buat subscribeToGameStart
+  const [roomChecked, setRoomChecked] = useState(false);
 
   // Join room begitu auth siap. Dokumen room dibuat kalau belum ada.
   useEffect(() => {
@@ -65,6 +68,11 @@ export default function RoomPage() {
 
     const join = async () => {
       try {
+        // Reset room ke 'waiting' kalau sesi game sebelumnya sudah selesai/ditinggal.
+        // HARUS selesai sebelum subscribeToGameStart mulai — setRoomChecked(true)
+        // di bawah adalah gate-nya.
+        await checkAndResetAbandonedRoom(roomKey);
+
         const { doc, getDoc, setDoc } = await import('firebase/firestore');
         const { firebaseFirestore } = await import('@/src/lib/firebase/client');
         const roomRef = doc(firebaseFirestore!, 'rooms', roomKey);
@@ -85,10 +93,16 @@ export default function RoomPage() {
           }
         }
         await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, user?.firebasePhotoURL || user?.googlePhotoURL || null);
-        if (isActive) setHasJoined(true);
+        if (isActive) {
+          setHasJoined(true);
+          setRoomChecked(true); // Baru aktifkan subscribeToGameStart setelah reset selesai
+        }
       } catch (error) {
         console.error('Gagal join room:', error);
-        if (isActive) setJoinError('Gagal masuk ke room. Coba lagi.');
+        if (isActive) {
+          setJoinError('Gagal masuk ke room. Coba lagi.');
+          setRoomChecked(true); // Tetap buka gate meskipun error join
+        }
       } finally {
         if (isActive) setLoading(false);
       }
@@ -108,12 +122,12 @@ export default function RoomPage() {
   }, [roomKey]);
 
   useEffect(() => {
-    if (!roomKey) return;
+    if (!roomKey || !roomChecked) return;
     const unsubGameStart = subscribeToGameStart(topicID, gameID, roomKey, (gameStarted) => {
       if (gameStarted) router.push(resolveGameRoute(gameID, topicID, roomID));
     });
     return () => unsubGameStart();
-  }, [topicID, gameID, roomID, roomKey, router]);
+  }, [topicID, gameID, roomID, roomKey, roomChecked, router]);
 
   useEffect(() => {
     return () => { if (hasJoined && playerUID) void playerLeaveRoom(topicID, gameID, roomKey, playerUID); };

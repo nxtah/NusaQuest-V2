@@ -27,7 +27,7 @@ import {
   type UlarTanggaGameState,
   type GamePlayer,
 } from '@/src/features/game-ular-tangga/services/ular-tangga-game.service';
-import {LADDERS} from '@/src/features/game-ular-tangga/utils/board-rules';
+import {LADDERS, SNAKES, isLadderStart, isSnakeHead} from '@/src/features/game-ular-tangga/utils/board-rules';
 
 const AI_UID = 'ai-opponent-1';
 
@@ -164,7 +164,15 @@ export default function UlarTanggaVsAiPage() {
 
   const handleDiceRollComplete = useCallback(async (rolledNumber: number) => {
     if ((!isMyTurn && !isBotActing) || !gameState) return;
-    await movePawn(topicID, gameID, roomKey, gameState.currentPlayerIndex, rolledNumber);
+    const currentPos = gameState.pionPositions[gameState.currentPlayerIndex] ?? 0;
+    const rawPos = Math.min(currentPos + rolledNumber, 100);
+    const finalPos = await movePawn(topicID, gameID, roomKey, gameState.currentPlayerIndex, rolledNumber);
+    const isWin = finalPos >= 100;
+    const hitSnake = isSnakeHead(rawPos);
+    const needsQuestion = !hitSnake && isLadderStart(rawPos) && (gameState.questions?.length ?? 0) > 0;
+    if (!isWin && !needsQuestion) {
+      await nextTurn(topicID, gameID, roomKey);
+    }
   }, [isMyTurn, isBotActing, gameState, topicID, gameID, roomKey]);
 
   const handleSelectAnswer = useCallback(async (selectedIndex: number) => {
@@ -239,6 +247,7 @@ export default function UlarTanggaVsAiPage() {
             <Board
               pionPositionIndexes={pionPositionsRaw.map((pos) => (pos <= 1 ? 0 : pos - 1))}
               tanggaUp={Object.entries(LADDERS).map(([start, end]) => ({start: Number(start), end: Number(end)}))}
+              snakesDown={Object.entries(SNAKES).map(([start, end]) => ({start: Number(start), end: Number(end)}))}
               isCorrect={gameState?.isCorrect ?? false}
             />
           </div>

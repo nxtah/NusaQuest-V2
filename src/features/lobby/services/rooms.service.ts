@@ -97,8 +97,17 @@ export async function joinRoom(
       throw new Error('Room not found')
     }
 
-    if (room.players?.[userId]) {
-      return
+    const existing = room.players?.[userId];
+    if (existing) {
+      if (existing.isActive !== false) return; // sudah aktif, tidak perlu apa-apa
+      // Pernah join tapi di-set inactive (keluar lalu balik) — re-activate saja
+      await updateDoc(roomRef, {
+        [`players.${userId}.isActive`]: true,
+        [`players.${userId}.lastActivity`]: Date.now(),
+        ...(userName ? { [`players.${userId}.name`]: userName } : {}),
+        ...(userPhoto ? { [`players.${userId}.photoURL`]: userPhoto } : {}),
+      });
+      return;
     }
 
     if (room.maxPlayers != null && room.currentPlayers >= room.maxPlayers) {

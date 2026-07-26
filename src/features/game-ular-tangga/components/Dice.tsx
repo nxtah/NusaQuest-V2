@@ -106,6 +106,7 @@ export default function Dice({
   myPlayerId,
 }: DiceProps) {
   const [isLocalRolling, setIsLocalRolling] = useState(false);
+  const isLocalRollingRef = useRef(false);
   const [currentFace, setCurrentFace] = useState(1);
   const diceRef = useRef<HTMLDivElement | null>(null);
   const animationRef = useRef<gsap.core.Tween | null>(null);
@@ -133,23 +134,25 @@ export default function Dice({
 
   // Handle external dice state change (multiplayer sync)
   useEffect(() => {
-    // Reset guard setiap kali Firebase menyatakan tidak ada roll yang sedang berlangsung
     if (!diceState?.isRolling) {
       hasCalledRef.current = false;
       clickLockRef.current = false;
+      if (isLocalRollingRef.current) {
+        isLocalRollingRef.current = false;
+        setIsLocalRolling(false);
+      }
+      return;
     }
 
-    const isLocalRoll = !!myPlayerId && diceState?.rollingPlayerId === myPlayerId;
+    // Sudah animasi — skip
+    if (isLocalRollingRef.current || hasCalledRef.current) return;
 
-    if (diceState?.isRolling && !isLocalRolling && !hasCalledRef.current) {
-      // Ada pemain lain yang rolling (atau kita pindah tab & kembali)
-      animateDice(diceState.currentNumber);
-      setIsLocalRolling(true);
-    } else if (!diceState?.isRolling && isLocalRolling) {
-      // Roll dari luar selesai
-      setIsLocalRolling(false);
-    }
-  }, [diceState?.isRolling, diceState?.rollingPlayerId, myPlayerId, isLocalRolling]);
+    // Roll dari pemain lain (atau bot) — jalankan animasi
+    isLocalRollingRef.current = true;
+    setIsLocalRolling(true);
+    animateDice(diceState.currentNumber);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diceState?.isRolling, diceState?.currentNumber, diceState?.rollingPlayerId]);
 
   const animateDice = (finalNumber: number, isLocalRoll = false) => {
     if (!diceRef.current) return;
@@ -190,10 +193,10 @@ export default function Dice({
         setCurrentFace(finalNumber);
         animationRef.current = null;
 
+        isLocalRollingRef.current = false;
         setIsLocalRolling(false);
         clickLockRef.current = false;
 
-        // JIKA INI ROLL DARI KITA SENDIRI, PANGGIL ONROLLCOMPLETE DI SINI
         if (isLocalRoll || hasCalledRef.current) {
           onRollComplete(finalNumber, true);
         }
@@ -214,7 +217,8 @@ export default function Dice({
 
     const randomNumber = Math.floor(Math.random() * 6) + 1;
     clickLockRef.current = true;
-    hasCalledRef.current = true; // Tandai sudah dipanggil dari sini
+    hasCalledRef.current = true;
+    isLocalRollingRef.current = true;
     setIsLocalRolling(true);
 
     // Beritahu parent (dan Firebase) bahwa roll sudah dimulai, agar pemain lain bisa melihat animasi

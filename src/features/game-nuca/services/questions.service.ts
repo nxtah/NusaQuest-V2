@@ -44,10 +44,62 @@ export async function getQuestions(
     const snapshot = await getDocs(q)
     const questions: Question[] = snapshot.docs.map((doc) => ({
       ...doc.data(),
+      questionId: doc.data().questionId || doc.id,
     } as Question))
     return questions
   } catch (error) {
     console.error('Error fetching questions:', error)
+    throw error
+  }
+}
+
+/**
+ * Fetch questions for a map (all regions). Filters by mapId only — no compound
+ * index needed. isActive/isApproved filtering done client-side so the query
+ * works without a Firestore composite index being deployed.
+ */
+export async function getQuestionsByMap(
+  mapId: string,
+  limit_count: number = 100
+): Promise<Question[]> {
+  try {
+    const q = query(
+      collection(requireFirestore(), QUESTIONS_COLLECTION),
+      where('mapId', '==', mapId),
+      limit(limit_count)
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs
+      .map((d) => ({ ...d.data(), questionId: d.data().questionId || d.id } as Question))
+      .filter((q) => q.isActive !== false && q.isApproved !== false)
+  } catch (error) {
+    console.error('Error fetching questions by map:', error)
+    throw error
+  }
+}
+
+/**
+ * Fetch questions for a specific map + region. Filters by mapId only in the
+ * Firestore query (no compound index needed) — regionId/isActive/isApproved
+ * filtering done client-side, same strategy as getQuestionsByMap.
+ */
+export async function getQuestionsByRegion(
+  mapId: string,
+  regionId: string,
+  limit_count: number = 100
+): Promise<Question[]> {
+  try {
+    const q = query(
+      collection(requireFirestore(), QUESTIONS_COLLECTION),
+      where('mapId', '==', mapId),
+      limit(limit_count)
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs
+      .map((d) => ({ ...d.data(), questionId: d.data().questionId || d.id } as Question))
+      .filter((q) => q.regionId === regionId && q.isActive !== false && q.isApproved !== false)
+  } catch (error) {
+    console.error('Error fetching questions by region:', error)
     throw error
   }
 }
@@ -72,6 +124,7 @@ export async function getUnapprovedQuestions(
     const snapshot = await getDocs(q)
     const questions: Question[] = snapshot.docs.map((doc) => ({
       ...doc.data(),
+      questionId: doc.data().questionId || doc.id,
     } as Question))
     return questions
   } catch (error) {

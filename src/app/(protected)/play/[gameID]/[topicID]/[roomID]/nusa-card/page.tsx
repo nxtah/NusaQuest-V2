@@ -9,24 +9,18 @@ import type { PlayerCard } from "../../../../../../../features/game-nuca/compone
 import PauseModal from "../../../../../../../components/layout/PauseModal";
 import SettingButton from "../../../../../../../components/layout/SettingButton";
 import Loader from "../../../../../../../components/ui/Loader";
-import UlarTanggaLobby from "../../../../../../../features/game-ular-tangga/components/UlarTanggaLobby";
 import { useAuth } from "../../../../../../../features/auth/hooks/useAuth";
 
 import {
   fetchGamePlayers,
   listenToGameStart,
-  setGameStartStatus,
   type GamePlayer,
 } from "../../../../../../../features/game-ular-tangga/services/ular-tangga-game.service";
 import { playerJoinRoom, playerLeaveRoom } from "../../../../../../../features/lobby/services/lobby.service";
 import {
-  getQuestions,
-  shuffle,
-  initializeNusaCardGameState,
   listenToGameState,
   playCard,
   submitAnswer,
-  setGameStatus,
   cleanupGame,
   type NusaCardGameState,
 } from "../../../../../../../features/game-nuca/services/nusa-card-game.service";
@@ -88,29 +82,6 @@ export default function NusaCardPage() {
     });
     return () => unsub();
   }, [topicID, gameID, roomKey]);
-
-  // ── Host menekan "Mulai Permainan" ───────────────────────────────────────
-  const handleStartGame = async () => {
-    if (players.length === 0) return;
-    setLoading(true);
-    try {
-      const questions = shuffle(await getQuestions(topicID));
-      if (questions.length === 0) {
-        alert(`Peringatan: Tidak ada soal ditemukan untuk topik "${topicID}". Game akan berjalan tanpa soal.`);
-      }
-      const nusaCardPlayers = players.map((p) => ({
-        uid: p.uid,
-        displayName: p.displayName || p.name || "Pemain",
-        photoURL: p.photoURL,
-      }));
-      await initializeNusaCardGameState(roomKey, nusaCardPlayers, questions);
-      await setGameStatus(roomKey, "playing");
-      await setGameStartStatus(topicID, gameID, roomKey, true);
-    } catch (err) {
-      console.error("Gagal bootstrap game NusaCard:", err);
-      setLoading(false);
-    }
-  };
 
   // ── Subscribe gameState ──────────────────────────────────────────────────
   useEffect(() => {
@@ -187,12 +158,12 @@ export default function NusaCardPage() {
     return <Loader message="Memuat permainan NusaCard..." />;
   }
 
+  // Lobby "RUANG X" (wood-themed) cuma ada satu tempat: halaman /room/...
+  // Kalau gameStarted belum true di sini, arahkan balik — jangan render lobby
+  // kedua yang beda desain (dulu ada UlarTanggaLobby di sini, sisa alur lama).
   if (!gameStarted) {
-    return (
-      <main className="relative h-screen w-screen overflow-hidden">
-        <UlarTanggaLobby players={players} onStartGame={handleStartGame} topicID={topicID} roomID={roomID} myUID={myUID} />
-      </main>
-    );
+    router.replace(roomPath);
+    return <Loader message="Memuat permainan NusaCard..." />;
   }
 
   return (

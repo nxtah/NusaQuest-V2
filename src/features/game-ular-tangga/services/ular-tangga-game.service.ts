@@ -1,10 +1,12 @@
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { firebaseFirestore } from '@/src/lib/firebase/client';
-import { getQuestions as getFsQuestions } from '@/src/features/game-nuca/services/questions.service';
+import { getQuestionsByRegion } from '@/src/features/game-nuca/services/questions.service';
 import { getRegionById } from '@/src/features/destination/services/regions.service';
 import {
   isLadderStart,
   getLadderTarget,
+  isSnakeHead,
+  getSnakeTail,
 } from '../utils/board-rules';
 
 const GAME_STATES_COLLECTION = 'gameStates';
@@ -40,6 +42,7 @@ export interface UlarTanggaGameState {
   currentPlayerIndex: number;
   currentPlayerUID?: string;
   lastTurnChangeAt?: number;
+  playerUIDs: string[];
   pionPositions: number[];
   isMoving: boolean;
   showQuestion: boolean;
@@ -49,7 +52,7 @@ export interface UlarTanggaGameState {
   allowExtraRoll: boolean;
   potionUsable: boolean;
   currentQuestionIndex: number;
-  turnCounter?: number;
+  turnCounter: number;
   questions: UlarTanggaQuestion[];
   gameStatus: 'playing' | 'finished' | 'abandoned';
   gameType: 'ulartangga';
@@ -92,6 +95,7 @@ export async function updateGameState(
     if (!current.exists()) {
       const base: UlarTanggaGameState = {
         currentPlayerIndex: 0,
+        playerUIDs: [],
         pionPositions: [],
         isMoving: false,
         showQuestion: false,
@@ -101,6 +105,7 @@ export async function updateGameState(
         allowExtraRoll: false,
         potionUsable: false,
         currentQuestionIndex: 0,
+        turnCounter: 0,
         questions: [],
         gameStatus: 'playing',
         gameType: 'ulartangga',
@@ -134,23 +139,30 @@ export function fetchGamePlayers(
     const data = snapshot.data();
     const playersData = data.players || {};
     const playersArray: GamePlayer[] = Object.entries(playersData).map(
-      ([uid, p]: [string, any], index) => ({
-        uid,
-        displayName: p.displayName || p.name || 'Pemain',
-        photoURL: p.photoURL,
-        playerIndex: index,
-        role: p.role,
-      }),
+      ([uid, p], index) => {
+        const player = p as Record<string, unknown>;
+        return {
+          uid,
+          displayName: (player.displayName as string) || (player.name as string) || 'Pemain',
+          photoURL: player.photoURL as string | undefined,
+          playerIndex: index,
+          role: player.role as string | undefined,
+        };
+      },
     );
     callback(playersArray);
   });
 }
 
-export async function getQuestions(topicID: string): Promise<UlarTanggaQuestion[]> {
+// Param sebenarnya regionId (lihat CLAUDE.md: "topicID" di seluruh route
+// itu regionId, bukan mapId) — resolve ke mapId dulu via region, baru query
+// biar soal ke-filter sesuai topik/provinsi room, sama pola dengan
+// game-nuca/services/nusa-card-game.service.ts.
+export async function getQuestions(regionId: string): Promise<UlarTanggaQuestion[]> {
   try {
-    const region = await getRegionById(topicID);
+    const region = await getRegionById(regionId);
     if (!region) return [];
-    const fsQuestions = await getFsQuestions(region.mapId, topicID, 100);
+    const fsQuestions = await getQuestionsByRegion(region.mapId, regionId, 100);
     return fsQuestions.map((q) => ({
       id: q.questionId,
       text: q.text,
@@ -248,6 +260,7 @@ export async function initializeUlarTanggaGameState(
     currentPlayerIndex: 0,
     currentPlayerUID: players[0]?.uid,
     lastTurnChangeAt: Date.now(),
+    playerUIDs: players.map((p) => p.uid),
     pionPositions: players.map(() => 0),
     isMoving: false,
     showQuestion: false,
@@ -286,8 +299,49 @@ export async function cleanupGame(
       gameStatus: 'abandoned',
       lastUpdated: Date.now(),
     });
+  } catch {
+    // gameState may not exist — not fatal
+  }
+}
+
+/**
+ * Cek apakah sesi game sebelumnya sudah selesai/ditinggal. Jika ya, reset
+ * dokumen room ke status 'waiting' agar room page tidak langsung redirect
+ * ke halaman game saat user kembali ke room yang sama.
+ */
+export async function checkAndResetAbandonedRoom(
+  roomID: string,
+): Promise<void> {
+  try {
+    const roomRef = roomDocRef(roomID);
+    const roomSnap = await getDoc(roomRef);
+    if (!roomSnap.exists()) return;
+
+    const roomData = roomSnap.data();
+    if (roomData.status !== 'playing') return;
+
+    const gsRef = gameStateDocRef(roomID);
+    const gsSnap = await getDoc(gsRef);
+
+    let shouldReset = !gsSnap.exists();
+
+    if (!shouldReset && gsSnap.exists()) {
+      const gs = gsSnap.data() as { gameStatus?: string; playerActivity?: Record<string, PlayerActivity> };
+      if (gs.gameStatus === 'finished' || gs.gameStatus === 'abandoned') {
+        shouldReset = true;
+      } else {
+        const activity = gs.playerActivity ?? {};
+        const keys = Object.keys(activity);
+        const anyOnline = keys.length > 0 && Object.values(activity).some((a) => a.isActive);
+        if (!anyOnline && keys.length > 0) shouldReset = true;
+      }
+    }
+
+    if (shouldReset) {
+      await updateDoc(roomRef, { status: 'waiting', gameStarted: false });
+    }
   } catch (error) {
-    console.error('Error cleaning up game:', error);
+    console.error('Error checking/resetting abandoned room:', error);
   }
 }
 
@@ -341,12 +395,25 @@ export async function movePawn(
 
   const state = snapshot.data() as UlarTanggaGameState;
   const positions = [...state.pionPositions];
-  let newPosition = positions[playerIndex] + steps;
-  if (newPosition > 100) newPosition = 100;
+  const currentPosition = positions[playerIndex];
+  const newPosition = currentPosition + steps;
+  const rollsSix = steps === 6;
+
+  // Harus pas sampai kotak 100 — kalau lebih, pion diam di tempat, giliran tetap habis
+  // (kecuali dadu 6, lihat allowExtraRoll di nextTurn).
+  if (newPosition > 100) {
+    await updateDoc(ref, {
+      isMoving: false,
+      allowExtraRoll: rollsSix,
+      lastUpdated: Date.now(),
+    });
+    return currentPosition;
+  }
+
   positions[playerIndex] = newPosition;
 
-  // Menang: pion sampai kotak 100.
-  if (newPosition >= 100) {
+  // Menang: pion sampai pas kotak 100.
+  if (newPosition === 100) {
     await updateDoc(ref, {
       pionPositions: positions,
       isMoving: false,
@@ -354,6 +421,30 @@ export async function movePawn(
       lastUpdated: Date.now(),
     });
     return newPosition;
+  }
+
+  // Landing di kepala ular: tulis dulu posisi di kepala (biar animasi jalan
+  // kotak-per-kotak kelihatan di client), tunggu animasi jalan selesai,
+  // baru turun ke ekor lewat update terpisah (biar meluncur, bukan jalan).
+  if (isSnakeHead(newPosition)) {
+    await updateDoc(ref, {
+      pionPositions: positions,
+      isMoving: true,
+      lastUpdated: Date.now(),
+    });
+
+    const walkDurationMs = steps * 320 + 300;
+    await new Promise((resolve) => setTimeout(resolve, walkDurationMs));
+
+    const tail = getSnakeTail(newPosition)!;
+    positions[playerIndex] = tail;
+    await updateDoc(ref, {
+      pionPositions: positions,
+      isMoving: false,
+      allowExtraRoll: rollsSix,
+      lastUpdated: Date.now(),
+    });
+    return tail;
   }
 
   // Landing di pangkal tangga: munculin soal dulu, tangga baru naik kalau jawaban benar
@@ -366,6 +457,7 @@ export async function movePawn(
       showQuestion: true,
       waitingForAnswer: true,
       currentQuestionIndex: questionIndex,
+      allowExtraRoll: rollsSix,
       lastUpdated: Date.now(),
     });
     return newPosition;
@@ -374,6 +466,7 @@ export async function movePawn(
   await updateDoc(ref, {
     pionPositions: positions,
     isMoving: false,
+    allowExtraRoll: rollsSix,
     lastUpdated: Date.now(),
   });
 
@@ -408,7 +501,9 @@ export async function submitAnswer(
     isCorrect,
     selectedAnswerIndex: selectedIndex,
     waitingForAnswer: false,
-    showQuestion: false,
+    // showQuestion TETAP true di sini — biar QuestionPanel gak langsung
+    // ganti ke InitialPanel dan highlight merah/hijau jawaban sempet
+    // kelihatan. nextTurn() yang reset showQuestion:false setelah delay.
     pionPositions: positions,
     lastUpdated: Date.now(),
   };
@@ -433,12 +528,31 @@ export async function nextTurn(
 
   const state = snapshot.data() as UlarTanggaGameState;
   const playerCount = state.pionPositions.length;
+
+  // Dadu 6: pemain yang sama lempar lagi, giliran gak pindah.
+  if (state.allowExtraRoll) {
+    await updateDoc(ref, {
+      lastTurnChangeAt: Date.now(),
+      diceState: { isRolling: false, currentNumber: 0, lastRoll: null },
+      waitingForAnswer: false,
+      showQuestion: false,
+      isCorrect: null,
+      selectedAnswerIndex: null,
+      allowExtraRoll: false,
+      currentQuestionIndex: 0,
+      lastUpdated: Date.now(),
+    });
+    return;
+  }
+
   const nextIndex = (state.currentPlayerIndex + 1) % playerCount;
+  const nextUID = state.playerUIDs?.[nextIndex];
 
   await updateDoc(ref, {
     currentPlayerIndex: nextIndex,
-    currentPlayerUID: undefined,
+    currentPlayerUID: nextUID ?? null,
     lastTurnChangeAt: Date.now(),
+    turnCounter: (state.turnCounter ?? 0) + 1,
     diceState: { isRolling: false, currentNumber: 0, lastRoll: null },
     waitingForAnswer: false,
     showQuestion: false,
