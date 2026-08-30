@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   setDoc,
   updateDoc,
   type DocumentData,
@@ -99,10 +100,26 @@ export async function deleteDocument(
   }
 }
 
+/** Listener realtime generik — dipake buat tabel admin & halaman publik
+    yang butuh update langsung tanpa refresh manual (mis. /information,
+    /credit, dan tabel-tabel admin-v2). */
+export function listenToCollection<T extends DocumentData>(
+  collectionPath: string,
+  callback: (items: (T & { id: string })[]) => void,
+): () => void {
+  return onSnapshot(collection(requireFirestore(), collectionPath), (snapshot) => {
+    callback(snapshot.docs.map((docSnapshot) => ({ id: docSnapshot.id, ...(docSnapshot.data() as T) })));
+  });
+}
+
 export function usersCollectionPath() {
   return 'users';
 }
 
 export function informationItemsCollectionPath() {
   return 'informationItems';
+}
+
+export function creditsCollectionPath() {
+  return 'credits';
 }

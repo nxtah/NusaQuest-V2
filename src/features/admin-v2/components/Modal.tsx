@@ -1,5 +1,6 @@
 'use client';
 import {useState} from 'react';
+import '../admin-theme.css';
 
 interface ModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ export default function Modal({
   onSubmit,
   isLoading = false,
   children,
-  submitButtonText = 'Save',
+  submitButtonText = 'Simpan',
   size = 'md',
 }: ModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,61 +45,63 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="nq-admin-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className={`${sizeClasses[size]} bg-[#1e2532] border border-white/20 rounded-2xl shadow-2xl p-8 relative backdrop-blur-xl max-h-[90vh] overflow-y-auto`}
+        className={`nq-admin-modal-frame ${sizeClasses[size]} rounded-[1.75rem] p-2 relative`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-gray-400"
+        <div className="nq-admin-modal-inner rounded-[1.4rem] p-6 sm:p-8 max-h-[85vh] overflow-y-auto nq-admin-scrollbar">
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            aria-label="Tutup"
+            className="absolute top-4 right-4 p-2 rounded-full text-[#4a2a1a]/60 hover:text-[#4a2a1a] hover:bg-black/5 transition-colors"
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-
-        {/* Title */}
-        <h2 className="text-2xl font-bold text-white mb-6">{title}</h2>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {children}
-
-          {/* Buttons */}
-          <div className="flex gap-3 justify-end pt-6 border-t border-white/10">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting || isLoading}
-              className="px-6 py-2.5 bg-gray-600/20 hover:bg-gray-600/40 text-gray-200 rounded-lg font-semibold transition-all disabled:opacity-50"
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || isLoading}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
-            >
-              {(isSubmitting || isLoading) && (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              )}
-              {submitButtonText}
-            </button>
-          </div>
-        </form>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          {/* Title */}
+          <h2 className="font-bauhaus text-xl sm:text-2xl mb-6 pr-8 tracking-wide">{title}</h2>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {children}
+
+            {/* Buttons */}
+            <div className="flex gap-3 justify-end pt-5 border-t border-[#8b5e2a]/20">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting || isLoading}
+                className="nq-admin-btn-secondary px-6 py-2.5 rounded-full font-bold text-sm"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || isLoading}
+                className="nq-admin-btn-primary px-6 py-2.5 rounded-full font-bold text-sm flex items-center gap-2"
+              >
+                {(isSubmitting || isLoading) && (
+                  <div className="w-4 h-4 border-2 border-[#4a2a1a]/30 border-t-[#4a2a1a] rounded-full animate-spin" />
+                )}
+                {submitButtonText}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -127,9 +130,9 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-gray-200 mb-2">
+      <label className="block text-sm font-semibold text-[#4a2a1a] mb-2">
         {label}
-        {required && <span className="text-red-400 ml-1">*</span>}
+        {required && <span className="text-red-600 ml-1">*</span>}
       </label>
       {type === 'textarea' ? (
         <textarea
@@ -138,16 +141,16 @@ export function FormField({
           defaultValue={value}
           required={required}
           rows={rows || 3}
-          className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          className="nq-admin-field w-full px-4 py-2.5 rounded-xl"
         />
       ) : type === 'select' ? (
         <select
           name={name}
           defaultValue={value || ''}
           required={required}
-          className="w-full px-4 py-2.5 bg-white text-gray-900 border border-white/20 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          className="nq-admin-field w-full px-4 py-2.5 rounded-xl"
         >
-          <option value="" className="text-gray-500">Select {label.toLowerCase()}</option>
+          <option value="">Pilih {label.toLowerCase()}</option>
           {children}
         </select>
       ) : (
@@ -157,7 +160,7 @@ export function FormField({
           placeholder={placeholder}
           defaultValue={value}
           required={required}
-          className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          className="nq-admin-field w-full px-4 py-2.5 rounded-xl"
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import {
   joinRoom as fsJoinRoom,
   leaveRoom as fsLeaveRoom,
   startGame as fsStartGame,
+  markPlayerInactiveInRoom as fsMarkPlayerInactiveInRoom,
 } from '@/src/features/lobby/services/rooms.service';
 import type { Room, RoomPlayer } from '@/src/types/firestore';
 
@@ -85,6 +86,13 @@ export async function playerLeaveRoom(
   userId: string,
 ): Promise<void> {
   await fsLeaveRoom(roomID, userId);
+}
+
+/** Dipanggil pas pemain keluar SAAT GAME UDAH JALAN (beda dari `playerLeaveRoom`,
+    yang dipakai keluar sebelum game mulai) — biar badge okupansi lobby ikut
+    ke-update, bukan cuma staleness di gameState. */
+export async function markPlayerInactiveInRoom(roomID: string, userId: string): Promise<void> {
+  await fsMarkPlayerInactiveInRoom(roomID, userId);
 }
 
 export async function startGameInRoom(

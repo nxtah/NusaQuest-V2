@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
 export type PlayerTurnStatus = "idle" | "thrower" | "waiting" | "answering" | "answered";
@@ -14,6 +14,18 @@ interface PlayerProfileNucaProps {
   answerDurationSeconds?: number;
   /** Dipanggil sekali saat hitungan mundur mencapai 0. Pakai ini untuk memajukan giliran. */
   onAnswerTimeout?: () => void;
+  /**
+   * Timestamp (ms, server) giliran lempar SEKARANG mulai — dari
+   * `NusaCardGameState.throwerTurnStartedAt`. Beda dari `answerDurationSeconds`
+   * (yang cuma hitung mundur lokal/dekoratif): ini disinkronin ke jam server
+   * beneran, karena batas waktunya DITEGAKKAN (lihat handleThrowTimeout di
+   * nusa-card-game.service.ts), bukan cuma visual.
+   */
+  throwerTurnStartedAt?: number;
+  /** Batas waktu lempar kartu (detik). Default 10. */
+  throwDurationSeconds?: number;
+  /** Dipanggil sekali saat hitung mundur lempar mencapai 0. */
+  onThrowTimeout?: () => void;
 }
 
 const RADIUS = 46;
@@ -26,10 +38,40 @@ export default function PlayerProfileNuca({
   avatarUrl,
   answerDurationSeconds = 7,
   onAnswerTimeout,
+  throwerTurnStartedAt,
+  throwDurationSeconds = 10,
+  onThrowTimeout,
 }: PlayerProfileNucaProps) {
   const avatarSize = sizeClassName ?? "h-11 w-11 sm:h-12 sm:w-12";
 
   const [secondsLeft, setSecondsLeft] = useState(answerDurationSeconds);
+
+  // Hitung mundur lempar kartu — disinkron ke `throwerTurnStartedAt` (jam
+  // server) tiap tick, bukan sekadar decrement lokal, biar gak ngedrift dan
+  // tetep bener kalau komponennya baru mount di tengah giliran yang udah
+  // jalan (mis. reconnect).
+  const [throwSecondsLeft, setThrowSecondsLeft] = useState(throwDurationSeconds);
+  const firedTimeoutRef = useRef(false);
+
+  useEffect(() => {
+    if (status !== "thrower" || !throwerTurnStartedAt) return;
+    firedTimeoutRef.current = false;
+
+    const tick = () => {
+      const elapsed = (Date.now() - throwerTurnStartedAt) / 1000;
+      const remaining = Math.max(0, throwDurationSeconds - elapsed);
+      setThrowSecondsLeft(remaining);
+      if (remaining <= 0 && !firedTimeoutRef.current) {
+        firedTimeoutRef.current = true;
+        onThrowTimeout?.();
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, throwerTurnStartedAt, throwDurationSeconds]);
 
   // Reset hitungan tiap kali player ini baru masuk status "answering".
   useEffect(() => {
@@ -72,9 +114,36 @@ export default function PlayerProfileNuca({
           ) : null}
         </div>
 
-        {/* THROWER — ring emas statis */}
+        {/* THROWER — ring emas hitung mundur 10 detik (batas waktu lempar
+            kartu beneran ditegakkan, lihat handleThrowTimeout), fallback ke
+            ring statis kalau throwerTurnStartedAt gak dikasih. */}
         {status === "thrower" ? (
-          <span className="pointer-events-none absolute -inset-[3px] rounded-full ring-[3px] ring-[#f6b93b]" />
+          throwerTurnStartedAt ? (
+            <>
+              <svg className="pointer-events-none absolute -inset-[3px] -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="6" />
+                <motion.circle
+                  cx="50"
+                  cy="50"
+                  r={RADIUS}
+                  fill="none"
+                  stroke="#f6b93b"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={CIRCUMFERENCE}
+                  animate={{
+                    strokeDashoffset: CIRCUMFERENCE * (1 - throwSecondsLeft / throwDurationSeconds),
+                  }}
+                  transition={{ duration: 0.2, ease: "linear" }}
+                />
+              </svg>
+              <span className="absolute -bottom-1.5 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-[#6b3f0a] text-[10px] font-bold text-white shadow-md">
+                {Math.ceil(throwSecondsLeft).toString().padStart(2, "0")}
+              </span>
+            </>
+          ) : (
+            <span className="pointer-events-none absolute -inset-[3px] rounded-full ring-[3px] ring-[#f6b93b]" />
+          )
         ) : null}
 
         {/* ANSWERING — ring timer yang berkurang + badge angka mundur */}

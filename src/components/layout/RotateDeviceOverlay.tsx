@@ -5,6 +5,7 @@ export default function RotateDeviceOverlay() {
         <div
             role="alert"
             aria-live="assertive"
+            suppressHydrationWarning
             className="fixed inset-0 z-[100] hidden portrait:flex md:!hidden flex-col items-center justify-center gap-6 overflow-hidden px-6"
         >
             <img

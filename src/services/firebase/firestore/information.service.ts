@@ -8,6 +8,7 @@ import {
   getCollectionDocs,
   getDocument,
   informationItemsCollectionPath,
+  listenToCollection,
   updateDocument,
 } from './base.service';
 
@@ -40,6 +41,14 @@ export type InformationItemRecord = InformationItem & { id: string };
 
 export function getAllInformationItems(): Promise<AppResult<InformationItemRecord[]>> {
   return getCollectionDocs<InformationItem>(informationItemsCollectionPath());
+}
+
+/** Realtime — dipake tabel admin & /information biar update langsung
+    kelihatan tanpa refresh manual. */
+export function listenToInformationItems(
+  callback: (items: InformationItemRecord[]) => void,
+): () => void {
+  return listenToCollection<InformationItem>(informationItemsCollectionPath(), callback);
 }
 
 export function getInformationItem(id: string): Promise<AppResult<InformationItemRecord | null>> {

@@ -2,9 +2,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { information } from "../../../../assets/images/information/cloudinaryAssets";
 import { background } from "../../../../assets/images/background/cloudinaryAssets";
-import { getInformationItem } from "../../../../services/firebase/firestore/information.service";
+import { Poppins } from "next/font/google";
+import localFont from "next/font/local";
+import {
+    getInformationItem,
+    getInformationItemsByTab,
+} from "../../../../services/firebase/firestore/information.service";
+import { ROUTES } from "../../../../lib/constants/routes";
+import BackButton from "../../../../components/ui/BackButton";
 
-export default async function InformationPicturePage({
+const poppins = Poppins({
+    subsets: ["latin"],
+    weight: ["400", "600", "700"],
+});
+
+const bauhausLace = localFont({
+    src: "../../../../../public/fonts/Tanker.ttf",
+    variable: "--font-bauhaus-lace",
+});
+
+const SUGGESTION_LIMIT = 6;
+const POSTCARD_TILT = ["-2.5deg", "2deg", "-1.5deg", "2.5deg", "-2deg", "1.5deg"];
+
+export default async function InformationDetailPage({
     params,
 }: {
     params: Promise<{ id: string }>;
@@ -15,132 +35,222 @@ export default async function InformationPicturePage({
     const result = await getInformationItem(currentId);
     const currentItem = result.success ? result.data : null;
 
+    const title = currentItem?.title || "Judul Tidak Ditemukan";
+    const description =
+        currentItem?.description || "Deskripsi tidak tersedia untuk item ini.";
     const imageUrl = currentItem?.imageUrl || background.bgNusa;
 
+    let suggestions: { id: string; title: string; imageUrl: string }[] = [];
+    if (currentItem) {
+        const tabResult = await getInformationItemsByTab(currentItem.tab);
+        if (tabResult.success) {
+            suggestions = tabResult.data
+                .filter((item) => item.id !== currentItem.id)
+                .slice(0, SUGGESTION_LIMIT);
+        }
+    }
+
     return (
-        <main className="relative flex items-center justify-center h-[100dvh] w-full p-8 overflow-hidden">
-            {/* Overlay untuk Rotasi Perangkat */}
+        <main className={`relative h-[100dvh] w-full overflow-x-hidden overflow-y-auto ${poppins.className}`}>
+            {/* Claymorphism gold tag (resep sama kayak BackButton) + entrance
+                animation buat kartu jurnal + postcard sugesti. Dipisah dari
+                Tailwind karena butuh gradient/shadow berlapis & keyframes. */}
+            <style>{`
+                .nq-tag-badge {
+                    background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
+                    box-shadow:
+                        0 3px 0 #c6841a,
+                        0 6px 10px rgba(120, 72, 0, 0.35),
+                        inset -2px -2px 4px rgba(150, 90, 0, 0.25),
+                        inset 2px 2px 4px rgba(255, 255, 255, 0.65);
+                }
+                .nq-journal-entrance {
+                    animation: nq-journal-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+                }
+                .nq-postcard {
+                    transition: transform 220ms ease-out, box-shadow 220ms ease-out;
+                }
+                .nq-postcard:hover, .nq-postcard:focus-visible {
+                    transform: rotate(0deg) translateY(-4px) scale(1.04) !important;
+                    box-shadow: 0 14px 24px rgba(38, 22, 6, 0.35);
+                }
+                @keyframes nq-journal-in {
+                    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .nq-journal-entrance { animation: none; }
+                    .nq-postcard { transition: none; }
+                }
+                .nq-photo-shadow {
+                    background: radial-gradient(ellipse at center, rgba(20, 10, 0, 0.45) 0%, rgba(20, 10, 0, 0) 70%);
+                }
+            `}</style>
 
             {/* Background Image */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[100dvw] h-[100dvh] -z-10">
+            <div className="fixed -inset-16 md:-inset-10 -z-10 bg-[#59a87d]">
                 <Image
-                    src={background.laut}
+                    src={background.bgNusa}
                     alt="Background"
                     fill
-                    className="object-cover scale-125 blur-xl"
+                    className="object-cover blur-xl"
                     priority
                 />
-                <div className="absolute inset-0 z-10 bg-cyan-300/10"></div>
+                <div className="absolute inset-0 z-10 bg-black/10"></div>
             </div>
 
-            {/* Content */}
-            <div className="relative w-full h-[70vh] sm:h-[80vh] flex items-center justify-center border-2 border-black p-2 sm:p-4 lg:p-8 rounded-3xl">
-                {/* Image Container — aspect ratio matches the frame asset's own
-                    (2490x984 ≈ 2.53:1), not a guessed value.
-                    The mask asset (imagePopupMask, 2456x948) and the visible
-                    frame asset (imagePopup, 2490x984) are two SEPARATE files
-                    with slightly different intrinsic ratios (2.591 vs 2.530).
-                    Sizing each with `contain` — which fits using each asset's
-                    OWN ratio — let them drift apart by a few percent, so the
-                    mask's cutout edge landed in a different place than the
-                    frame's drawn border, letting a sliver of unmasked photo
-                    show through the gap. Stretching both to a fixed "100% 100%"
-                    forces them onto the exact same box regardless of their
-                    individual source ratios, so the cutout and the border
-                    can't drift relative to each other (the ~1-4% non-uniform
-                    scale this introduces is not visible). */}
-                <div
-                    className="relative sm:w-[90%] lg:w-full max-w-full max-h-full flex items-center justify-center"
-                    style={{ aspectRatio: "2490 / 984" }}
-                >
-                    <div
-                        className="absolute inset-0 z-10 overflow-hidden"
-                        style={{
-                            WebkitMaskImage: `url(${information.imagePopupMask})`,
-                            maskImage: `url(${information.imagePopupMask})`,
-                            WebkitMaskRepeat: "no-repeat",
-                            maskRepeat: "no-repeat",
-                            WebkitMaskSize: "100% 100%",
-                            maskSize: "100% 100%",
-                            WebkitMaskPosition: "center",
-                            maskPosition: "center",
-                        }}
-                    >
-                        <Image
-                            src={imageUrl}
-                            alt={currentItem?.title || "Content Image"}
-                            fill
-                            className="object-cover"
-                        />
-                    </div>
+            <div className="mx-4 md:mx-12 mt-4 md:mt-6 flex flex-col items-center gap-14 md:gap-20 pb-14 md:pb-20 z-10 relative">
+                {/* Tombol Kembali */}
+                <div className="w-full flex justify-start">
+                    <BackButton href={ROUTES.public.information} iconSize="md" />
+                </div>
 
+                {/* Entri Jurnal — foto tertempel miring di atas papan kayu */}
+                <div className="nq-journal-entrance relative w-full max-w-3xl mt-16 md:mt-24">
+                    {/* Sulur Tanaman */}
                     <Image
-                        src={information.imagePopup}
-                        alt="Popup Container"
-                        fill
-                        className="object-contain z-20 drop-shadow-2xl pointer-events-none"
+                        src={information.tanamankiri}
+                        alt=""
+                        width={220}
+                        height={260}
+                        className="absolute -top-16 -left-10 sm:-left-20 w-28 sm:w-44 h-auto z-0 pointer-events-none select-none"
+                    />
+                    <Image
+                        src={information.tanamankanan}
+                        alt=""
+                        width={220}
+                        height={260}
+                        className="absolute -top-16 -right-10 sm:-right-20 w-28 sm:w-44 h-auto z-0 pointer-events-none select-none"
                     />
 
-                    {/* Tombol Kembali */}
-                    <Link
-                        href="/information"
-                        className="absolute left-[1%] sm:top-[5%] lg:top-[9%] sm:w-[6%] lg:w-[5%] aspect-square flex items-center justify-center rounded-full border sm:border-2 border-white/80 text-white/80 hover:bg-white/20 transition-all z-30"
+                    {/* Papan Kayu */}
+                    <div
+                        className="relative z-10 rounded-[1.75rem] sm:rounded-[2rem] border-[5px] sm:border-[6px] border-[#3d2411] shadow-2xl bg-center bg-cover"
+                        style={{ backgroundImage: `url(${background.kayu})` }}
                     >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth="1.5"
-                            stroke="currentColor"
-                            className="w-[50%] h-[50%] sm:w-[60%] sm:h-[60%]"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-                            />
-                        </svg>
-                    </Link>
-
-                    {/* Tombol Selanjutnya */}
-                    <Link
-                        href={`/information/${currentId}/detail`}
-                        className="absolute right-[1%] sm:top-[5%] lg:top-[9%] sm:w-[6%] lg:w-[5%] aspect-square flex items-center justify-center rounded-full border sm:border-2 border-white/80 text-white/80 hover:bg-white/20 transition-all z-30"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth="1.5"
-                            stroke="currentColor"
-                            className="w-[50%] h-[50%] sm:w-[60%] sm:h-[60%]"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
-                            />
-                        </svg>
-                    </Link>
-
-                    {/* Dekorasi Bunga Melati */}
-                    <div className="absolute sm:bottom-[2%] lg:bottom-[5%] -left-[1%] w-[15%] sm:w-[10%] lg:w-[10%] aspect-square z-30 pointer-events-none">
-                        <Image
-                            src={information.melati}
-                            alt="Bunga Melati"
-                            fill
-                            className="object-contain -rotate-[135deg]"
-                        />
+                        <div className="rounded-[1.4rem] sm:rounded-[1.6rem] bg-black/15 px-4 pt-24 pb-7 sm:px-10 sm:pt-32 sm:pb-10 flex flex-col items-center gap-4 md:gap-6">
+                            {/* Kertas — judul & deskripsi */}
+                            <div
+                                className="relative w-full rounded-xl sm:rounded-2xl px-6 py-7 sm:px-10 sm:py-10 shadow-inner bg-center bg-cover"
+                                style={{ backgroundImage: `url(${information.kertas})` }}
+                            >
+                                <Image
+                                    src={information.melati}
+                                    alt=""
+                                    width={56}
+                                    height={56}
+                                    className="absolute top-2 left-2 sm:top-3 sm:left-3 w-7 sm:w-10 h-auto -rotate-[45deg] opacity-90 pointer-events-none select-none"
+                                />
+                                <Image
+                                    src={information.melati}
+                                    alt=""
+                                    width={56}
+                                    height={56}
+                                    className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 w-7 sm:w-10 h-auto rotate-[135deg] opacity-90 pointer-events-none select-none"
+                                />
+                                <h1
+                                    className={`relative text-2xl sm:text-3xl md:text-4xl text-[#3d2411] font-bold tracking-wide text-center ${bauhausLace.className}`}
+                                >
+                                    {title}
+                                </h1>
+                                <div className="relative mx-auto mt-3 mb-4 sm:mt-4 sm:mb-5 h-[3px] w-16 sm:w-24 rounded-full bg-[#c6841a]/60" />
+                                <p className="relative text-base sm:text-lg md:text-xl text-[#4a2a1a]/85 leading-relaxed text-center max-w-xl mx-auto">
+                                    {description}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="absolute sm:bottom-[2%] lg:bottom-[5%] -right-[1%] w-[15%] sm:w-[10%] lg:w-[10%] aspect-square z-30 pointer-events-none">
-                        <Image
-                            src={information.melati}
-                            alt="Bunga Melati"
-                            fill
-                            className="object-contain rotate-[135deg]"
+
+                    {/* Foto — bingkai ornamen resmi (aset sama kayak yang lama),
+                        ditempel miring nongol dari atas papan, kayak foto
+                        dijepret ke halaman jurnal. Elips blur di baliknya
+                        ngasih kesan foto "ngambang"/nempel di papan, bukan
+                        cuma numpuk flat. */}
+                    <div className="absolute -top-16 sm:-top-24 md:-top-28 left-1/2 -translate-x-1/2 w-[88%] sm:w-[78%] max-w-xl z-20">
+                        <div
+                            className="nq-photo-shadow absolute -bottom-4 left-1/2 -translate-x-1/2 w-[85%] h-8 sm:h-10 rounded-full blur-md"
+                            aria-hidden="true"
                         />
+                        <div
+                            className="relative rotate-[-3deg] drop-shadow-2xl"
+                            style={{ aspectRatio: "2490 / 984" }}
+                        >
+                            <div
+                                className="absolute inset-0 z-10 overflow-hidden"
+                                style={{
+                                    WebkitMaskImage: `url(${information.imagePopupMask})`,
+                                    maskImage: `url(${information.imagePopupMask})`,
+                                    WebkitMaskRepeat: "no-repeat",
+                                    maskRepeat: "no-repeat",
+                                    WebkitMaskSize: "100% 100%",
+                                    maskSize: "100% 100%",
+                                    WebkitMaskPosition: "center",
+                                    maskPosition: "center",
+                                }}
+                            >
+                                <Image
+                                    src={imageUrl}
+                                    alt={title}
+                                    fill
+                                    sizes="(max-width: 768px) 80vw, 600px"
+                                    className="object-cover"
+                                    priority
+                                />
+                            </div>
+                            <Image
+                                src={information.imagePopup}
+                                alt=""
+                                fill
+                                className="object-contain z-20 pointer-events-none select-none"
+                            />
+                        </div>
                     </div>
+
+                    {/* Label Kategori */}
+                    {currentItem && (
+                        <div className="absolute -top-8 sm:-top-10 right-2 sm:right-8 z-30 rotate-[6deg]">
+                            <span className="nq-tag-badge inline-block px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-full text-[10px] sm:text-sm font-bold uppercase tracking-wider text-[#4a2a1a]">
+                                {currentItem.tab}
+                            </span>
+                        </div>
+                    )}
                 </div>
+
+                {/* Sugesti — postcard nemplok di papan gabus */}
+                {suggestions.length > 0 && (
+                    <div className="w-full max-w-5xl">
+                        <h2
+                            className={`text-white text-lg sm:text-xl md:text-2xl font-bold tracking-wide text-center drop-shadow-md ${bauhausLace.className}`}
+                        >
+                            Jelajahi Lainnya
+                        </h2>
+                        <div className="mx-auto mt-1 mb-6 sm:mb-8 h-[3px] w-20 sm:w-24 rounded-full bg-white/50" />
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10 place-items-center">
+                            {suggestions.map((item, index) => (
+                                <Link
+                                    key={item.id}
+                                    href={`/information/${item.id}`}
+                                    className="nq-postcard group block w-full max-w-[9.5rem] rounded-lg bg-[#fdf6e3] p-2 pb-3 shadow-lg"
+                                    style={{ transform: `rotate(${POSTCARD_TILT[index % POSTCARD_TILT.length]})` }}
+                                >
+                                    <div className="relative w-full aspect-square overflow-hidden rounded-sm border border-black/10">
+                                        <Image
+                                            src={item.imageUrl}
+                                            alt={item.title}
+                                            fill
+                                            sizes="150px"
+                                            className="object-cover"
+                                        />
+                                    </div>
+                                    <p className="mt-2 text-center text-[11px] sm:text-xs font-semibold text-[#4a2a1a] truncate">
+                                        {item.title}
+                                    </p>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </main>
     );

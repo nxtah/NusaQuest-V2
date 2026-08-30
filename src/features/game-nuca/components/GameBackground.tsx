@@ -48,7 +48,11 @@ export default function GameBackground() {
                 alt="Game Background"
                 className="absolute -right-[8%] -bottom-[10%] w-[40%] lg:-right-[8%] lg:-bottom-[8%] lg:w-[45%] -scale-y-100 -rotate-[10deg] object-cover z-10"
             />
-            <div className="absolute left-1/2 top-1/2 z-10 h-[70vh] w-[68vw] lg:h-[77vh] lg:w-[76vw] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full">
+            {/* Meja oval/pill — lebar jauh lebih gede dari tinggi, `rounded-full`
+                (border-radius raksasa) otomatis "mentok" jadi ujung setengah
+                lingkaran di sisi pendek + sisi lurus di sisi panjang, bukan
+                elips penuh (yang kejadian kalau w≈h kayak sebelumnya). */}
+            <div className="absolute left-1/2 top-1/2 z-10 h-[46vh] w-[92vw] lg:h-[50vh] lg:w-[82vw] max-w-[1400px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full">
                 <img
                     src={nuca.kayu}
                     alt="Game board"

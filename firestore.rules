@@ -51,9 +51,15 @@ service cloud.firestore {
     // ── Collection: destinations ───────────────────────────────────────
     match /destinations/{destinationId} {
       allow read: if true;
-      // admin-v2 belum pakai Firebase Auth admin role (masih password gate
-      // client-side), jadi belum bisa isAdmin()-gated. Minimal butuh login.
-      allow create, update, delete: if isAuth();
+      // admin-v2 sekarang beneran login lewat Firebase Auth + custom claim
+      // role:'admin' — konsisten sama questions/informationItems.
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── Collection: credits (halaman /credit) ────────────────────────────
+    match /credits/{memberId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     // ── Collection: questions ──────────────────────────────────────────

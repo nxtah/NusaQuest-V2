@@ -7,6 +7,7 @@ type CreditMemberModalProps = {
   memberName: string;
   memberRole: string;
   memberBio: string;
+  memberPhotoURL?: string;
   titleClassName: string;
   onClose: () => void;
 };
@@ -16,6 +17,7 @@ export default function CreditMemberModal({
   memberName,
   memberRole,
   memberBio,
+  memberPhotoURL,
   titleClassName,
   onClose,
 }: CreditMemberModalProps) {
@@ -80,7 +82,12 @@ export default function CreditMemberModal({
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-12 md:gap-6">
           <div className="md:col-span-5">
-            <div className="aspect-[4/5] w-full rounded-xl border-2 border-dashed border-orange-50/90 bg-orange-50/45" />
+            <div className="aspect-[4/5] w-full overflow-hidden rounded-xl border-2 border-dashed border-orange-50/90 bg-orange-50/45">
+              {memberPhotoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={memberPhotoURL} alt={memberName} className="h-full w-full object-cover" />
+              ) : null}
+            </div>
           </div>
 
           <div className="rounded-xl border border-orange-100/80 bg-[#fff4e6]/55 p-4 shadow-inner md:col-span-7">

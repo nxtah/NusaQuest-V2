@@ -7,7 +7,7 @@ interface PageHeaderProps {
 }
 
 const bauhausLace = localFont({
-    src: "../../../public/fonts/Bauhaus.otf",
+    src: "../../../public/fonts/Tanker.ttf",
     variable: "--font-bauhaus-lace",
 })
 
@@ -40,8 +40,13 @@ export default function PageHeader({ title }: PageHeaderProps) {
                     height={150}
                     className="w-full h-auto object-contain drop-shadow-lg"
                 />
+                {/* top-[28%] dihitung dari pusat kuning band1 yang beneran
+                    (pixel-scan: y=23-173 dari 351px tinggi gambar ≈ 27.9%),
+                    bukan 46% (setengah tinggi KOTAK gambar termasuk area
+                    shadow kosong di bawah pita) — makanya judul kerasa
+                    ketarik ke bawah dari tengah pita. */}
                 <h1
-                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-black font-bold text-base sm:text-xl lg:text-3xl tracking-wider text-center w-[90%] ${bauhausLace.className}`}
+                    className={`absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-black font-bold text-lg sm:text-2xl lg:text-4xl tracking-wider text-center w-[90%] ${bauhausLace.className}`}
                 >
                     {title}
                 </h1>

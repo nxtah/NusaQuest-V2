@@ -32,6 +32,9 @@ interface PlayerTurnBoxProps {
   focusedPlayerIndex?: number | null;
   focusedPlayerName?: string | null;
   myPlayerId?: string;
+  /** Stok potion pemain ini, buat tombol "Pakai Potion" di QuestionPanel. */
+  potionCount?: number;
+  onUsePotion?: () => void;
 }
 
 export default function PlayerTurnBox({
@@ -49,6 +52,8 @@ export default function PlayerTurnBox({
   focusedPlayerIndex = null,
   focusedPlayerName = null,
   myPlayerId,
+  potionCount = 0,
+  onUsePotion,
 }: PlayerTurnBoxProps) {
   return (
     <div className="w-full flex justify-center">
@@ -62,6 +67,8 @@ export default function PlayerTurnBox({
               selectedIndex={question.selectedIndex ?? null}
               isCorrectIndex={question.isCorrectIndex ?? null}
               onSelectOption={onSelectAnswer}
+              potionCount={isMyTurn ? potionCount : 0}
+              onUsePotion={isMyTurn ? onUsePotion : undefined}
             />
           ) : (
             <InitialPanel focusedName={focusedPlayerName} />

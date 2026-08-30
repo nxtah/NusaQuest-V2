@@ -3,6 +3,8 @@
 import {useEffect, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import Image from 'next/image';
+import {doc, setDoc} from 'firebase/firestore';
+import {firebaseFirestore} from '@/src/lib/firebase/client';
 import {
   listenToRoomPlayers,
   playerJoinRoom,
@@ -60,48 +62,78 @@ export default function RoomPage() {
   const [starting, setStarting] = useState(false);
   // true setelah checkAndResetAbandonedRoom selesai — gate buat subscribeToGameStart
   const [roomChecked, setRoomChecked] = useState(false);
+  // Room udah 'playing' dan kita bukan salah satu pemain yang udah gabung —
+  // jangan di-join, tampilin pesan "sedang dipakai" aja. null = belum tau /
+  // gak locked.
+  const [roomLocked, setRoomLocked] = useState<{ activeCount: number } | null>(null);
 
   // Join room begitu auth siap. Dokumen room dibuat kalau belum ada.
   useEffect(() => {
     if (!isInitialized || !playerUID || hasJoined) return;
     let isActive = true;
 
+    const photoURL = user?.firebasePhotoURL || user?.googlePhotoURL || null;
+
+    // Coba join langsung dulu (1 read, di dalam playerJoinRoom) alih-alih
+    // getDoc kepunyaan-sendiri + setDoc-kalau-belum-ada + playerJoinRoom
+    // (yang juga getDoc sendiri) berurutan — kasus paling umum (room udah
+    // ada, revisit) dulu 3 read berantai buat 1 dokumen yang sama, sekarang
+    // cuma 1. Room BENERAN baru (jarang, sekali per room) yang bayar lebih:
+    // gagal join dulu ("Room not found"), baru dibikin, baru join ulang.
     const join = async () => {
       try {
         // Reset room ke 'waiting' kalau sesi game sebelumnya sudah selesai/ditinggal.
         // HARUS selesai sebelum subscribeToGameStart mulai — setRoomChecked(true)
-        // di bawah adalah gate-nya.
+        // di bawah adalah gate-nya. Ini juga yang bikin room 'playing' yang
+        // sebenarnya udah ditinggal semua orang gak ke-lock permanen di sini.
         await checkAndResetAbandonedRoom(roomKey);
 
-        const { doc, getDoc, setDoc } = await import('firebase/firestore');
-        const { firebaseFirestore } = await import('@/src/lib/firebase/client');
-        const roomRef = doc(firebaseFirestore!, 'rooms', roomKey);
-        const snap = await getDoc(roomRef);
-        if (!snap.exists()) {
-          try {
-            // `players` sengaja gak diikutkan di sini + pakai merge:true — kalau
-            // 2 orang join room baru barengan, setDoc gak boleh nimpa `players`
-            // yang udah ditulis orang lain lewat playerJoinRoom.
-            await setDoc(roomRef, {
-              isSinglePlayer: isVsAi, capacity: isVsAi ? 1 : 4, currentPlayers: 0,
-              gameStatus: 'waiting',
-              lastResetAt: new Date().toISOString(),
-            }, {merge: true});
-          } catch {
-            // Race lumrah: orang lain udah bikin room-nya duluan sepersekian
-            // detik sebelum kita — bukan error fatal, lanjut aja ke join.
+        try {
+          await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, photoURL);
+        } catch (err) {
+          if (err instanceof Error && err.message === 'Room not found') {
+            const roomRef = doc(firebaseFirestore!, 'rooms', roomKey);
+            try {
+              // `players` sengaja gak diikutkan di sini + pakai merge:true —
+              // kalau 2 orang join room baru barengan, setDoc gak boleh
+              // nimpa `players` yang udah ditulis orang lain lewat
+              // playerJoinRoom.
+              await setDoc(roomRef, {
+                isSinglePlayer: isVsAi, capacity: isVsAi ? 1 : 4, currentPlayers: 0,
+                gameStatus: 'waiting',
+                lastResetAt: new Date().toISOString(),
+              }, {merge: true});
+            } catch {
+              // Race lumrah: orang lain udah bikin room-nya duluan sepersekian
+              // detik sebelum kita — bukan error fatal, lanjut aja ke join ulang.
+            }
+            await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, photoURL);
+          } else {
+            throw err;
           }
         }
-        await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, user?.firebasePhotoURL || user?.googlePhotoURL || null);
+
         if (isActive) {
           setHasJoined(true);
           setRoomChecked(true); // Baru aktifkan subscribeToGameStart setelah reset selesai
         }
       } catch (error) {
-        console.error('Gagal join room:', error);
-        if (isActive) {
-          setJoinError('Gagal masuk ke room. Coba lagi.');
-          setRoomChecked(true); // Tetap buka gate meskipun error join
+        // Room udah 'playing' dan kita bukan pemainnya — tampilin pesan
+        // "sedang dipakai" (dulu lolos begitu aja, lalu ke-redirect ke
+        // /play/... oleh subscribeToGameStart padahal gameState-nya gak
+        // pernah di-init buat kita, nyangkut di layar kosong).
+        const code = (error as { code?: string })?.code;
+        if (code === 'ROOM_LOCKED') {
+          if (isActive) {
+            setRoomLocked({ activeCount: (error as { activeCount?: number }).activeCount ?? 0 });
+            setRoomChecked(true);
+          }
+        } else {
+          console.error('Gagal join room:', error);
+          if (isActive) {
+            setJoinError('Gagal masuk ke room. Coba lagi.');
+            setRoomChecked(true); // Tetap buka gate meskipun error join
+          }
         }
       } finally {
         if (isActive) setLoading(false);
@@ -177,6 +209,28 @@ export default function RoomPage() {
 
   if (loading) {
     return <Loader message="Memuat ruangan..." />;
+  }
+
+  if (roomLocked) {
+    return (
+      <div className="room-scene">
+        <div className="room-bg">
+          <Image src={background.kayu} alt="" fill className="room-bg-img" />
+        </div>
+        <div className="room-wall-overlay" />
+        <div className="room-locked-message">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <rect x="4" y="11" width="16" height="9" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          <h2>Room ini sedang dipakai</h2>
+          <p>{roomLocked.activeCount} orang sedang bermain di room ini. Coba room lain, ya.</p>
+          <button className="room-btn-back" onClick={() => router.push(`/lobby/${topicID}/${gameID}`)}>
+            Kembali ke Lobby
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

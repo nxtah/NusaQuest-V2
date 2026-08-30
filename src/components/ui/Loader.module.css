@@ -3,12 +3,12 @@
   will-change: transform, opacity;
 }
 
-.loadingCloudLeft {
-  animation: cloud-left-in 1.8s cubic-bezier(0.21, 0.9, 0.3, 1) infinite alternate;
+.loadingCloudTopLeft {
+  animation: cloud-drift-tl 4s ease-in-out infinite alternate;
 }
 
-.loadingCloudRight {
-  animation: cloud-right-in 1.8s cubic-bezier(0.21, 0.9, 0.3, 1) infinite alternate;
+.loadingCloudBottomRight {
+  animation: cloud-drift-br 4s ease-in-out infinite alternate;
 }
 
 .loadingText {
@@ -41,25 +41,25 @@
   }
 }
 
-@keyframes cloud-left-in {
+/* Awan "napas" terus-menerus dari pojok ke tengah dan balik lagi (infinite
+   alternate) selama Loader kepasang — bukan cuma sekali masuk. Jarak
+   tempuhnya dikalibrasi ulang buat ukuran awan yang sekarang jauh lebih
+   gede (w-[80vw]) dibanding versi lama (w-[38vw]), biar gak overshoot. */
+@keyframes cloud-drift-tl {
   0% {
-    transform: translate(-34vw, -24vh);
-    opacity: 0.78;
+    transform: translate(0, 0) scale(1);
   }
   100% {
-    transform: translate(-4vw, -1.6vh);
-    opacity: 1;
+    transform: translate(9vw, 7vh) scale(1.05);
   }
 }
 
-@keyframes cloud-right-in {
+@keyframes cloud-drift-br {
   0% {
-    transform: scaleX(-1) translate(-34vw, 24vh);
-    opacity: 0.78;
+    transform: scaleX(-1) translate(0, 0) scale(1);
   }
   100% {
-    transform: scaleX(-1) translate(-4vw, 1.6vh);
-    opacity: 1;
+    transform: scaleX(-1) translate(9vw, -7vh) scale(1.05);
   }
 }
 
@@ -70,5 +70,77 @@
   }
   50% {
     opacity: 1;
+  }
+}
+
+/* Kapal mengapung di tengah — signature loading NusaQuest: "lagi berlayar
+   ke pulau berikutnya", bukan spinner generik. Bob halus + tilt dikit
+   biar kerasa ngambang di air, bayangan di bawahnya "napas" berlawanan
+   fase (mengecil pas kapal naik, melebar pas turun). */
+.loadingBoat {
+  animation: boat-bob 2.6s ease-in-out infinite;
+  transform-origin: 50% 85%;
+}
+
+.loadingBoatShadow {
+  animation: boat-shadow 2.6s ease-in-out infinite;
+}
+
+.loadingSign {
+  animation: sign-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Resep claymorphism yang sama dipakai di BackButton/NavBar/WinModal —
+   gradasi krem puffy + shadow berlapis, biar loading screen ini kerasa
+   satu keluarga sama sisa UI, bukan komponen nyasar. */
+.loadingSignInner {
+  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+  box-shadow:
+    0 4px 8px rgba(139, 94, 42, 0.3),
+    inset -2px -2px 4px rgba(139, 94, 42, 0.18),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+}
+
+@keyframes boat-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+@keyframes boat-shadow {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scaleX(0.8);
+    opacity: 0.2;
+  }
+}
+
+@keyframes sign-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingBoat,
+  .loadingBoatShadow,
+  .loadingSign,
+  .loadingCloudTopLeft,
+  .loadingCloudBottomRight,
+  .loadingText {
+    animation: none;
   }
 }

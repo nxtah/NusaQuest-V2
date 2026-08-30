@@ -1,31 +1,44 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import GameBackground from "../../../../../../../features/game-nuca/components/GameBackground";
 import GameArea, { type GameAreaPlayer } from "../../../../../../../features/game-nuca/components/GameArea";
 import type { PlayerCard } from "../../../../../../../features/game-nuca/components/PlayerHandCards";
+import type { QuestionFeedback } from "../../../../../../../features/game-nuca/components/QuestionModal";
+import RankModal from "../../../../../../../features/game-nuca/components/RankModal";
 import PauseModal from "../../../../../../../components/layout/PauseModal";
 import SettingButton from "../../../../../../../components/layout/SettingButton";
+import BackButton from "../../../../../../../components/ui/BackButton";
 import Loader from "../../../../../../../components/ui/Loader";
 import { useAuth } from "../../../../../../../features/auth/hooks/useAuth";
+import { claimGameReward, getUserProfile, consumePotion, type GameReward } from "../../../../../../../services/firebase/firestore/users.service";
 
 import {
   fetchGamePlayers,
   listenToGameStart,
   type GamePlayer,
 } from "../../../../../../../features/game-ular-tangga/services/ular-tangga-game.service";
-import { playerJoinRoom, playerLeaveRoom } from "../../../../../../../features/lobby/services/lobby.service";
+import { playerJoinRoom, playerLeaveRoom, markPlayerInactiveInRoom } from "../../../../../../../features/lobby/services/lobby.service";
 import {
   listenToGameState,
-  playCard,
+  throwCard,
   submitAnswer,
-  cleanupGame,
+  updatePlayerActivity,
+  setPlayerOffline,
+  checkAndInvalidateIfIdle,
+  checkAndFinalizeSoleSurvivor,
+  handleThrowTimeout,
+  isPlayerStale,
+  SOLE_SURVIVOR_STALE_MS,
   type NusaCardGameState,
 } from "../../../../../../../features/game-nuca/services/nusa-card-game.service";
 
 const CARD_HUES = ["#f2a314", "#f3b02a", "#f1a52a", "#ef9917", "#e8b74a"];
+const ACTIVITY_INTERVAL_MS = 30_000;
+// Berapa lama feedback bener/salah kelihatan sebelum modal beneran ketutup.
+const ANSWER_FEEDBACK_MS = 1400;
 
 export default function NusaCardPage() {
   const router = useRouter();
@@ -50,6 +63,10 @@ export default function NusaCardPage() {
   const [gameStarted, setGameStarted] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [isResolving, setIsResolving] = useState(false);
+  const [answerFeedback, setAnswerFeedback] = useState<QuestionFeedback | null>(null);
+
+  const gameStartedRef = useRef(false);
+  useEffect(() => { gameStartedRef.current = gameStarted; }, [gameStarted]);
 
   // ── Join room + subscribe ke daftar pemain ──────────────────────────────
   useEffect(() => {
@@ -66,8 +83,21 @@ export default function NusaCardPage() {
 
     return () => {
       unsub();
-      if (isJoined && !gameStarted) {
-        playerLeaveRoom(topicID, gameID, roomKey, user.uid).catch(() => {});
+      // Sama pola kayak ular-tangga: kalau game BELUM mulai, keluarin dari
+      // room; kalau SUDAH mulai, tandain offline aja (biar bisa reconnect &
+      // biar bot-takeover di bawah bisa kedeteksi).
+      if (isJoined) {
+        if (!gameStartedRef.current) {
+          playerLeaveRoom(topicID, gameID, roomKey, user.uid).catch(() => {});
+        } else {
+          void setPlayerOffline(roomKey, user.uid);
+          // `setPlayerOffline` cuma nyentuh gameState (playerActivity) —
+          // badge okupansi lobby (RoomSelect.tsx) baca `room.players[uid]
+          // .isActive`, field TERPISAH yang gak pernah ke-update kalau
+          // keluar mid-game, bikin room ke-lock "Sedang Bermain" selamanya
+          // walau pemainnya udah lama kabur. Update juga di sini.
+          void markPlayerInactiveInRoom(roomKey, user.uid);
+        }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,23 +119,34 @@ export default function NusaCardPage() {
     const unsub = listenToGameState(roomKey, (state) => {
       setGameState(state);
       setLoading(false);
+
+      if (!state) return;
+      // 'finished' TIDAK auto-redirect — RankModal di bawah yang nangani,
+      // user klik tombolnya sendiri buat lanjut. 'abandoned' tetap ke
+      // lobby. 'timeout' (idle global 8 menit) balik ke HOME.
+      if (state.gameStatus === "abandoned") {
+        router.push(lobbyPath);
+      } else if (state.gameStatus === "timeout") {
+        router.push("/home");
+      }
     });
     return () => unsub();
-  }, [gameStarted, topicID, gameID, roomKey]);
+  }, [gameStarted, topicID, gameID, roomKey, lobbyPath, router]);
 
-  // ── Redirect ke lobby sesaat setelah game selesai ────────────────────────
+  // ── Heartbeat berkala + cek idle global ──────────────────────────────────
   useEffect(() => {
-    if (gameState?.gameStatus !== "finished") return;
-    const timeoutId = setTimeout(() => router.push(lobbyPath), 1800);
-    return () => clearTimeout(timeoutId);
-  }, [gameState?.gameStatus, lobbyPath, router]);
+    if (!myUID || !gameStarted) return;
 
-  useEffect(() => {
-    if (!gameStarted) return;
-    return () => {
-      void cleanupGame(roomKey);
-    };
-  }, [gameStarted, roomKey]);
+    void updatePlayerActivity(roomKey, myUID);
+    const timer = setInterval(() => {
+      void updatePlayerActivity(roomKey, myUID);
+      // Idle GLOBAL (bukan per-pemain) — aman dipanggil dari client manapun,
+      // idempotent lewat guard gameStatus di dalam fungsinya sendiri.
+      void checkAndInvalidateIfIdle(roomKey);
+    }, ACTIVITY_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [myUID, gameStarted, roomKey]);
 
   // ── Susun ulang urutan pemain: aku selalu index 0 (slot bawah) ──────────
   const orderedPlayers: GameAreaPlayer[] = useMemo(() => {
@@ -118,51 +159,187 @@ export default function NusaCardPage() {
 
   const myHand: PlayerCard[] = useMemo(() => {
     if (!gameState || !myUID) return [];
-    // gameState?.playerHands bisa gak ada/format lama kalau ada sisa dokumen
-    // gameState dari sesi game LAIN yang kebetulan numpuk (harusnya udah gak
-    // kejadian lagi berkat roomKey per-game, tapi tetep dijaga biar gak crash).
+    // `id` di-suffix per SLOT (bukan cuma id soal asli) — kalau konten soal
+    // di database masih tipis (bisa aja cuma 1 soal approved per region),
+    // 2+ kartu di tangan yang sama bisa punya soal identik; `id` di sini
+    // TETAP harus unik biar React key & tracking "kartu mana yang dipilih"
+    // gak numbuk. `questionId` (id soal ASLI) dipisah, itu yang dikirim ke
+    // throwCard.
     return (gameState.playerHands?.[myUID] ?? []).map((q, index) => ({
-      id: q.id,
+      id: `${q.id}-${index}`,
+      questionId: q.id,
       title: q.text,
       subtitle: "Q",
       hue: CARD_HUES[index % CARD_HUES.length],
     }));
   }, [gameState, myUID]);
 
-  const throwerUID = gameState ? gameState.players?.[gameState.throwerIndex]?.uid ?? null : null;
+  const throwerUID = gameState ? gameState.players?.[gameState.currentThrowerIndex]?.uid ?? null : null;
   const isMyTurnToThrow = throwerUID === myUID && !gameState?.activeQuestion;
   const isMyTurnToAnswer = gameState?.currentAnsweringUID === myUID && Boolean(gameState?.activeQuestion);
+
+  // Batas 10 detik buat lempar kartu berlaku ke SEMUA pemain (bukan cuma
+  // yang disconnect) — SETIAP client yang lihat cincin mundurnya nyampe 0
+  // manggil ini sendiri-sendiri; guard idempoten di service yang nge-atur
+  // biar cuma 1 yang beneran ke-apply, jadi aman biarpun manggil bareng.
+  const handleThrowTimeoutTrigger = useCallback(() => {
+    if (!throwerUID) return;
+    void handleThrowTimeout(roomKey, throwerUID);
+  }, [throwerUID, roomKey]);
 
   const handleSelectCard = (cardId: string) => {
     if (!isMyTurnToThrow || selectedCardId) return;
     setSelectedCardId(cardId);
   };
 
-  const handlePlayAnimationDone = useCallback(async (cardId: string) => {
+  const handlePlayAnimationDone = useCallback(async (_slotId: string, questionId: string) => {
     setSelectedCardId(null);
     if (!myUID) return;
-    await playCard(roomKey, myUID, cardId);
+    await throwCard(roomKey, myUID, questionId);
   }, [myUID, roomKey]);
 
   const handleSubmitAnswer = useCallback(async (index: number) => {
-    if (!myUID || isResolving) return;
+    if (!myUID || isResolving || !gameState?.activeQuestion) return;
     setIsResolving(true);
+    // Snapshot soal & pilihan SEKARANG (bukan cuma correctIndex) — begitu
+    // submitAnswer resolve, gameState.activeQuestion di server langsung
+    // di-null-in, jadi kalau QuestionModal masih ngandelin activeQuestion
+    // LIVE selama jendela feedback, soalnya udah keburu ilang dan jatoh ke
+    // placeholder default component itu, sementara correctIndex tetep
+    // nunjuk ke soal asli — ketampil soal yang beda sama jawaban benernya.
+    const { text: question, options: choices, correctIndex } = gameState.activeQuestion;
     try {
       await submitAnswer(roomKey, myUID, index);
+      setAnswerFeedback({ selectedIndex: index, correctIndex, question, choices });
+      setTimeout(() => setAnswerFeedback(null), ANSWER_FEEDBACK_MS);
     } finally {
       setIsResolving(false);
     }
-  }, [myUID, isResolving, roomKey]);
+  }, [myUID, isResolving, roomKey, gameState?.activeQuestion]);
+
+  // ── OFFLINE-TURN RESILIENCE ──────────────────────────────────────────────
+  // Mirip bot-takeover di ular-tangga: kalau pemain yang lagi kebagian
+  // lempar/jawab ternyata stale (disconnect), pemain aktif PERTAMA (urutan
+  // seat) otomatis lempar kartu random / jawab random buat dia, biar game
+  // gak macet nunggu orang yang udah gak online.
+  const lastBotActionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!gameStarted || !gameState || gameState.gameStatus !== "playing" || isPaused) return;
+    const ts = Date.now();
+
+    const firstActiveUID = orderedPlayers.find((p) => {
+      const act = gameState.playerActivity?.[p.uid];
+      return act ? !isPlayerStale(act, ts) : true;
+    })?.uid;
+    if (firstActiveUID !== myUID) return;
+
+    if (!gameState.activeQuestion && throwerUID && throwerUID !== myUID) {
+      const activity = gameState.playerActivity?.[throwerUID];
+      if (isPlayerStale(activity, ts)) {
+        const hand = gameState.playerHands?.[throwerUID] ?? [];
+        const key = `throw:${throwerUID}:${hand.length}`;
+        if (hand.length > 0 && lastBotActionRef.current !== key) {
+          lastBotActionRef.current = key;
+          const card = hand[Math.floor(Math.random() * hand.length)];
+          void throwCard(roomKey, throwerUID, card.id);
+        }
+      }
+    }
+
+    if (gameState.activeQuestion && gameState.currentAnsweringUID && gameState.currentAnsweringUID !== myUID) {
+      const answeringUID = gameState.currentAnsweringUID;
+      const activity = gameState.playerActivity?.[answeringUID];
+      if (isPlayerStale(activity, ts)) {
+        const key = `answer:${answeringUID}:${gameState.activeQuestion.id}`;
+        if (lastBotActionRef.current !== key) {
+          lastBotActionRef.current = key;
+          const randomIndex = Math.floor(Math.random() * gameState.activeQuestion.options.length);
+          void submitAnswer(roomKey, answeringUID, randomIndex);
+        }
+      }
+    }
+  }, [gameStarted, gameState, isPaused, throwerUID, myUID, roomKey, orderedPlayers]);
+
+  // ── SOLE-SURVIVOR AUTO-FINISH ────────────────────────────────────────────
+  // Kalau lawan-lawan keluar/disconnect tanpa sempet ngabisin kartu (jadi
+  // throwCard/submitAnswer gak pernah kepanggil buat nutup game-nya), pemain
+  // aktif TERAKHIR yang tersisa yang mendeteksi & nge-trigger penyelesaian
+  // game ini sendiri — sama pola persis kayak ular-tangga. Realtime lewat
+  // effect ini (re-fire tiap gameState berubah), bukan nunggu heartbeat 30s.
+  useEffect(() => {
+    if (!gameStarted || !gameState || gameState.gameStatus !== "playing" || !myUID) return;
+
+    const nonFinished = gameState.players.filter((p) => !gameState.finishedOrder.includes(p.uid));
+    if (nonFinished.length <= 1) return;
+
+    const ts = Date.now();
+    const activeNonFinished = nonFinished.filter(
+      (p) => !isPlayerStale(gameState.playerActivity?.[p.uid], ts, SOLE_SURVIVOR_STALE_MS),
+    );
+
+    if (activeNonFinished.length === 1 && activeNonFinished[0].uid === myUID) {
+      void checkAndFinalizeSoleSurvivor(roomKey);
+    }
+  }, [gameStarted, gameState, myUID, roomKey]);
+
+  const rankedPlayers = useMemo(() => {
+    if (!gameState) return [];
+    return gameState.finishedOrder.map((uid) => {
+      const p = gameState.players.find((pl) => pl.uid === uid);
+      return { uid, name: p?.displayName ?? "Pemain", photoURL: p?.photoURL };
+    });
+  }, [gameState]);
+
+  // ── Reward badge/potion begitu game kelar ────────────────────────────────
+  // Rank 1-3 doang yang dapet (badge.gold1/silver1/bronze1 di RankModal) —
+  // ke-4+ gak dapet apa-apa, sama kayak kondisi menang yang emang udah ada
+  // (gak diubah, cuma nambah efek samping hadiah di atasnya). Idempotent
+  // lewat `rewardsClaimedBy` di gameState sendiri (dijaga di claimGameReward),
+  // jadi aman kepanggil ulang tiap gameState berubah.
+  const [potionCount, setPotionCount] = useState(0);
+  useEffect(() => {
+    if (!myUID) return;
+    void getUserProfile(myUID).then((result) => {
+      if (result.success && result.data) setPotionCount(result.data.inventory?.potion ?? 0);
+    });
+  }, [myUID]);
+
+  const handleUsePotion = useCallback(async () => {
+    if (!myUID || isResolving || !gameState?.activeQuestion) return;
+    const success = await consumePotion(myUID);
+    if (!success) return;
+    setPotionCount((count) => Math.max(0, count - 1));
+    await handleSubmitAnswer(gameState.activeQuestion.correctIndex);
+  }, [myUID, isResolving, gameState?.activeQuestion, handleSubmitAnswer]);
+
+  const [myReward, setMyReward] = useState<GameReward | null>(null);
+  useEffect(() => {
+    if (!gameState || gameState.gameStatus !== "finished" || !myUID) return;
+    const rank = gameState.finishedOrder.indexOf(myUID) + 1;
+    if (rank < 1 || rank > 3) return;
+    if (gameState.rewardsClaimedBy?.includes(myUID)) return;
+    void claimGameReward(roomKey, myUID, rank as 1 | 2 | 3).then((reward) => {
+      if (reward) setMyReward(reward);
+    });
+  }, [gameState, myUID, roomKey]);
+
+  // Lobby "RUANG X" (wood-themed) cuma ada satu tempat: halaman /room/...
+  // Kalau gameStarted belum true di sini, arahkan balik — jangan render lobby
+  // kedua yang beda desain. Navigasi HARUS di effect (bukan langsung di body
+  // render kayak sebelumnya) — manggil router.replace() pas render bikin
+  // React ngeluh "Cannot update a component (Router) while rendering a
+  // different component".
+  useEffect(() => {
+    if (!loading && !gameStarted) {
+      router.replace(roomPath);
+    }
+  }, [loading, gameStarted, roomPath, router]);
 
   if (loading) {
     return <Loader message="Memuat permainan NusaCard..." />;
   }
 
-  // Lobby "RUANG X" (wood-themed) cuma ada satu tempat: halaman /room/...
-  // Kalau gameStarted belum true di sini, arahkan balik — jangan render lobby
-  // kedua yang beda desain (dulu ada UlarTanggaLobby di sini, sisa alur lama).
   if (!gameStarted) {
-    router.replace(roomPath);
     return <Loader message="Memuat permainan NusaCard..." />;
   }
 
@@ -173,23 +350,11 @@ export default function NusaCardPage() {
         <GameBackground />
       </div>
 
-      <button
-        onClick={() => router.push(roomPath)}
-        className="absolute left-10 lg:left-7 top-7 z-50 text-white transition-transform"
-        aria-label="Kembali"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-10 h-10">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-        </svg>
-      </button>
+      <div className="absolute left-10 lg:left-7 top-7 z-50">
+        <BackButton href={roomPath} iconSize="md" />
+      </div>
 
       <SettingButton onClick={() => setIsPaused(true)} />
-
-      {gameState?.gameStatus === "finished" && (
-        <div className="absolute top-20 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-white/95 px-6 py-3 text-lg font-bold text-[#1f2a1f] shadow-lg">
-          {gameState.winnerUID === myUID ? "Kamu menang!" : "Pemain lain menang!"}
-        </div>
-      )}
 
       <GameArea
         players={orderedPlayers}
@@ -197,15 +362,26 @@ export default function NusaCardPage() {
         selectedCardId={selectedCardId}
         isMyTurnToThrow={isMyTurnToThrow}
         throwerUID={throwerUID}
+        throwerTurnStartedAt={gameState?.throwerTurnStartedAt}
+        onThrowTimeout={handleThrowTimeoutTrigger}
         answeringUID={gameState?.currentAnsweringUID ?? null}
-        queueUIDs={gameState?.answeringQueue ?? []}
-        answeredUIDs={gameState?.answeredUIDs ?? []}
         activeQuestion={gameState?.activeQuestion ? { text: gameState.activeQuestion.text, options: gameState.activeQuestion.options } : null}
         isMyTurnToAnswer={isMyTurnToAnswer}
         isResolvingAnswer={isResolving}
+        answerFeedback={answerFeedback}
         onSelectCard={handleSelectCard}
         onPlayAnimationComplete={handlePlayAnimationDone}
         onSubmitAnswer={handleSubmitAnswer}
+        potionCount={potionCount}
+        onUsePotion={handleUsePotion}
+      />
+
+      <RankModal
+        isOpen={gameState?.gameStatus === "finished"}
+        rankedPlayers={rankedPlayers}
+        myUID={myUID}
+        myReward={myReward}
+        onContinue={() => router.push(lobbyPath)}
       />
 
       <PauseModal isOpen={isPaused} onClose={() => setIsPaused(false)} />

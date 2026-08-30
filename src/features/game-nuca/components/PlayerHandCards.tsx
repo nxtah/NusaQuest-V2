@@ -3,7 +3,15 @@
 import { motion } from "framer-motion";
 
 export interface PlayerCard {
+  /** Unik per SLOT di tangan (bukan cuma per soal) — dipakai buat React key
+      & tracking kartu yang lagi dipilih. Kalau konten soal di database masih
+      tipis (bisa aja cuma 1 soal approved buat 1 region), 2+ kartu di tangan
+      yang sama bisa aja soal-nya identik (id soal sama persis) — id di sini
+      TETAP unik per slot biar gak numbuk (React key collision) & biar milih
+      salah satu duplikat gak ikut nyorot yang lain. */
   id: string;
+  /** Id soal ASLI (dari Firestore) — ini yang dikirim ke `throwCard`, bukan `id`. */
+  questionId: string;
   title: string;
   subtitle: string;
   hue: string;
@@ -14,7 +22,7 @@ interface PlayerHandCardsProps {
   selectedCardId: string | null;
   canPlay: boolean;
   onSelectCard: (cardId: string) => void;
-  onPlayAnimationComplete: (cardId: string) => void;
+  onPlayAnimationComplete: (cardId: string, questionId: string) => void;
 }
 
 export default function PlayerHandCards({
@@ -52,14 +60,19 @@ export default function PlayerHandCards({
               isSelected
                 ? {
                     x: playX,
-                    y: -198,
+                    // Vh (bukan px tetap) — tangan "aku" nempel di bawah
+                    // (bottom-3) sementara tumpukan tengah persis di
+                    // vertical-center meja (top-1/2 di GameArea), jadi jarak
+                    // tempuh yang bener itu proporsional ke tinggi viewport,
+                    // bukan angka px yang cuma pas di satu ukuran layar.
+                    y: "-38vh",
                     scale: 1.08,
                     rotateY: [0, 180],
                     zIndex: 70,
                   }
                 : {
                     x: 0,
-                    y: 0,
+                    y: "0vh",
                     scale: selectedCardId ? 0.9 : 1,
                     rotateY: 0,
                     zIndex: 20 + index,
@@ -69,7 +82,7 @@ export default function PlayerHandCards({
             transition={{ duration: 0.5, ease: "easeInOut" }}
             onAnimationComplete={() => {
               if (isSelected) {
-                onPlayAnimationComplete(card.id);
+                onPlayAnimationComplete(card.id, card.questionId);
               }
             }}
             whileHover={selectedCardId || !canPlay ? undefined : { y: -4 }}

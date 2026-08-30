@@ -9,9 +9,11 @@ import Board from '@/src/features/game-ular-tangga/components/Board';
 import PlayerTurnBox from '@/src/features/game-ular-tangga/components/PlayerTurnBox';
 import {ularTangga} from '@/src/assets/images/ular-tangga/cloudinaryAssets';
 import PauseModal from '@/src/components/layout/PauseModal';
+import WinModal from '@/src/features/game-ular-tangga/components/WinModal';
 import Loader from '@/src/components/ui/Loader';
 import SettingButton from '@/src/components/layout/SettingButton';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
+import {claimGameReward, getUserProfile, consumePotion, type GameReward} from '@/src/services/firebase/firestore/users.service';
 
 import {
   fetchGamePlayers,
@@ -20,13 +22,15 @@ import {
   updateGameState,
   updatePlayerActivity,
   setPlayerOffline,
+  checkAndFinalizeSoleSurvivor,
+  checkAndInvalidateIfIdle,
   movePawn,
   submitAnswer,
   nextTurn,
   type UlarTanggaGameState,
   type GamePlayer,
 } from '@/src/features/game-ular-tangga/services/ular-tangga-game.service';
-import {playerJoinRoom, playerLeaveRoom} from '@/src/features/lobby/services/lobby.service';
+import {playerJoinRoom, playerLeaveRoom, markPlayerInactiveInRoom} from '@/src/features/lobby/services/lobby.service';
 import {LADDERS, SNAKES, isLadderStart, isSnakeHead} from '@/src/features/game-ular-tangga/utils/board-rules';
 
 // ─── Avatar pion per index ──────────────────────────────────────────────────
@@ -113,6 +117,12 @@ export default function UlarTanggaPage() {
           playerLeaveRoom(topicID, gameID, roomKey, user.uid).catch(() => { });
         } else {
           setPlayerOffline(topicID, gameID, roomKey, user.uid).catch(() => { });
+          // `setPlayerOffline` doang cuma nyentuh gameState (playerActivity)
+          // — badge okupansi lobby (RoomSelect.tsx) baca `room.players[uid]
+          // .isActive`, field TERPISAH yang gak pernah ke-update kalau keluar
+          // mid-game, bikin room ke-lock "Sedang Bermain" selamanya walau
+          // pemainnya udah lama kabur. Update juga di sini.
+          markPlayerInactiveInRoom(roomKey, user.uid).catch(() => { });
         }
       }
     };
@@ -139,17 +149,23 @@ export default function UlarTanggaPage() {
       setLoading(false);
 
       if (!state) return;
-      if (state.gameStatus === 'finished') {
-        router.push('/');
-      } else if (state.gameStatus === 'abandoned') {
+      // 'finished' TIDAK auto-redirect lagi — WinModal di bawah yang nangani,
+      // user klik tombolnya sendiri buat lanjut. 'abandoned' (dari
+      // cleanupGame, jalur terpisah) tetap auto-redirect ke lobby kayak
+      // sebelumnya. 'timeout' (idle global 8 menit, gak ada yang mainin
+      // sama sekali) baliknya ke HOME, beda tujuan — sesuai diminta.
+      if (state.gameStatus === 'abandoned') {
         router.push(`/lobby/${topicID}/${gameID}`);
+      } else if (state.gameStatus === 'timeout') {
+        router.push('/home');
       }
     });
 
     return () => unsub();
   }, [topicID, gameID, roomKey, gameStarted, router]);
 
-  // ── Update aktivitas pemain secara berkala + auto-cleanup saat keluar ──────
+  // ── Update aktivitas pemain secara berkala + cek idle global + auto-cleanup
+  //    saat keluar ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!myUID || !topicID || !gameID || !roomID || !gameStarted) return;
 
@@ -157,6 +173,9 @@ export default function UlarTanggaPage() {
 
     activityTimerRef.current = setInterval(() => {
       updatePlayerActivity(topicID, gameID, roomKey, myUID);
+      // Idle GLOBAL (bukan per-pemain) — aman dipanggil dari client manapun,
+      // idempotent lewat guard gameStatus di dalam fungsinya sendiri.
+      void checkAndInvalidateIfIdle(roomKey);
     }, ACTIVITY_INTERVAL_MS);
 
     return () => {
@@ -180,8 +199,35 @@ export default function UlarTanggaPage() {
   const currentPlayer = orderedPlayers.find((p) => p.uid === currentPlayerUID) ?? orderedPlayers[currentPlayerIndex];
   const isMyTurn = !!myUID && currentPlayerUID === myUID;
   const isDiceDisabled = !gameState || gameState.isMoving || gameState.waitingForAnswer || gameState.showQuestion;
+  const winnerUID = gameState?.gameWinnerUID;
+  const winnerName = winnerUID
+    ? (orderedPlayers.find((p) => p.uid === winnerUID) ?? players.find((p) => p.uid === winnerUID))?.displayName
+      ?? 'Pemain'
+    : '';
   // isBotActing dihitung langsung di handler & bot effect — tidak di render path.
   const isBotActingRef = useRef(false);
+
+  // ── Reward badge/potion begitu game kelar — cuma pemenang yang dapet
+  // (Ular Tangga menang-kalah doang, gak ada peringkat 2/3 — bukan bug,
+  // emang aturan mainnya gitu, cuma nambah efek samping hadiah di atas
+  // kondisi menang yang udah ada). Idempotent lewat `rewardsClaimedBy`.
+  const [potionCount, setPotionCount] = useState(0);
+  useEffect(() => {
+    if (!myUID) return;
+    void getUserProfile(myUID).then((result) => {
+      if (result.success && result.data) setPotionCount(result.data.inventory?.potion ?? 0);
+    });
+  }, [myUID]);
+
+  const [myReward, setMyReward] = useState<GameReward | null>(null);
+  useEffect(() => {
+    if (!gameState || gameState.gameStatus !== 'finished' || !myUID) return;
+    if (winnerUID !== myUID) return;
+    if (gameState.rewardsClaimedBy?.includes(myUID)) return;
+    void claimGameReward(roomKey, myUID, 1).then((reward) => {
+      if (reward) setMyReward(reward);
+    });
+  }, [gameState, myUID, winnerUID, roomKey]);
 
   const pionPositionsRaw = gameState?.pionPositions ?? new Array(orderedPlayers.length).fill(0);
   const showQuestion = gameState?.showQuestion ?? false;
@@ -213,9 +259,22 @@ export default function UlarTanggaPage() {
     });
   }
 
+  // Guard per-client biar 1 turn cuma dieksekusi sekali dari sisi client ini
+  // — kunci sebenarnya dari bug "timer bot yatim" di bawah: kalau effect-nya
+  // re-run pas sequence roll-lalu-complete lagi jalan, inner setTimeout yang
+  // gak sempet ke-clear bisa nembak handleDiceRollComplete lagi belakangan.
+  // Dipisah roll vs answer (bukan 1 ref buat semuanya) karena satu turn yang
+  // sama SAH punya 2 langkah (lempar dadu, lalu jawab soal tangga) — jangan
+  // sampe langkah kedua ke-block gara-gara udah "kepake" sama langkah pertama.
+  const actedRollTurnRef = useRef<number>(-1);
+  const actedAnswerTurnRef = useRef<number>(-1);
+
   async function handleDiceRollComplete(rolledNumber: number) {
     if ((!isMyTurn && !isBotActingRef.current) || !gameState) return;
     if (gameState.isMoving) return;
+    const turn = gameState.turnCounter ?? 0;
+    if (actedRollTurnRef.current === turn) return;
+    actedRollTurnRef.current = turn;
     const currentPos = gameState.pionPositions[gameState.currentPlayerIndex] ?? 0;
     const rawPos = Math.min(currentPos + rolledNumber, 100);
     // movePawn returns final position (after snake slide if any)
@@ -230,10 +289,21 @@ export default function UlarTanggaPage() {
 
   async function handleSelectAnswer(selectedIndex: number) {
     if ((!isMyTurn && !isBotActingRef.current) || !gameState) return;
+    const turn = gameState.turnCounter ?? 0;
+    if (actedAnswerTurnRef.current === turn) return;
+    actedAnswerTurnRef.current = turn;
     await submitAnswer(topicID, gameID, roomKey, selectedIndex);
     setTimeout(async () => {
       await nextTurn(topicID, gameID, roomKey);
     }, 2000);
+  }
+
+  async function handleUsePotion() {
+    if (!myUID || !isMyTurn || !currentQuestion) return;
+    const success = await consumePotion(myUID);
+    if (!success) return;
+    setPotionCount((count) => Math.max(0, count - 1));
+    await handleSelectAnswer(currentQuestion.correctIndex);
   }
 
   // Ref untuk mencegah bot melempar dadu berkali-kali pada giliran yang sama (saat pion sedang berjalan)
@@ -278,16 +348,45 @@ export default function UlarTanggaPage() {
     if (!gameState.diceState?.isRolling && !gameState.waitingForAnswer) {
       const currentTurnCount = gameState.turnCounter ?? 0;
       if (lastBotTurnRef.current === currentTurnCount) return;
-      const timer = setTimeout(() => {
+      // Timer dalam (completeTimer) sebelumnya gak ke-track — kalau effect
+      // ini re-run pas startTimer udah nembak tapi completeTimer masih
+      // ngantri, cleanup lama cuma clear startTimer, completeTimer yatim
+      // tetep jalan belakangan pakai state yang udah basi. Dua-duanya
+      // sekarang di-clear bareng.
+      let completeTimer: ReturnType<typeof setTimeout> | null = null;
+      const startTimer = setTimeout(() => {
         lastBotTurnRef.current = currentTurnCount;
         const randomDice = Math.floor(Math.random() * 6) + 1;
         handleDiceRollStart(randomDice);
-        setTimeout(() => { handleDiceRollComplete(randomDice); }, 1500);
+        completeTimer = setTimeout(() => { handleDiceRollComplete(randomDice); }, 1500);
       }, 2000);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(startTimer);
+        if (completeTimer) clearTimeout(completeTimer);
+      };
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStarted, gameState, players, myUID, isPaused]);
+
+  // ── AUTO-WIN SAAT TINGGAL 1 PEMAIN AKTIF ────────────────────────────────
+  // Formula staleness sengaja disamain persis sama bot-takeover di atas.
+  // Cuma client si pemain yang masih aktif yang bisa masuk kondisi ini
+  // (browser pemain lain yang udah kabur gak lagi jalanin JS), jadi gak ada
+  // race nulis bareng dari beberapa client.
+  useEffect(() => {
+    if (!gameStarted || !gameState || gameState.gameStatus !== 'playing' || !myUID) return;
+    if (!gameState.playerUIDs || gameState.playerUIDs.length < 2) return;
+
+    const ts = Date.now();
+    const activeUIDs = gameState.playerUIDs.filter((uid) => {
+      const act = gameState.playerActivity?.[uid];
+      return act ? (act.isActive && ts - act.lastActivity <= 60000) : true;
+    });
+
+    if (activeUIDs.length === 1 && activeUIDs[0] === myUID) {
+      checkAndFinalizeSoleSurvivor(topicID, gameID, roomKey);
+    }
+  }, [gameStarted, gameState, myUID, topicID, gameID, roomKey]);
 
   // ── Render Loading & Locked State ─────────────────────────────────────────
   if (isGameLocked) {
@@ -295,7 +394,7 @@ export default function UlarTanggaPage() {
       <main className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-[#59a87d]">
         <div className="flex flex-col items-center justify-center gap-6 p-8 bg-black/50 backdrop-blur-md rounded-2xl border-2 border-red-500 shadow-2xl max-w-lg text-center">
           <span className="text-6xl">🔒</span>
-          <h2 className="text-white text-3xl font-bold" style={{fontFamily: 'var(--font-bauhaus)'}}>Akses Ditolak</h2>
+          <h2 className="font-bauhaus text-white text-3xl font-bold">Akses Ditolak</h2>
           <p className="text-gray-200 text-lg">Ada yang sedang bermain di room ini. Silakan tunggu hingga permainan selesai, atau bergabung dengan room lain.</p>
           <button
             onClick={() => router.push(`/room/${params?.gameID}/${params?.topicID}/${params?.roomID}`)}
@@ -348,8 +447,13 @@ export default function UlarTanggaPage() {
         {/* Kiri — Board */}
         <div className="flex-1 w-full flex items-start justify-center z-20 mt-1 md:mt-2 lg:mt-0">
           <div className="w-full aspect-square max-w-[80vh] md:max-w-[75vh] lg:max-w-[80vh] ml-4 md:ml-12 lg:ml-4">
+            {/* pos 0 = belum jalan (tray di luar papan, lihat Board.tsx), pos 1 =
+                kotak 1 (index papan 0). Sebelumnya pos<=1 disamain jadi index 0
+                buat keduanya — pion yang lempar dadu "1" di giliran pertama gak
+                kelihatan jalan sama sekali karena desiredIndex-nya gak berubah
+                dari kondisi belum-jalan. */}
             <Board
-              pionPositionIndexes={pionPositionsRaw.map((pos) => (pos <= 1 ? 0 : pos - 1))}
+              pionPositionIndexes={pionPositionsRaw.map((pos) => (pos === 0 ? -1 : pos - 1))}
               tanggaUp={Object.entries(LADDERS).map(([start, end]) => ({start: Number(start), end: Number(end)}))}
               snakesDown={Object.entries(SNAKES).map(([start, end]) => ({start: Number(start), end: Number(end)}))}
               isCorrect={gameState?.isCorrect ?? false}
@@ -383,6 +487,8 @@ export default function UlarTanggaPage() {
               showQuestion={showQuestion}
               onSelectAnswer={handleSelectAnswer}
               myPlayerId={myUID ?? undefined}
+              potionCount={potionCount}
+              onUsePotion={handleUsePotion}
             />
           </div>
         </div>
@@ -391,6 +497,16 @@ export default function UlarTanggaPage() {
         <PauseModal
           isOpen={isPaused}
           onClose={() => setIsPaused(false)}
+        />
+
+        {/* Win Modal — menang normal (kotak 100) atau menang karena tinggal
+            satu pemain aktif, keduanya lewat gameStatus==='finished'. */}
+        <WinModal
+          isOpen={gameState?.gameStatus === 'finished'}
+          winnerName={winnerName}
+          isMe={!!myUID && winnerUID === myUID}
+          myReward={myReward}
+          onContinue={() => router.push(`/lobby/${topicID}/${gameID}`)}
         />
       </div>
     </main>

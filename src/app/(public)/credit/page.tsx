@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import localFont from 'next/font/local';
 import { Poppins } from 'next/font/google';
@@ -9,9 +9,14 @@ import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import CreditMemberCard from '@/src/components/credit/CreditMemberCard';
 import CreditMemberModal from '@/src/components/credit/CreditMemberModal';
 import BackButton from '@/src/components/ui/BackButton';
+import {
+  listenToCreditMembers,
+  groupCreditMembersByTeam,
+  type CreditMemberRecord,
+} from '@/src/services/firebase/firestore/credits.service';
 
 const bauhaus = localFont({
-  src: '../../../../public/fonts/Bauhaus.otf',
+  src: '../../../../public/fonts/Tanker.ttf',
 });
 
 const poppins = Poppins({
@@ -19,71 +24,21 @@ const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
 });
 
-type Member = {
-  id: string;
-  name: string;
-  role: string;
-  bio: string;
-};
-
-const teamData: Record<'V1' | 'V2', Member[]> = {
-  V1: [
-    {
-      id: 'v1-1',
-      name: 'Raka Pratama',
-      role: 'Project Manager',
-      bio: 'Mengatur arah proyek, timeline, dan sinkronisasi kebutuhan fitur lintas tim.',
-    },
-    {
-      id: 'v1-2',
-      name: 'Nadia Amalia',
-      role: 'Frontend Developer',
-      bio: 'Membangun halaman publik awal dan komponen UI inti NusaQuest V1.',
-    },
-    {
-      id: 'v1-3',
-      name: 'Fajar Maulana',
-      role: 'Backend Developer',
-      bio: 'Menangani integrasi data dan alur API untuk kebutuhan konten aplikasi.',
-    },
-    {
-      id: 'v1-4',
-      name: 'Sinta Maharani',
-      role: 'UI/UX Designer',
-      bio: 'Mendesain alur pengguna dan style visual agar pengalaman aplikasi tetap konsisten.',
-    },
-  ],
-  V2: [
-    {
-      id: 'v2-1',
-      name: 'Dimas Syahputra',
-      role: 'Tech Lead',
-      bio: 'Memimpin standar implementasi teknis dan arsitektur pengembangan di V2.',
-    },
-    {
-      id: 'v2-2',
-      name: 'Alya Putri',
-      role: 'Frontend Developer',
-      bio: 'Mengembangkan halaman interaktif terbaru serta peningkatan responsivitas mobile.',
-    },
-    {
-      id: 'v2-3',
-      name: 'Reza Saputra',
-      role: 'Game Feature Developer',
-      bio: 'Mengimplementasikan fitur game edukasi dan interaksi reward pemain.',
-    },
-    {
-      id: 'v2-4',
-      name: 'Mikhaela Tanu',
-      role: 'QA & Documentation',
-      bio: 'Melakukan validasi skenario penggunaan dan dokumentasi proses pengembangan.',
-    },
-  ],
-};
-
 export default function Page() {
   const [selectedVersion, setSelectedVersion] = useState<'V1' | 'V2'>('V1');
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMember, setSelectedMember] = useState<CreditMemberRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [teamData, setTeamData] = useState<Record<'V1' | 'V2', CreditMemberRecord[]>>({ V1: [], V2: [] });
+
+  // Realtime — dulu data tim hardcode di file ini, sekarang dikelola dari
+  // admin panel (tab Credit) dan langsung kelihatan di sini begitu berubah.
+  useEffect(() => {
+    const unsub = listenToCreditMembers((members) => {
+      setTeamData(groupCreditMembersByTeam(members));
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <main className={`relative min-h-screen w-full overflow-x-hidden ${poppins.className}`}>
@@ -131,16 +86,23 @@ export default function Page() {
             List {selectedVersion}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
-            {teamData[selectedVersion].map((member) => (
-              <CreditMemberCard
-                key={member.id}
-                onClick={() => setSelectedMember(member)}
-                name={member.name}
-                role={member.role}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="py-12 text-center text-white/80">Memuat tim...</div>
+          ) : teamData[selectedVersion].length === 0 ? (
+            <div className="py-12 text-center text-white/80">Belum ada anggota tim {selectedVersion}.</div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
+              {teamData[selectedVersion].map((member) => (
+                <CreditMemberCard
+                  key={member.id}
+                  onClick={() => setSelectedMember(member)}
+                  name={member.name}
+                  role={member.role}
+                  photoURL={member.photoURL}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -150,6 +112,7 @@ export default function Page() {
           memberName={selectedMember.name}
           memberRole={selectedMember.role}
           memberBio={selectedMember.bio}
+          memberPhotoURL={selectedMember.photoURL}
           titleClassName={bauhaus.className}
           onClose={() => setSelectedMember(null)}
         />

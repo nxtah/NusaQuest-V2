@@ -9,13 +9,14 @@ import {
   addDoc,
   updateDoc,
   doc,
+  documentId,
   getDoc,
   onSnapshot,
   query,
   where,
   getDocs,
 } from 'firebase/firestore'
-import { Room, GameState } from '@/src/types/firestore'
+import { Room, GameState, RoomPlayer } from '@/src/types/firestore'
 
 const ROOMS_COLLECTION = 'rooms'
 const GAME_STATES_COLLECTION = 'gameStates'
@@ -98,6 +99,25 @@ export async function joinRoom(
     }
 
     const existing = room.players?.[userId];
+
+    // Room udah 'playing' dan kita BUKAN salah satu pemain yang udah gabung
+    // — jangan biarin join (dulu ini dicek via getDoc terpisah di halaman
+    // room, sekarang numpang di read yang udah dilakuin getRoomById() di
+    // atas biar gak nambah round-trip). Reconnecting participant (existing
+    // truthy) tetap boleh lewat di bawah, gak kena block ini.
+    if (!existing && room.status === 'playing') {
+      const activeCount = Object.values(room.players || {}).filter(
+        (p) => p.isActive !== false
+      ).length
+      const lockedError = new Error('Room is currently playing') as Error & {
+        code?: string
+        activeCount?: number
+      }
+      lockedError.code = 'ROOM_LOCKED'
+      lockedError.activeCount = activeCount
+      throw lockedError
+    }
+
     if (existing) {
       if (existing.isActive !== false) return; // sudah aktif, tidak perlu apa-apa
       // Pernah join tapi di-set inactive (keluar lalu balik) — re-activate saja
@@ -125,7 +145,12 @@ export async function joinRoom(
       currentPlayers: room.currentPlayers + 1,
     })
   } catch (error) {
-    console.error('Error joining room:', error)
+    // ROOM_LOCKED itu kondisi normal (room lagi kepake) yang halaman
+    // pemanggil emang nangkep & tangani, bukan kegagalan — jangan
+    // di-console.error tiap kali orang nyoba klik room yang lagi main.
+    if ((error as { code?: string })?.code !== 'ROOM_LOCKED') {
+      console.error('Error joining room:', error)
+    }
     throw error
   }
 }
@@ -220,6 +245,28 @@ export async function leaveRoom(
 }
 
 /**
+ * Tandain pemain inactive di dokumen ROOM (bukan gameState) — dipanggil pas
+ * pemain keluar SAAT GAME UDAH JALAN. Beda dari `leaveRoom` (yang dipakai
+ * pas KELUAR SEBELUM game mulai): `leaveRoom` juga nulis field
+ * `playerStates` di gameState (skema lama yang gak dipake game beneran),
+ * yang gak relevan/gak perlu di sini — cukup update `players.{uid}.isActive`
+ * doang di room, biar badge okupansi lobby (`RoomSelect.tsx`, yang baca
+ * `room.players[uid].isActive`) ke-update bener. Sebelumnya field ini gak
+ * pernah disentuh sama sekali kalau keluar mid-game — cuma staleness di
+ * gameState (`playerActivity`) yang ke-update, room-nya nyangkut "isActive:
+ * true" SELAMANYA walau pemainnya udah lama kabur, bikin badge lobby "Sedang
+ * Bermain • N orang" ke-lock permanen.
+ */
+export async function markPlayerInactiveInRoom(roomId: string, userId: string): Promise<void> {
+  try {
+    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
+    await updateDoc(roomRef, { [`players.${userId}.isActive`]: false })
+  } catch (error) {
+    console.error('Error marking player inactive in room:', error)
+  }
+}
+
+/**
  * Listen to room updates
  */
 export function listenToRoom(roomId: string, callback: (room: Room | null) => void): () => void {
@@ -269,6 +316,62 @@ export async function getActiveRooms(
     } as Room))
   } catch (error) {
     console.error('Error getting active rooms:', error)
+    throw error
+  }
+}
+
+export interface RoomOccupancySummary {
+  status?: string
+  activeCount: number
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
+
+/**
+ * Batched one-shot read of occupancy (status + live player count) for a set
+ * of ad-hoc room-slot doc IDs (e.g. `${gameID}_${topicID}_room1`). Used for
+ * "how many people are active here" indicators (lobby room list, province
+ * modal) — not a real-time subscription, since callers only need a snapshot
+ * while browsing. `'in'` queries are chunked at 10 ids for portability
+ * across Firestore SDK versions.
+ */
+export async function getRoomsOccupancy(
+  roomIds: string[]
+): Promise<Record<string, RoomOccupancySummary>> {
+  const uniqueIds = Array.from(new Set(roomIds))
+  if (uniqueIds.length === 0) return {}
+
+  try {
+    const batches = await Promise.all(
+      chunk(uniqueIds, 10).map((ids) =>
+        getDocs(
+          query(
+            collection(requireFirestore(), ROOMS_COLLECTION),
+            where(documentId(), 'in', ids)
+          )
+        )
+      )
+    )
+
+    const summary: Record<string, RoomOccupancySummary> = {}
+    for (const snapshot of batches) {
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data() as { status?: string; players?: Record<string, RoomPlayer> }
+        const activeCount = Object.values(data.players || {}).filter(
+          (p) => p.isActive !== false
+        ).length
+        summary[docSnap.id] = { status: data.status, activeCount }
+      }
+    }
+    return summary
+  } catch (error) {
+    console.error('Error getting rooms occupancy:', error)
     throw error
   }
 }

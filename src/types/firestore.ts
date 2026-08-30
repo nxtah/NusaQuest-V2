@@ -65,6 +65,21 @@ export interface User {
 }
 
 /**
+ * CreditMember - satu baris di halaman /credit (dulu hardcode di
+ * page.tsx, sekarang dikelola dari admin panel + foto lewat Cloudinary).
+ */
+export interface CreditMember {
+  memberId: string;
+  name: string;
+  role: string;
+  bio: string;
+  photoURL: string;
+  teamVersion: "V1" | "V2";
+  order: number;
+  createdAt: number;
+}
+
+/**
  * Achievement - unlocked by user
  */
 export interface Achievement {

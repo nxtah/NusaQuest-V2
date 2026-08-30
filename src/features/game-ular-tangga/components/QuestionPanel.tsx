@@ -2,6 +2,7 @@
 
 import React from 'react';
 import {ularTangga} from '../../../assets/images/ular-tangga/cloudinaryAssets';
+import {attribut} from '../../../assets/images/badge/cloudinaryAssets';
 
 interface QuestionPanelProps {
   questionText: string;
@@ -9,6 +10,10 @@ interface QuestionPanelProps {
   selectedIndex?: number | null;
   onSelectOption?: (index: number) => void;
   isCorrectIndex?: number | null;
+  /** Stok potion pemain ini. Tombol "Pakai Potion" cuma muncul kalau > 0. */
+  potionCount?: number;
+  /** Dipanggil kalau pemain milih pakai potion (skip + auto-jawab benar). */
+  onUsePotion?: () => void;
 }
 
 export default function QuestionPanel({
@@ -17,6 +22,8 @@ export default function QuestionPanel({
   selectedIndex = null,
   onSelectOption,
   isCorrectIndex = null,
+  potionCount = 0,
+  onUsePotion,
 }: QuestionPanelProps) {
   return (
     <div className="relative w-full max-w-[560px] px-2 sm:px-0">
@@ -69,6 +76,17 @@ export default function QuestionPanel({
               );
             })}
           </div>
+
+          {onUsePotion && selectedIndex === null && potionCount > 0 ? (
+            <button
+              type="button"
+              onClick={onUsePotion}
+              className="mt-1 flex items-center gap-1 rounded-full border border-lime-600 bg-[#e8fbe9] px-2 py-0.5 text-[8px] font-bold text-[#1c5c33] transition-colors hover:bg-[#bdeecb] sm:px-3 sm:py-1 sm:text-[9px] md:text-[10px]"
+            >
+              <img src={attribut.potion1} alt="" className="h-3 w-3 sm:h-4 sm:w-4" />
+              Pakai Potion ({potionCount})
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

@@ -46,7 +46,7 @@ export default function GameSelectionModal({
                 <button
                   key={gameKey}
                   onClick={() => onSelectGame(gameKey)}
-                  className="game-option-card"
+                  className={`game-option-card game-option-card--${gameKey}`}
                   aria-label={`Pilih game ${gameValue.label}`}
                 >
                   <span className="game-option-icon">

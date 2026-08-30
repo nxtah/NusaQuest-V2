@@ -1,11 +1,14 @@
 'use client';
 
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import { information } from '@/src/assets/images/information/cloudinaryAssets';
 import { ROUTES } from '@/src/lib/constants/routes';
 import { useAuth } from '@/src/features/auth/hooks/useAuth';
+import { listenToUserProfile } from '@/src/services/firebase/firestore/users.service';
+import type { AppUser } from '@/src/types/auth';
 import BackButton from '@/src/components/ui/BackButton';
 import AchievementSection from '@/src/components/profile/AchievementSection';
 import AttributeSection from '@/src/components/profile/AttributeSection';
@@ -18,6 +21,12 @@ import './profile.css';
 export default function ProfilePage() {
   const router = useRouter();
   const { user, logout } = useAuth();
+
+  const [liveProfile, setLiveProfile] = useState<AppUser | null>(null);
+  useEffect(() => {
+    if (!user?.uid) return;
+    return listenToUserProfile(user.uid, setLiveProfile);
+  }, [user?.uid]);
 
   const avatarSrc = user?.firebasePhotoURL || user?.googlePhotoURL || information.kertas;
   const username  = user?.displayName ?? 'Nusa Player';
@@ -32,8 +41,8 @@ export default function ProfilePage() {
     <div className="profile-scene">
       <div className="profile-bg-layer">
         <Image
-          src={background.laut}
-          alt="Laut"
+          src={background.langit}
+          alt="Langit"
           fill
           sizes="100vw"
           className="profile-image"
@@ -77,8 +86,8 @@ export default function ProfilePage() {
               title="Profile"
             />
             <ProfilePanel woodSrc={background.kayu} title="Profile">
-              <BadgeSection />
-              <AttributeSection />
+              <BadgeSection badges={liveProfile?.badges} />
+              <AttributeSection potionCount={liveProfile?.inventory?.potion ?? 0} />
               <AchievementSection />
             </ProfilePanel>
           </div>

@@ -36,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${poppins.variable} antialiased overflow-auto m-0 p-0`}>
+      <body className={`${poppins.variable} antialiased overflow-auto m-0 p-0`} suppressHydrationWarning>
         <Providers>{children}</Providers>
         <RotateDeviceOverlay />
       </body>
