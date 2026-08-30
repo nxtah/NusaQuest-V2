@@ -20,6 +20,11 @@ const GLOBAL_IDLE_MS = 8 * 60_000;
 // submitAnswer yang sama persis kayak salah jawab manual), bukan tebakan
 // acak. Diekspor biar client bisa pakai angka yang sama buat hitung mundur.
 export const ANSWER_TIMEOUT_MS = 8_000;
+// Batas waktu buat lempar dadu di giliran sendiri — telat dianggap SKIP
+// (giliran lewat ke pemain berikutnya, pion gak jalan sama sekali, gak ada
+// penalti tambahan). Anchor waktunya `lastTurnChangeAt` (udah ada, di-set
+// pas game mulai & tiap nextTurn()) — gak perlu field baru.
+export const ROLL_TIMEOUT_MS = 10_000;
 
 function requireFirestore() {
   if (!firebaseFirestore) throw new Error('Firestore not configured');
@@ -515,6 +520,25 @@ export async function movePawn(
   const currentPosition = positions[playerIndex];
   const newPosition = currentPosition + steps;
   const rollsSix = steps === 6;
+
+  // Pion yang belum masuk papan (posisi 0) HARUS dadu 6 dulu buat masuk.
+  // Begitu masuk, langsung nempel di kotak 1 (bukan 0+6=6 — dadu-nya cuma
+  // "kunci masuk", bukan langkah jalan), TANPA extra roll (beda dari aturan
+  // umum "dadu 6 = lempar lagi" yang berlaku buat pion yang UDAH di papan —
+  // giliran tetap lewat ke pemain berikutnya seperti dadu biasa). Kalau
+  // bukan 6, pion tetap di 0, giliran langsung lewat, gak ada soal.
+  if (currentPosition === 0) {
+    const enteredPosition = rollsSix ? 1 : 0;
+    positions[playerIndex] = enteredPosition;
+    await updateDoc(ref, {
+      pionPositions: positions,
+      isMoving: false,
+      allowExtraRoll: false,
+      lastUpdated: Date.now(),
+      lastActionAt: Date.now(),
+    });
+    return enteredPosition;
+  }
 
   // Harus pas sampai kotak 100 — kalau lebih, pion diam di tempat, giliran tetap habis
   // (kecuali dadu 6, lihat allowExtraRoll di nextTurn).

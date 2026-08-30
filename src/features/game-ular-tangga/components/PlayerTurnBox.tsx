@@ -37,6 +37,9 @@ interface PlayerTurnBoxProps {
   /** Stok potion pemain ini, buat tombol "Pakai Potion" di QuestionPanel. */
   potionCount?: number;
   onUsePotion?: () => void;
+  /** `gameState.lastTurnChangeAt` — dasar hitung mundur 10 detik buat
+      lempar dadu di Dice. */
+  turnStartedAt?: number | null;
 }
 
 export default function PlayerTurnBox({
@@ -56,6 +59,7 @@ export default function PlayerTurnBox({
   myPlayerId,
   potionCount = 0,
   onUsePotion,
+  turnStartedAt,
 }: PlayerTurnBoxProps) {
   return (
     <div className="w-full flex justify-center">
@@ -87,6 +91,7 @@ export default function PlayerTurnBox({
             isMyTurn={isMyTurn}
             disabled={disabled}
             myPlayerId={myPlayerId}
+            turnStartedAt={turnStartedAt}
           />
         </div>
 

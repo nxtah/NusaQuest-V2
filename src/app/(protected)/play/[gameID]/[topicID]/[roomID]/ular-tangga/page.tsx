@@ -28,6 +28,7 @@ import {
   submitAnswer,
   nextTurn,
   ANSWER_TIMEOUT_MS,
+  ROLL_TIMEOUT_MS,
   type UlarTanggaGameState,
   type GamePlayer,
 } from '@/src/features/game-ular-tangga/services/ular-tangga-game.service';
@@ -152,14 +153,11 @@ export default function UlarTanggaPage() {
 
       if (!state) return;
       // 'finished' TIDAK auto-redirect lagi — WinModal di bawah yang nangani,
-      // user klik tombolnya sendiri buat lanjut. 'abandoned' (dari
-      // cleanupGame, jalur terpisah) tetap auto-redirect ke lobby kayak
-      // sebelumnya. 'timeout' (idle global 8 menit, gak ada yang mainin
-      // sama sekali) baliknya ke HOME, beda tujuan — sesuai diminta.
-      if (state.gameStatus === 'abandoned') {
+      // user klik tombolnya sendiri buat lanjut. 'abandoned' DAN 'timeout'
+      // (idle global 8 menit, gak ada satupun pemain yang gerak) sama-sama
+      // balik ke lobby room ini — game dianggap invalid, bukan ke home.
+      if (state.gameStatus === 'abandoned' || state.gameStatus === 'timeout') {
         router.push(`/lobby/${topicID}/${gameID}`);
-      } else if (state.gameStatus === 'timeout') {
-        router.push('/home');
       }
     });
 
@@ -288,12 +286,24 @@ export default function UlarTanggaPage() {
     if (actedRollTurnRef.current === turn) return;
     actedRollTurnRef.current = turn;
     const currentPos = gameState.pionPositions[gameState.currentPlayerIndex] ?? 0;
-    const rawPos = Math.min(currentPos + rolledNumber, 100);
+    // Pion yang belum masuk papan (posisi 0) butuh dadu 6 buat masuk ke kotak
+    // 1 — dadunya BUKAN langkah jalan, jadi rawPos di sini gak boleh dihitung
+    // currentPos+rolledNumber kayak biasa. Kotak 1 KEBETULAN pangkal tangga
+    // (LADDERS[1]=60) — kalau isLadderStart/isSnakeHead dites di sini kayak
+    // roll biasa, needsQuestion bakal true padahal movePawn (special-case
+    // posisi 0) gak pernah munculin soal, jadi nextTurn() gak pernah
+    // kepanggil, giliran macet permanen (guard actedRollTurnRef ngeblok
+    // roll berikutnya). Roll masuk-papan SELALU dianggap "gak butuh soal",
+    // baik yang berhasil (dapet 6) maupun yang gagal.
+    const isEnteringRoll = currentPos === 0;
+    const rawPos = isEnteringRoll
+      ? (rolledNumber === 6 ? 1 : 0)
+      : Math.min(currentPos + rolledNumber, 100);
     // movePawn returns final position (after snake slide if any)
     const finalPos = await movePawn(topicID, gameID, roomKey, gameState.currentPlayerIndex, rolledNumber);
     const isWin = finalPos >= 100;
-    const hitSnake = isSnakeHead(rawPos);
-    const needsQuestion = !hitSnake && isLadderStart(rawPos) && (gameState.questions?.length ?? 0) > 0;
+    const hitSnake = !isEnteringRoll && isSnakeHead(rawPos);
+    const needsQuestion = !isEnteringRoll && !hitSnake && isLadderStart(rawPos) && (gameState.questions?.length ?? 0) > 0;
     if (!isWin && !needsQuestion) {
       await nextTurn(topicID, gameID, roomKey);
     }
@@ -341,6 +351,46 @@ export default function UlarTanggaPage() {
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.waitingForAnswer, gameState?.showQuestion, gameState?.questionShownAt, gameState?.turnCounter, isMyTurn]);
+
+  // Ref biar skip lempar-dadu gak dobel-fire kalau effect ini re-run.
+  const skippedRollTurnRef = useRef<number>(-1);
+
+  // Batas 10 detik buat lempar dadu di giliran sendiri — gak nyala pas lagi
+  // nunggu jawaban/nunjukin soal (jatah ANSWER_TIMEOUT_MS di atas) atau pas
+  // dadu udah mulai jalan/pion lagi bergerak. Pola sama kayak timer jawaban:
+  // cuma dijalankan di client SI PEMAIN AKTIF sendiri (pemain yang beneran
+  // offline udah ditangani bot-takeover di bawah). Telat = nextTurn()
+  // langsung TANPA movePawn — pion diam di tempat, giliran lewat, gak ada
+  // penalti tambahan (murni skip).
+  useEffect(() => {
+    if (!gameStarted || !gameState || isPaused) return;
+    if (gameState.isMoving || gameState.waitingForAnswer || gameState.showQuestion) return;
+    if (gameState.diceState?.isRolling) return;
+    if (!isMyTurn || isBotActingRef.current || !gameState.lastTurnChangeAt) return;
+
+    const turn = gameState.turnCounter ?? 0;
+    if (skippedRollTurnRef.current === turn) return;
+
+    const deadline = gameState.lastTurnChangeAt + ROLL_TIMEOUT_MS;
+    const remaining = deadline - Date.now();
+
+    const timeout = setTimeout(() => {
+      skippedRollTurnRef.current = turn;
+      void nextTurn(topicID, gameID, roomKey);
+    }, Math.max(0, remaining));
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    gameStarted,
+    isPaused,
+    gameState?.isMoving,
+    gameState?.waitingForAnswer,
+    gameState?.showQuestion,
+    gameState?.diceState?.isRolling,
+    gameState?.lastTurnChangeAt,
+    gameState?.turnCounter,
+    isMyTurn,
+  ]);
 
   // Ref untuk mencegah bot melempar dadu berkali-kali pada giliran yang sama (saat pion sedang berjalan)
   const lastBotTurnRef = useRef<number>(-1);
@@ -526,6 +576,7 @@ export default function UlarTanggaPage() {
               myPlayerId={myUID ?? undefined}
               potionCount={potionCount}
               onUsePotion={handleUsePotion}
+              turnStartedAt={gameState?.lastTurnChangeAt}
             />
           </div>
         </div>

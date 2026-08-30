@@ -122,12 +122,12 @@ export default function NusaCardPage() {
 
       if (!state) return;
       // 'finished' TIDAK auto-redirect — RankModal di bawah yang nangani,
-      // user klik tombolnya sendiri buat lanjut. 'abandoned' tetap ke
-      // lobby. 'timeout' (idle global 8 menit) balik ke HOME.
-      if (state.gameStatus === "abandoned") {
+      // user klik tombolnya sendiri buat lanjut. 'abandoned' DAN 'timeout'
+      // (idle global 8 menit, gak ada satupun pemain yang gerak) sama-sama
+      // balik ke lobby room ini — bukan home — biar gampang buka room baru
+      // lagi di topik yang sama.
+      if (state.gameStatus === "abandoned" || state.gameStatus === "timeout") {
         router.push(lobbyPath);
-      } else if (state.gameStatus === "timeout") {
-        router.push("/home");
       }
     });
     return () => unsub();

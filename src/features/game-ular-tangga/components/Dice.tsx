@@ -17,7 +17,12 @@ interface DiceProps {
   isMyTurn?: boolean;
   currentPlayerId?: string;
   myPlayerId?: string;
+  /** `gameState.lastTurnChangeAt` — dasar hitung mundur 10 detik buat lempar
+      dadu. Cuma tampilan (readout), penegakan skip-nya di page.tsx. */
+  turnStartedAt?: number | null;
 }
+
+const ROLL_TIMEOUT_SECONDS = 10;
 
 const FACE_ROTATIONS: Record<number, {x: number; y: number}> = {
   1: {x: 0, y: 0},
@@ -104,8 +109,10 @@ export default function Dice({
   isMyTurn = false,
   currentPlayerId,
   myPlayerId,
+  turnStartedAt,
 }: DiceProps) {
   const [isLocalRolling, setIsLocalRolling] = useState(false);
+  const [rollSecondsLeft, setRollSecondsLeft] = useState(ROLL_TIMEOUT_SECONDS);
   const isLocalRollingRef = useRef(false);
   const [currentFace, setCurrentFace] = useState(1);
   const diceRef = useRef<HTMLDivElement | null>(null);
@@ -128,6 +135,23 @@ export default function Dice({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Hitung mundur 10 detik buat lempar dadu — cuma jalan pas beneran lagi
+  // nunggu giliran sendiri lempar (bukan pas dadu diputer/gak ada giliran).
+  // Penegakan skip-nya sendiri ada di page.tsx, ini murni tampilan.
+  useEffect(() => {
+    if (!turnStartedAt || !isMyTurn || disabled || isLocalRolling) {
+      setRollSecondsLeft(ROLL_TIMEOUT_SECONDS);
+      return;
+    }
+    const tick = () => {
+      const elapsed = (Date.now() - turnStartedAt) / 1000;
+      setRollSecondsLeft(Math.max(0, Math.ceil(ROLL_TIMEOUT_SECONDS - elapsed)));
+    };
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [turnStartedAt, isMyTurn, disabled, isLocalRolling]);
 
   // Ref untuk cegah onRollComplete dipanggil lebih dari sekali per roll
   const hasCalledRef = useRef(false);
@@ -235,6 +259,49 @@ export default function Dice({
 
   return (
     <div className="flex flex-col items-center gap-1 md:gap-4 w-full">
+      <style>{`
+        .nq-ut-dice-roll-btn {
+          background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
+          color: #4a2a1a;
+          box-shadow:
+            0 4px 0 #c6841a,
+            0 6px 10px rgba(120, 72, 0, 0.35),
+            inset -2px -2px 4px rgba(150, 90, 0, 0.25),
+            inset 2px 2px 4px rgba(255, 255, 255, 0.65);
+          transition: transform 140ms ease-out, box-shadow 140ms ease-out, filter 140ms ease-out;
+        }
+        .nq-ut-dice-roll-btn:not(:disabled):hover {
+          filter: brightness(1.05);
+          transform: translateY(-2px);
+        }
+        .nq-ut-dice-roll-btn:not(:disabled):active {
+          transform: translateY(2px);
+        }
+        .nq-ut-dice-roll-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .nq-ut-dice-timer {
+          background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+          color: #4a2a1a;
+          box-shadow:
+            0 2px 4px rgba(139, 94, 42, 0.3),
+            inset -1px -1px 3px rgba(139, 94, 42, 0.18),
+            inset 1px 1px 3px rgba(255, 255, 255, 0.85);
+        }
+        .nq-ut-dice-timer--urgent {
+          background: linear-gradient(150deg, #fde6e6 0%, #f3b8b8 100%);
+          color: #7a1f1f;
+          animation: nq-ut-dice-timer-pulse 0.6s ease-in-out infinite;
+        }
+        @keyframes nq-ut-dice-timer-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.12); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .nq-ut-dice-timer--urgent { animation: none; }
+        }
+      `}</style>
       {/* Dice Container - Smaller Compact Size */}
       <div
         style={{
@@ -356,12 +423,25 @@ export default function Dice({
           </p>
         )}
 
+        {/* Hitung mundur 10 detik buat lempar dadu — nongol pas beneran
+            nunggu giliran sendiri lempar (bukan pas dadu diputer). Telat =
+            giliran ke-skip otomatis (ditegakin di page.tsx). */}
+        {isMyTurn && !isOtherPlayerRolling && !disabled && !isLocalRolling && turnStartedAt ? (
+          <span
+            className={`nq-ut-dice-timer flex h-6 w-6 lg:h-7 lg:w-7 items-center justify-center rounded-full text-[10px] lg:text-xs font-black ${
+              rollSecondsLeft <= 3 ? 'nq-ut-dice-timer--urgent' : ''
+            }`}
+          >
+            {rollSecondsLeft}
+          </span>
+        ) : null}
+
         {/* Roll button - Only show when it's my turn and no one is rolling */}
         {isMyTurn && !isOtherPlayerRolling && (
           <button
             onClick={handleRollClick}
             disabled={disabled || isLocalRolling || clickLockRef.current}
-            className="px-3 py-1 lg:px-5 lg:py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold text-[12px] lg:text-sm rounded lg:rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95 whitespace-nowrap disabled:cursor-not-allowed"
+            className="nq-ut-dice-roll-btn px-3 py-1 lg:px-5 lg:py-2.5 font-bold text-[12px] lg:text-sm rounded-full whitespace-nowrap"
           >
             {isLocalRolling ? 'Rolling...' : 'Roll'}
           </button>

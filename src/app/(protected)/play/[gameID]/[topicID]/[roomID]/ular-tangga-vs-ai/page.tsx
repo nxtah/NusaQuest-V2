@@ -8,6 +8,7 @@ import Board from '@/src/features/game-ular-tangga/components/Board';
 import PlayerTurnBox from '@/src/features/game-ular-tangga/components/PlayerTurnBox';
 import {ularTangga} from '@/src/assets/images/ular-tangga/cloudinaryAssets';
 import PauseModal from '@/src/components/layout/PauseModal';
+import WinModal from '@/src/features/game-ular-tangga/components/WinModal';
 import SettingButton from '@/src/components/layout/SettingButton';
 import Loader from '@/src/components/ui/Loader';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
@@ -104,13 +105,6 @@ export default function UlarTanggaVsAiPage() {
     return () => unsub();
   }, [loading, topicID, gameID, roomKey]);
 
-  // ── Redirect ke lobby sesaat setelah game selesai ────────────────────────
-  useEffect(() => {
-    if (gameState?.gameStatus !== 'finished') return;
-    const timeoutId = setTimeout(() => router.push(lobbyPath), 1800);
-    return () => clearTimeout(timeoutId);
-  }, [gameState?.gameStatus, lobbyPath, router]);
-
   useEffect(() => {
     return () => {
       void cleanupGame(topicID, gameID, roomKey);
@@ -130,6 +124,16 @@ export default function UlarTanggaVsAiPage() {
   const currentPlayer = players[currentPlayerIndex];
   const isMyTurn = !!myUID && currentPlayer?.uid === myUID;
   const isDiceDisabled = !gameState || gameState.isMoving || gameState.waitingForAnswer || gameState.showQuestion;
+
+  // Pemenang berdasar `gameWinnerUID` (ditulis movePawn pas ada yang nyampe
+  // kotak 100) — bukan nebak dari currentPlayer, biar tetep bener meski
+  // giliran udah sempat pindah lagi. Vs-AI TIDAK ngeklaim reward beneran
+  // (gak ada `claimGameReward` di sini) — sama kayak nusa-card-vs-ai, biar
+  // orang gak bisa numpuk badge/potion cuma dengan ngelawan bot sendirian.
+  const winnerUID = gameState?.gameWinnerUID ?? null;
+  const winnerName = winnerUID
+    ? (players.find((p) => p.uid === winnerUID)?.displayName || players.find((p) => p.uid === winnerUID)?.name || 'Pemain')
+    : '';
 
   const currentActivity = currentPlayer ? gameState?.playerActivity?.[currentPlayer.uid] : null;
   const isCurrentPlayerOffline = currentActivity
@@ -165,11 +169,21 @@ export default function UlarTanggaVsAiPage() {
   const handleDiceRollComplete = useCallback(async (rolledNumber: number) => {
     if ((!isMyTurn && !isBotActing) || !gameState) return;
     const currentPos = gameState.pionPositions[gameState.currentPlayerIndex] ?? 0;
-    const rawPos = Math.min(currentPos + rolledNumber, 100);
+    // Sama kayak versi multiplayer — pion di posisi 0 butuh dadu 6 buat masuk
+    // ke kotak 1 (dadunya kunci masuk, bukan langkah jalan). Kotak 1
+    // kebetulan pangkal tangga (LADDERS[1]=60) — roll masuk-papan SELALU
+    // dianggap "gak butuh soal" (berhasil maupun gagal), soalnya movePawn
+    // (special-case posisi 0) emang gak pernah munculin soal buat kasus
+    // ini; kalau needsQuestion salah kehitung true di sini, nextTurn() gak
+    // pernah kepanggil dan giliran macet permanen.
+    const isEnteringRoll = currentPos === 0;
+    const rawPos = isEnteringRoll
+      ? (rolledNumber === 6 ? 1 : 0)
+      : Math.min(currentPos + rolledNumber, 100);
     const finalPos = await movePawn(topicID, gameID, roomKey, gameState.currentPlayerIndex, rolledNumber);
     const isWin = finalPos >= 100;
-    const hitSnake = isSnakeHead(rawPos);
-    const needsQuestion = !hitSnake && isLadderStart(rawPos) && (gameState.questions?.length ?? 0) > 0;
+    const hitSnake = !isEnteringRoll && isSnakeHead(rawPos);
+    const needsQuestion = !isEnteringRoll && !hitSnake && isLadderStart(rawPos) && (gameState.questions?.length ?? 0) > 0;
     if (!isWin && !needsQuestion) {
       await nextTurn(topicID, gameID, roomKey);
     }
@@ -236,12 +250,6 @@ export default function UlarTanggaVsAiPage() {
 
         <SettingButton onClick={() => setIsPaused(true)} />
 
-        {gameState?.gameStatus === 'finished' && (
-          <div className="absolute top-20 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-white/95 px-6 py-3 text-lg font-bold text-[#1f2a1f] shadow-lg">
-            {currentPlayer?.uid === myUID ? 'Kamu menang!' : 'AI menang!'}
-          </div>
-        )}
-
         <div className="flex-1 w-full flex items-start justify-center z-20 mt-1 md:mt-2 lg:mt-0">
           <div className="w-full aspect-square max-w-[80vh] md:max-w-[75vh] lg:max-w-[80vh] ml-4 md:ml-12 lg:ml-4">
             <Board
@@ -283,6 +291,19 @@ export default function UlarTanggaVsAiPage() {
         </div>
 
         <PauseModal isOpen={isPaused} onClose={() => setIsPaused(false)} />
+
+        {/* Sama persis kayak popup kemenangan di mode multiplayer — cuma
+            `myReward` selalu null di sini (vs-AI gak ngeklaim badge/potion
+            beneran), user klik tombolnya sendiri buat lanjut (gak ada
+            auto-redirect lagi). */}
+        <WinModal
+          isOpen={gameState?.gameStatus === 'finished'}
+          winnerName={winnerName}
+          isMe={!!myUID && winnerUID === myUID}
+          myReward={null}
+          onContinue={() => router.push(lobbyPath)}
+          onPlayAgain={() => router.push(roomPath)}
+        />
       </div>
     </main>
   );

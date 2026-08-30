@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image as KonvaImage } from "react-konva";
+import { Group, Image as KonvaImage, Circle } from "react-konva";
 import gsap from "gsap";
 
 export default function Pion({
@@ -18,14 +18,14 @@ export default function Pion({
 
     // Ref untuk posisi terkini — selalu up-to-date, tidak stale
     const positionIndexRef = useRef(desiredIndex);
-    const imageRef         = useRef(null);
+    const groupRef         = useRef(null);
     const isAnimating      = useRef(false);
 
     const offsetX = cellSize * 0.35;
     const offsetY = cellSize * 0.1;
 
     useEffect(() => {
-        const node = imageRef.current;
+        const node = groupRef.current;
         if (!node) return;
 
         const fromIndex = positionIndexRef.current; // Selalu nilai terbaru
@@ -105,7 +105,7 @@ export default function Pion({
 
     // Sync offsetX/offsetY ketika cellSize berubah (resize)
     useEffect(() => {
-        const node = imageRef.current;
+        const node = groupRef.current;
         if (!node || isAnimating.current) return;
         const pos = getPosition(positionIndexRef.current);
         gsap.set(node, { x: pos.x + offsetX, y: pos.y + offsetY });
@@ -117,15 +117,46 @@ export default function Pion({
 
     const currentPos = getPosition(positionIndexRef.current);
 
+    // "Koin clay" di bawah gambar pion — base bercincin emas + shadow puffy,
+    // biar pion keliatan 3D duduk di atas token, bukan gambar flat doang.
+    // Ukuran/posisinya relatif ke pion (bukan angka pixel absolut), jadi
+    // otomatis ngikutin cellSize kayak sebelumnya. Ref & animasi GSAP-nya
+    // sekarang narget GROUP ini (bukan gambar sendirian) — koordinat x/y
+    // yang dihitung tetep persis sama, cuma pindah node yang digerakin.
+    const baseRadius = pionWidth * 0.42;
+    const baseCenterX = pionWidth / 2;
+    const baseCenterY = pionHeight * 0.82;
+
     return (
-        <KonvaImage
-            ref={imageRef}
+        <Group
+            ref={groupRef}
             x={currentPos.x + offsetX}
             y={currentPos.y + offsetY}
-            width={pionWidth}
-            height={pionHeight}
-            image={image}
-            draggable={false}
-        />
+        >
+            <Circle
+                x={baseCenterX}
+                y={baseCenterY}
+                radius={baseRadius}
+                fillRadialGradientStartPoint={{x: -baseRadius * 0.3, y: -baseRadius * 0.3}}
+                fillRadialGradientStartRadius={0}
+                fillRadialGradientEndPoint={{x: 0, y: 0}}
+                fillRadialGradientEndRadius={baseRadius}
+                fillRadialGradientColorStops={[0, "#ffe28a", 0.55, "#ffc93c", 1, "#f5a916"]}
+                stroke="#c6841a"
+                strokeWidth={Math.max(baseRadius * 0.08, 1)}
+                shadowColor="rgba(120, 72, 0, 0.5)"
+                shadowBlur={baseRadius * 0.35}
+                shadowOffset={{x: 0, y: baseRadius * 0.18}}
+                shadowOpacity={0.6}
+            />
+            <KonvaImage
+                x={0}
+                y={0}
+                width={pionWidth}
+                height={pionHeight}
+                image={image}
+                draggable={false}
+            />
+        </Group>
     );
 }
