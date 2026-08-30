@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import confetti from "canvas-confetti";
 import { getNucaImage, nuca } from "@/src/assets/images/nuca/cloudinaryAssets";
 import { attribut } from "@/src/assets/images/badge/cloudinaryAssets";
 import { AnimatePresence, motion } from "framer-motion";
@@ -9,6 +11,11 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
 });
+
+// Warna sama persis kayak confetti RankModal — biar potion "kerasa" bagian
+// dari identitas visual yang sama, bukan efek nyasar dengan palet sendiri.
+const POTION_CONFETTI_COLORS = ["#ffc93c", "#f5a916", "#2f8f74", "#bdeecb"];
+const ANSWER_TIMEOUT_SECONDS = 8;
 
 /** Ditampilin abis jawaban ke-submit — kunci UI-nya (gak bisa milih lagi)
     dan nyorot pilihan yang bener/salah, sebelum modal ke-close sama caller.
@@ -41,6 +48,14 @@ interface QuestionModalProps {
   potionCount?: number;
   /** Dipanggil kalau pemain milih pakai potion (skip + auto-jawab benar). */
   onUsePotion?: () => void;
+  /**
+   * Timestamp (ms, server) jendela jawab SEKARANG mulai
+   * (`gameState.answerTurnStartedAt`). Cuma buat NAMPILIN hitung mundur —
+   * penegakan timeout-nya sendiri (siapa yang boleh manggil submitAnswer
+   * begitu abis) jalan lewat cincin avatar di GameArea/PlayerProfileNuca,
+   * biar gak ada 2 sumber kebenaran yang bisa saling dobel nembak.
+   */
+  answerTurnStartedAt?: number | null;
 }
 
 const defaultChoices = ["Surabaya", "Bandung", "Jakarta", "Medan"];
@@ -62,6 +77,7 @@ export default function QuestionModal({
   feedback = null,
   potionCount = 0,
   onUsePotion,
+  answerTurnStartedAt,
 }: QuestionModalProps) {
   // Selama feedback lagi ketampil, pake SNAPSHOT soal dari feedback (soal
   // yang beneran barusan dijawab), bukan prop `question`/`choices` yang
@@ -69,6 +85,40 @@ export default function QuestionModal({
   // ke-submit, jadi kalau dipake bakal jatoh ke placeholder default.
   const displayQuestion = feedback?.question ?? question;
   const displayChoices = feedback?.choices ?? choices;
+
+  // Hitung mundur jawab — murni tampilan (readout dari jam server yang
+  // sama dipakai cincin avatar), gak nembak timeout sendiri di sini biar
+  // gak ada 2 titik yang bisa saling dobel-trigger.
+  const [secondsLeft, setSecondsLeft] = useState(ANSWER_TIMEOUT_SECONDS);
+  useEffect(() => {
+    if (!answerTurnStartedAt) return;
+    const tick = () => {
+      const elapsed = (Date.now() - answerTurnStartedAt) / 1000;
+      setSecondsLeft(Math.max(0, Math.ceil(ANSWER_TIMEOUT_SECONDS - elapsed)));
+    };
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [answerTurnStartedAt]);
+
+  // Confetti emas begitu potion dipake — efek "sihir" yang beda dari
+  // sekadar jawaban benar biasa, biar kerasa spesial makai skill item.
+  const firePotionConfetti = () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    void confetti({
+      particleCount: 60,
+      spread: 70,
+      origin: { x: 0.5, y: 0.55 },
+      colors: POTION_CONFETTI_COLORS,
+      zIndex: 1300,
+      scalar: 0.9,
+    });
+  };
+
+  const handlePotionClick = () => {
+    firePotionConfetti();
+    onUsePotion?.();
+  };
 
   return (
     <AnimatePresence>
@@ -96,6 +146,23 @@ export default function QuestionModal({
                 0 7px 12px rgba(120, 72, 0, 0.35),
                 inset -2px -2px 5px rgba(150, 90, 0, 0.25),
                 inset 2px 2px 4px rgba(255, 255, 255, 0.65);
+            }
+            .nq-qm-timer {
+              background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+              color: #4a2a1a;
+              box-shadow:
+                0 3px 6px rgba(139, 94, 42, 0.3),
+                inset -2px -2px 4px rgba(139, 94, 42, 0.18),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+            }
+            .nq-qm-timer--urgent {
+              background: linear-gradient(150deg, #fde6e6 0%, #f3b8b8 100%);
+              color: #7a1f1f;
+              animation: nq-qm-timer-pulse 0.6s ease-in-out infinite;
+            }
+            @keyframes nq-qm-timer-pulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.08); }
             }
             .nq-qm-choice {
               background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
@@ -129,6 +196,7 @@ export default function QuestionModal({
                 0 6px 10px rgba(31, 90, 51, 0.3),
                 inset -2px -2px 4px rgba(47, 143, 78, 0.18),
                 inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+              animation: nq-qm-correct-pop 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
             }
             .nq-qm-choice--wrong {
               background: linear-gradient(150deg, #fde6e6 0%, #f3b8b8 100%);
@@ -137,6 +205,19 @@ export default function QuestionModal({
                 0 6px 10px rgba(122, 31, 31, 0.3),
                 inset -2px -2px 4px rgba(194, 59, 59, 0.18),
                 inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+              animation: nq-qm-wrong-shake 420ms ease-in-out both;
+            }
+            @keyframes nq-qm-correct-pop {
+              0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(47, 143, 78, 0.55); }
+              40% { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(47, 143, 78, 0); }
+              100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(47, 143, 78, 0); }
+            }
+            @keyframes nq-qm-wrong-shake {
+              0%, 100% { transform: translateX(0); }
+              20% { transform: translateX(-7px); }
+              40% { transform: translateX(6px); }
+              60% { transform: translateX(-5px); }
+              80% { transform: translateX(3px); }
             }
             @keyframes nq-qm-choice-in {
               from { opacity: 0; transform: translateY(8px); }
@@ -146,7 +227,7 @@ export default function QuestionModal({
               animation: nq-qm-choice-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
             }
             @media (prefers-reduced-motion: reduce) {
-              .nq-qm-choice-in { animation: none; }
+              .nq-qm-choice-in, .nq-qm-choice--correct, .nq-qm-choice--wrong, .nq-qm-timer--urgent { animation: none; }
             }
             .nq-qm-potion-btn {
               background: linear-gradient(150deg, #e8fbe9 0%, #bdeecb 100%);
@@ -232,6 +313,18 @@ export default function QuestionModal({
                   </span>
                 </div>
 
+                {/* Hitung mundur jawab — cuma nongol kalau belum ada feedback
+                    (masih boleh milih) dan jamnya emang lagi jalan. */}
+                {answerTurnStartedAt && !feedback ? (
+                  <div className="absolute right-3 top-3 sm:right-5 sm:top-5 z-10">
+                    <span
+                      className={`nq-qm-timer ${secondsLeft <= 3 ? "nq-qm-timer--urgent" : ""} flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full text-sm sm:text-base font-black`}
+                    >
+                      {secondsLeft}
+                    </span>
+                  </div>
+                ) : null}
+
                 <h3 className="
                   font-bauhaus
                   text-center
@@ -301,7 +394,7 @@ export default function QuestionModal({
                   <div className="mt-[clamp(14px,1.6vw,20px)] flex justify-center max-[640px]:mt-3">
                     <button
                       type="button"
-                      onClick={onUsePotion}
+                      onClick={handlePotionClick}
                       className="nq-qm-potion-btn flex items-center gap-2 rounded-full px-4 py-2 text-[clamp(11px,0.9vw,14px)] font-bold"
                     >
                       <img src={attribut.potion1} alt="" className="h-5 w-5" />

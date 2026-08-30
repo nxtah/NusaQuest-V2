@@ -2,6 +2,7 @@ import Image from 'next/image';
 
 import { loading as loadingAssets } from '@/src/assets/images/loading/cloudinaryAssets';
 import { pulau as homeAssets } from '@/src/assets/images/home/cloudinaryAssets';
+import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import styles from './Loader.module.css';
 
 interface LoaderProps {
@@ -48,6 +49,15 @@ export default function Loader({ message = 'LOADING NUSAQUEST...', fullScreen = 
 
   return (
     <Wrapper className="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+      <Image
+        src={background.langit}
+        alt=""
+        aria-hidden="true"
+        fill
+        priority
+        sizes="100vw"
+        className="pointer-events-none absolute inset-0 z-0 object-cover"
+      />
       <Image
         src={loadingAssets.awan3}
         alt=""

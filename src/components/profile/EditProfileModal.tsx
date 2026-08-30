@@ -2,14 +2,13 @@
 
 import Image from 'next/image';
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
-import type { AppUser } from '@/src/types/auth';
+import { background } from '@/src/assets/images/background/cloudinaryAssets';
+import { information } from '@/src/assets/images/information/cloudinaryAssets';
 import { uploadProfilePhoto } from '@/src/features/room/services/room.service';
 import { updateUserProfile } from '@/src/services/firebase/firestore/users.service';
 
-
-
-
 type EditProfileModalProps = {
+  uid: string;
   onClose: () => void;
   initialUsername?: string;
   avatarSrc?: string;
@@ -43,6 +42,7 @@ function CloseIcon() {
 }
 
 export default function EditProfileModal({
+  uid,
   onClose,
   initialUsername = 'Nusa Player',
   avatarSrc,
@@ -85,12 +85,12 @@ export default function EditProfileModal({
 
       // Upload foto baru ke Firebase Storage jika ada yang dipilih
       if (selectedFile) {
-        firebasePhotoURL = await uploadProfilePhoto('user', selectedFile);
+        firebasePhotoURL = await uploadProfilePhoto(uid, selectedFile);
       }
 
-      await updateUserProfile('user', {
+      await updateUserProfile(uid, {
         displayName: username.trim(),
-        firebasePhotoURL,
+        ...(firebasePhotoURL ? { firebasePhotoURL } : {}),
       });
 
       onClose();
@@ -111,77 +111,85 @@ export default function EditProfileModal({
       aria-modal="true"
       aria-label="Edit Profile"
     >
-      <div className="epm-panel">
-        <div className="epm-close-row">
+      <style>{`
+        .epm-frame {
+          background-image: url(${background.kayu});
+          background-size: cover;
+          background-position: center;
+        }
+      `}</style>
+
+      <div className="epm-frame">
+        <div className="epm-panel" style={{backgroundImage: `url(${information.kertas})`}}>
+          <div className="epm-ribbon">Edit Profil</div>
+
           <button type="button" className="epm-close-btn" onClick={onClose} aria-label="Close modal">
             <CloseIcon />
           </button>
-        </div>
 
-        <div className="epm-content">
-          {/* Avatar preview */}
-          <div className="epm-avatar-wrap">
-            <div className="epm-avatar">
-              {displaySrc ? (
-                <Image
-                  src={displaySrc}
-                  alt="Profile photo"
-                  fill
-                  className="object-cover"
-                  unoptimized={!!previewUrl}
-                />
-              ) : null}
+          <div className="epm-content">
+            {/* Avatar preview */}
+            <div className="epm-avatar-wrap">
+              <div className="epm-avatar">
+                {displaySrc ? (
+                  <Image
+                    src={displaySrc}
+                    alt="Profile photo"
+                    fill
+                    className="object-cover"
+                    unoptimized={!!previewUrl}
+                  />
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                className="epm-change-photo-btn"
+                onClick={() => photoInputRef.current?.click()}
+              >
+                <CameraIcon />
+                Ganti Foto
+              </button>
+
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="epm-hidden-input"
+                onChange={handlePhotoChange}
+              />
             </div>
 
-            <button
-              type="button"
-              className="epm-change-photo-btn"
-              onClick={() => photoInputRef.current?.click()}
-            >
-              <CameraIcon />
-              Ganti Foto
-            </button>
+            {/* Username field */}
+            <div className="epm-field">
+              <label htmlFor="edit-username" className="epm-label">Username</label>
+              <input
+                id="edit-username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="epm-input"
+                maxLength={30}
+              />
+            </div>
 
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              className="epm-hidden-input"
-              onChange={handlePhotoChange}
-            />
-          </div>
+            {saveError && (
+              <p className="epm-error">{saveError}</p>
+            )}
 
-          {/* Username field */}
-          <div className="epm-field">
-            <label htmlFor="edit-username" className="epm-label">Username</label>
-            <input
-              id="edit-username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="epm-input"
-              maxLength={30}
-            />
-          </div>
-
-          {saveError && (
-            <p style={{ color: '#ef4444', fontSize: 13, fontWeight: 600, textAlign: 'center', margin: 0 }}>
-              {saveError}
-            </p>
-          )}
-
-          {/* Actions */}
-          <div className="epm-actions">
-            <button
-              type="button"
-              id="btn-save-profile"
-              className="epm-save-btn"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              <SaveIcon />
-              {isSaving ? 'Menyimpan...' : 'Simpan'}
-            </button>
+            {/* Actions */}
+            <div className="epm-actions">
+              <button
+                type="button"
+                id="btn-save-profile"
+                className="epm-save-btn"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                <SaveIcon />
+                {isSaving ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

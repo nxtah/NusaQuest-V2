@@ -29,6 +29,10 @@ interface GameAreaProps {
   throwerTurnStartedAt?: number;
   /** Dipanggil (dari client manapun yang lagi liat) begitu hitung mundur lempar mencapai 0. */
   onThrowTimeout?: () => void;
+  /** Kapan jendela jawab SEKARANG mulai (`gameState.answerTurnStartedAt`) — dasar cincin hitung mundur 8 detik di avatar penjawab. */
+  answerTurnStartedAt?: number | null;
+  /** Dipanggil (dari client manapun yang lagi liat) begitu hitung mundur jawab mencapai 0. */
+  onAnswerTimeout?: () => void;
   /** Satu-satunya pemain yang lagi kebagian giliran jawab (bukan antrean semua orang). */
   answeringUID: string | null;
   activeQuestion: GameAreaActiveQuestion | null;
@@ -78,12 +82,16 @@ function PlayerSlot({
   orientation,
   throwerTurnStartedAt,
   onThrowTimeout,
+  answerTurnStartedAt,
+  onAnswerTimeout,
 }: {
   player: GameAreaPlayer;
   status: PlayerTurnStatus;
   orientation: "vertical" | "horizontal";
   throwerTurnStartedAt?: number;
   onThrowTimeout?: () => void;
+  answerTurnStartedAt?: number | null;
+  onAnswerTimeout?: () => void;
 }) {
   return (
     // Gap sebelumnya `clamp(6px,1.6vmin,2px)` — max (2px) lebih KECIL dari
@@ -98,6 +106,8 @@ function PlayerSlot({
           avatarUrl={player.photoURL}
           throwerTurnStartedAt={throwerTurnStartedAt}
           onThrowTimeout={onThrowTimeout}
+          answerTurnStartedAt={answerTurnStartedAt}
+          onAnswerTimeout={onAnswerTimeout}
         />
       </div>
       <div className="z-50">
@@ -118,6 +128,8 @@ export default function GameArea({
   throwerUID,
   throwerTurnStartedAt,
   onThrowTimeout,
+  answerTurnStartedAt,
+  onAnswerTimeout,
   answeringUID,
   activeQuestion,
   isMyTurnToAnswer,
@@ -214,6 +226,8 @@ export default function GameArea({
               orientation="horizontal"
               throwerTurnStartedAt={throwerTurnStartedAt}
               onThrowTimeout={onThrowTimeout}
+              answerTurnStartedAt={answerTurnStartedAt}
+              onAnswerTimeout={onAnswerTimeout}
             />
           </div>
         )}
@@ -227,6 +241,8 @@ export default function GameArea({
               orientation="vertical"
               throwerTurnStartedAt={throwerTurnStartedAt}
               onThrowTimeout={onThrowTimeout}
+              answerTurnStartedAt={answerTurnStartedAt}
+              onAnswerTimeout={onAnswerTimeout}
             />
           </div>
         )}
@@ -240,6 +256,8 @@ export default function GameArea({
               orientation="vertical"
               throwerTurnStartedAt={throwerTurnStartedAt}
               onThrowTimeout={onThrowTimeout}
+              answerTurnStartedAt={answerTurnStartedAt}
+              onAnswerTimeout={onAnswerTimeout}
             />
           </div>
         )}
@@ -321,6 +339,8 @@ export default function GameArea({
                   avatarUrl={me.photoURL}
                   throwerTurnStartedAt={throwerTurnStartedAt}
                   onThrowTimeout={onThrowTimeout}
+                  answerTurnStartedAt={answerTurnStartedAt}
+                  onAnswerTimeout={onAnswerTimeout}
                 />
               </div>
               <div className="z-50">
@@ -347,6 +367,7 @@ export default function GameArea({
         feedback={answerFeedback}
         potionCount={isMyTurnToAnswer ? potionCount : 0}
         onUsePotion={isMyTurnToAnswer ? onUsePotion : undefined}
+        answerTurnStartedAt={isMyTurnToAnswer ? answerTurnStartedAt : null}
       />
     </section>
   );

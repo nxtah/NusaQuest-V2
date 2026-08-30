@@ -143,8 +143,12 @@
   box-shadow: inset -2px -2px 6px rgba(139, 94, 42, 0.12), inset 2px 2px 6px rgba(255, 255, 255, 0.5);
 }
 .nq-admin-table thead {
-  background: rgba(139, 94, 42, 0.12);
+  /* Solid (bukan rgba tembus pandang) — thead ini `position: sticky`, jadi
+     baris body yang discroll ke bawahnya bakal keliatan "nembus" transparan
+     kalau background-nya gak solid. */
+  background: #f2dfae;
   color: #6b4a2a;
+  box-shadow: 0 2px 4px rgba(139, 94, 42, 0.18);
 }
 .nq-admin-table tbody tr {
   border-color: rgba(139, 94, 42, 0.12);

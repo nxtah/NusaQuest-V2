@@ -13,7 +13,7 @@ import WinModal from '@/src/features/game-ular-tangga/components/WinModal';
 import Loader from '@/src/components/ui/Loader';
 import SettingButton from '@/src/components/layout/SettingButton';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
-import {claimGameReward, getUserProfile, consumePotion, type GameReward} from '@/src/services/firebase/firestore/users.service';
+import {claimGameReward, getUserProfile, consumePotion, recordMatchOutcome, type GameReward} from '@/src/services/firebase/firestore/users.service';
 
 import {
   fetchGamePlayers,
@@ -27,6 +27,7 @@ import {
   movePawn,
   submitAnswer,
   nextTurn,
+  ANSWER_TIMEOUT_MS,
   type UlarTanggaGameState,
   type GamePlayer,
 } from '@/src/features/game-ular-tangga/services/ular-tangga-game.service';
@@ -53,6 +54,7 @@ export default function UlarTanggaPage() {
   // Dokumen Firestore di-scope per game+topik+slot, bukan cuma slug roomID
   // mentah — biar sesi game beda yang kebetulan pakai slot sama gak numpuk.
   const roomKey = `${gameID}_${topicID}_${roomID}`;
+  const roomPath = `/room/${gameID}/${topicID}/${roomID}`;
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   const {user} = useAuth();
@@ -229,6 +231,16 @@ export default function UlarTanggaPage() {
     });
   }, [gameState, myUID, winnerUID, roomKey]);
 
+  // Win-streak/achievement — jalan buat SEMUA pemain (menang atau kalah),
+  // beda dari reward di atas yang cuma buat pemenang.
+  useEffect(() => {
+    if (!gameState || gameState.gameStatus !== 'finished' || !myUID) return;
+    if (gameState.statsRecordedBy?.includes(myUID)) return;
+    const won = winnerUID === myUID;
+    const durationMs = won && gameState.gameWonAt ? gameState.gameWonAt - gameState.gameCreatedAt : undefined;
+    void recordMatchOutcome(roomKey, myUID, won, durationMs);
+  }, [gameState, myUID, winnerUID, roomKey]);
+
   const pionPositionsRaw = gameState?.pionPositions ?? new Array(orderedPlayers.length).fill(0);
   const showQuestion = gameState?.showQuestion ?? false;
   const currentQuestion = gameState
@@ -305,6 +317,30 @@ export default function UlarTanggaPage() {
     setPotionCount((count) => Math.max(0, count - 1));
     await handleSelectAnswer(currentQuestion.correctIndex);
   }
+
+  // Batas 8 detik buat jawab — cuma dijalankan di client SI PEMAIN AKTIF
+  // sendiri (lewat guard `isMyTurn` di dalam `handleSelectAnswer`), bukan
+  // watchdog lintas-client kayak NusaCard, karena game ini udah punya
+  // mekanisme terpisah buat pemain yang beneran OFFLINE (bot-takeover 60
+  // detik di atas) — timer ini spesifik buat pemain yang MASIH ADA tapi
+  // telat milih. Telat dianggap salah otomatis lewat `handleSelectAnswer`
+  // yang sama persis (bukan tebakan acak), guard `actedAnswerTurnRef`
+  // di dalamnya udah nyegah dobel-fire kalau kebetulan barusan dijawab manual.
+  useEffect(() => {
+    if (!gameState?.waitingForAnswer || !gameState?.showQuestion || !gameState?.questionShownAt) return;
+    if (!isMyTurn || isBotActingRef.current || !currentQuestion) return;
+
+    const deadline = gameState.questionShownAt + ANSWER_TIMEOUT_MS;
+    const remaining = deadline - Date.now();
+    const wrongIndex = currentQuestion.options.findIndex((_, i) => i !== currentQuestion.correctIndex);
+    if (wrongIndex === -1) return;
+
+    const timeout = setTimeout(() => {
+      void handleSelectAnswer(wrongIndex);
+    }, Math.max(0, remaining));
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.waitingForAnswer, gameState?.showQuestion, gameState?.questionShownAt, gameState?.turnCounter, isMyTurn]);
 
   // Ref untuk mencegah bot melempar dadu berkali-kali pada giliran yang sama (saat pion sedang berjalan)
   const lastBotTurnRef = useRef<number>(-1);
@@ -481,6 +517,7 @@ export default function UlarTanggaPage() {
                     options: currentQuestion.options || [],
                     selectedIndex: gameState?.selectedAnswerIndex,
                     isCorrectIndex: currentQuestion.correctIndex,
+                    questionShownAt: gameState?.questionShownAt,
                   }
                   : null
               }
@@ -507,6 +544,7 @@ export default function UlarTanggaPage() {
           isMe={!!myUID && winnerUID === myUID}
           myReward={myReward}
           onContinue={() => router.push(`/lobby/${topicID}/${gameID}`)}
+          onPlayAgain={() => router.push(roomPath)}
         />
       </div>
     </main>

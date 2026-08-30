@@ -25,6 +25,8 @@ interface PlayerTurnBoxProps {
     options: string[];
     selectedIndex?: number | null;
     isCorrectIndex?: number | null;
+    /** Kapan soal ini dimunculin (`gameState.questionShownAt`) — dasar hitung mundur 8 detik. */
+    questionShownAt?: number | null;
   } | null;
   showQuestion?: boolean;
   players?: Player[];
@@ -69,6 +71,7 @@ export default function PlayerTurnBox({
               onSelectOption={onSelectAnswer}
               potionCount={isMyTurn ? potionCount : 0}
               onUsePotion={isMyTurn ? onUsePotion : undefined}
+              questionShownAt={question.questionShownAt}
             />
           ) : (
             <InitialPanel focusedName={focusedPlayerName} />

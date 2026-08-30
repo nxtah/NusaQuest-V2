@@ -10,7 +10,7 @@ import {
 import type { User as FirebaseUser } from 'firebase/auth';
 
 import { firebaseFirestore } from '../../../lib/firebase/client';
-import type { AppUser, UserBadges, UserInventory } from '../../../types/auth';
+import type { AppUser, UserAchievements, UserBadges, UserInventory, UserStats } from '../../../types/auth';
 import type { AppResult } from '../../../utils/result';
 
 import { getDocument, setDocument, updateDocument, usersCollectionPath } from './base.service';
@@ -22,6 +22,10 @@ type UserDocument = AppUser & {
 
 const DEFAULT_INVENTORY: UserInventory = { potion: 1 };
 const DEFAULT_BADGES: UserBadges = { gold: 0, silver: 0, bronze: 0 };
+const DEFAULT_STATS: UserStats = { winStreak: 0 };
+const DEFAULT_ACHIEVEMENTS: UserAchievements = { speedRun: false, streak: false };
+const SPEED_RUN_MS = 10 * 60 * 1000;
+const WIN_STREAK_TARGET = 3;
 
 function requireFirestore() {
   if (!firebaseFirestore) throw new Error('Firestore not configured');
@@ -66,6 +70,13 @@ export async function upsertUserFromGoogle(firebaseUser: FirebaseUser): Promise<
     // sebelum field ini ada) di-backfill default yang sama biar gak undefined.
     inventory: existingProfile?.inventory ?? DEFAULT_INVENTORY,
     badges: existingProfile?.badges ?? DEFAULT_BADGES,
+    stats: existingProfile?.stats ?? DEFAULT_STATS,
+    achievements: existingProfile?.achievements ?? DEFAULT_ACHIEVEMENTS,
+    // Akun BENERAN baru (belum ada dokumen sama sekali) -> false, nampilin
+    // popup perkenalan sekali. Akun lama yang belum punya field ini
+    // di-backfill true, BUKAN false — biar gak tiba-tiba nongol ke semua
+    // orang yang udah lama main.
+    hasSeenIntro: existingProfile ? (existingProfile.hasSeenIntro ?? true) : false,
     createdAt: existingProfile?.createdAt ?? serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -160,5 +171,53 @@ export async function claimGameReward(
   } catch (error) {
     console.error('Error claiming game reward:', error);
     return null;
+  }
+}
+
+/**
+ * Update win-streak + achievement stats begitu 1 pemain nyelesain game
+ * (menang ATAU kalah) — TERPISAH dari `claimGameReward` (yang cuma jalan
+ * buat rank 1-3) karena kalah pun perlu nge-reset streak. Idempotent lewat
+ * `statsRecordedBy` di dokumen gameState (guard sendiri, beda dari
+ * `rewardsClaimedBy`) biar reconnect/reload gak dobel-proses.
+ */
+export async function recordMatchOutcome(
+  roomID: string,
+  uid: string,
+  won: boolean,
+  durationMs?: number,
+): Promise<void> {
+  const gameStateRef = doc(requireFirestore(), 'gameStates', roomID);
+  const userRef = doc(requireFirestore(), usersCollectionPath(), uid);
+
+  try {
+    await runTransaction(requireFirestore(), async (tx) => {
+      const gsSnap = await tx.get(gameStateRef);
+      if (!gsSnap.exists()) return;
+      const gsData = gsSnap.data() as DocumentData;
+      const recordedBy: string[] = gsData.statsRecordedBy ?? [];
+      if (recordedBy.includes(uid)) return;
+
+      const userSnap = await tx.get(userRef);
+      if (!userSnap.exists()) return;
+      const userData = userSnap.data() as AppUser;
+      const stats = userData.stats ?? DEFAULT_STATS;
+      const achievements = userData.achievements ?? DEFAULT_ACHIEVEMENTS;
+
+      const newStreak = won ? (stats.winStreak ?? 0) + 1 : 0;
+      const speedRun = achievements.speedRun
+        || (won && durationMs !== undefined && durationMs < SPEED_RUN_MS);
+      const streak = achievements.streak || newStreak >= WIN_STREAK_TARGET;
+
+      tx.update(userRef, {
+        'stats.winStreak': newStreak,
+        'achievements.speedRun': speedRun,
+        'achievements.streak': streak,
+        updatedAt: serverTimestamp(),
+      });
+      tx.update(gameStateRef, { statsRecordedBy: arrayUnion(uid) });
+    });
+  } catch (error) {
+    console.error('Error recording match outcome:', error);
   }
 }

@@ -85,6 +85,21 @@ export default async function InformationDetailPage({
                 .nq-photo-shadow {
                     background: radial-gradient(ellipse at center, rgba(20, 10, 0, 0.45) 0%, rgba(20, 10, 0, 0) 70%);
                 }
+
+                /* Mobile landscape (HP disamping, viewport pendek) — dikompres
+                   vertikal biar gak butuh scroll segunung buat sampe ke isinya. */
+                @media (max-height: 500px) and (orientation: landscape) {
+                    .nq-info-content { gap: 1.75rem; padding-bottom: 2rem; }
+                    .nq-info-journal { margin-top: 3rem; }
+                    .nq-info-vine { width: 4.5rem; top: -1.75rem; }
+                    .nq-info-vine-left { left: -1rem; }
+                    .nq-info-vine-right { right: -1rem; }
+                    .nq-info-board-inner { padding-top: 4.5rem; padding-bottom: 1.5rem; padding-left: 1rem; padding-right: 1rem; }
+                    .nq-info-paper { padding: 1rem 1.25rem; }
+                    .nq-info-title { font-size: 1.35rem; }
+                    .nq-info-desc { font-size: 0.85rem; max-width: 32rem; }
+                    .nq-info-photo-wrap { top: -3rem; width: 60%; }
+                }
             `}</style>
 
             {/* Background Image */}
@@ -99,28 +114,30 @@ export default async function InformationDetailPage({
                 <div className="absolute inset-0 z-10 bg-black/10"></div>
             </div>
 
-            <div className="mx-4 md:mx-12 mt-4 md:mt-6 flex flex-col items-center gap-14 md:gap-20 pb-14 md:pb-20 z-10 relative">
+            <div className="nq-info-content mx-4 md:mx-12 mt-4 md:mt-6 flex flex-col items-center gap-14 md:gap-20 pb-14 md:pb-20 z-10 relative">
                 {/* Tombol Kembali */}
                 <div className="w-full flex justify-start">
                     <BackButton href={ROUTES.public.information} iconSize="md" />
                 </div>
 
                 {/* Entri Jurnal — foto tertempel miring di atas papan kayu */}
-                <div className="nq-journal-entrance relative w-full max-w-3xl mt-16 md:mt-24">
-                    {/* Sulur Tanaman */}
+                <div className="nq-journal-entrance nq-info-journal relative w-full max-w-5xl mt-16 md:mt-24">
+                    {/* Sulur Tanaman — diskalain proporsional sama papan yang
+                        sekarang lebih lebar, digeser lebih keluar biar tetep
+                        nempel di sudut papan (bukan ketimpa/ketinggalan). */}
                     <Image
                         src={information.tanamankiri}
                         alt=""
                         width={220}
                         height={260}
-                        className="absolute -top-16 -left-10 sm:-left-20 w-28 sm:w-44 h-auto z-0 pointer-events-none select-none"
+                        className="nq-info-vine nq-info-vine-left absolute -top-14 -left-8 sm:-left-16 md:-left-24 lg:-left-28 w-24 sm:w-40 md:w-52 lg:w-60 h-auto z-0 pointer-events-none select-none"
                     />
                     <Image
                         src={information.tanamankanan}
                         alt=""
                         width={220}
                         height={260}
-                        className="absolute -top-16 -right-10 sm:-right-20 w-28 sm:w-44 h-auto z-0 pointer-events-none select-none"
+                        className="nq-info-vine nq-info-vine-right absolute -top-14 -right-8 sm:-right-16 md:-right-24 lg:-right-28 w-24 sm:w-40 md:w-52 lg:w-60 h-auto z-0 pointer-events-none select-none"
                     />
 
                     {/* Papan Kayu */}
@@ -128,10 +145,10 @@ export default async function InformationDetailPage({
                         className="relative z-10 rounded-[1.75rem] sm:rounded-[2rem] border-[5px] sm:border-[6px] border-[#3d2411] shadow-2xl bg-center bg-cover"
                         style={{ backgroundImage: `url(${background.kayu})` }}
                     >
-                        <div className="rounded-[1.4rem] sm:rounded-[1.6rem] bg-black/15 px-4 pt-24 pb-7 sm:px-10 sm:pt-32 sm:pb-10 flex flex-col items-center gap-4 md:gap-6">
+                        <div className="nq-info-board-inner rounded-[1.4rem] sm:rounded-[1.6rem] bg-black/15 px-4 pt-28 pb-8 sm:px-10 sm:pt-40 sm:pb-12 md:px-14 md:pt-44 lg:px-20 flex flex-col items-center gap-4 md:gap-6">
                             {/* Kertas — judul & deskripsi */}
                             <div
-                                className="relative w-full rounded-xl sm:rounded-2xl px-6 py-7 sm:px-10 sm:py-10 shadow-inner bg-center bg-cover"
+                                className="nq-info-paper relative w-full rounded-xl sm:rounded-2xl px-6 py-7 sm:px-12 sm:py-12 md:px-16 md:py-14 shadow-inner bg-center bg-cover"
                                 style={{ backgroundImage: `url(${information.kertas})` }}
                             >
                                 <Image
@@ -149,12 +166,12 @@ export default async function InformationDetailPage({
                                     className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 w-7 sm:w-10 h-auto rotate-[135deg] opacity-90 pointer-events-none select-none"
                                 />
                                 <h1
-                                    className={`relative text-2xl sm:text-3xl md:text-4xl text-[#3d2411] font-bold tracking-wide text-center ${bauhausLace.className}`}
+                                    className={`nq-info-title relative text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[#3d2411] font-bold tracking-wide text-center ${bauhausLace.className}`}
                                 >
                                     {title}
                                 </h1>
-                                <div className="relative mx-auto mt-3 mb-4 sm:mt-4 sm:mb-5 h-[3px] w-16 sm:w-24 rounded-full bg-[#c6841a]/60" />
-                                <p className="relative text-base sm:text-lg md:text-xl text-[#4a2a1a]/85 leading-relaxed text-center max-w-xl mx-auto">
+                                <div className="relative mx-auto mt-4 mb-5 sm:mt-5 sm:mb-6 h-[3px] w-20 sm:w-28 rounded-full bg-[#c6841a]/60" />
+                                <p className="nq-info-desc relative text-lg sm:text-xl md:text-2xl text-[#4a2a1a]/85 leading-relaxed text-center max-w-3xl mx-auto">
                                     {description}
                                 </p>
                             </div>
@@ -166,7 +183,7 @@ export default async function InformationDetailPage({
                         dijepret ke halaman jurnal. Elips blur di baliknya
                         ngasih kesan foto "ngambang"/nempel di papan, bukan
                         cuma numpuk flat. */}
-                    <div className="absolute -top-16 sm:-top-24 md:-top-28 left-1/2 -translate-x-1/2 w-[88%] sm:w-[78%] max-w-xl z-20">
+                    <div className="nq-info-photo-wrap absolute -top-16 sm:-top-24 md:-top-28 left-1/2 -translate-x-1/2 w-[88%] sm:w-[72%] max-w-3xl z-20">
                         <div
                             className="nq-photo-shadow absolute -bottom-4 left-1/2 -translate-x-1/2 w-[85%] h-8 sm:h-10 rounded-full blur-md"
                             aria-hidden="true"
@@ -218,7 +235,7 @@ export default async function InformationDetailPage({
 
                 {/* Sugesti — postcard nemplok di papan gabus */}
                 {suggestions.length > 0 && (
-                    <div className="w-full max-w-5xl">
+                    <div className="w-full max-w-6xl">
                         <h2
                             className={`text-white text-lg sm:text-xl md:text-2xl font-bold tracking-wide text-center drop-shadow-md ${bauhausLace.className}`}
                         >

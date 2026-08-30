@@ -1,8 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, {useEffect, useState} from 'react';
+import confetti from 'canvas-confetti';
 import {ularTangga} from '../../../assets/images/ular-tangga/cloudinaryAssets';
 import {attribut} from '../../../assets/images/badge/cloudinaryAssets';
+
+// Palet sama persis kayak confetti RankModal/QuestionModal NusaCard — biar
+// potion kerasa satu identitas visual, bukan efek nyasar palet sendiri.
+const POTION_CONFETTI_COLORS = ['#ffc93c', '#f5a916', '#2f8f74', '#bdeecb'];
+const ANSWER_TIMEOUT_SECONDS = 8;
 
 interface QuestionPanelProps {
   questionText: string;
@@ -14,6 +20,8 @@ interface QuestionPanelProps {
   potionCount?: number;
   /** Dipanggil kalau pemain milih pakai potion (skip + auto-jawab benar). */
   onUsePotion?: () => void;
+  /** Kapan soal ini dimunculin (`gameState.questionShownAt`) — dasar hitung mundur 8 detik. Cuma tampilan, penegakannya di page.tsx. */
+  questionShownAt?: number | null;
 }
 
 export default function QuestionPanel({
@@ -24,14 +32,76 @@ export default function QuestionPanel({
   isCorrectIndex = null,
   potionCount = 0,
   onUsePotion,
+  questionShownAt,
 }: QuestionPanelProps) {
+  const [secondsLeft, setSecondsLeft] = useState(ANSWER_TIMEOUT_SECONDS);
+  useEffect(() => {
+    if (!questionShownAt) return;
+    const tick = () => {
+      const elapsed = (Date.now() - questionShownAt) / 1000;
+      setSecondsLeft(Math.max(0, Math.ceil(ANSWER_TIMEOUT_SECONDS - elapsed)));
+    };
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [questionShownAt]);
+
+  const handlePotionClick = () => {
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      void confetti({
+        particleCount: 60,
+        spread: 70,
+        origin: {x: 0.5, y: 0.55},
+        colors: POTION_CONFETTI_COLORS,
+        zIndex: 1300,
+        scalar: 0.9,
+      });
+    }
+    onUsePotion?.();
+  };
+
   return (
     <div className="relative w-full max-w-[560px] px-2 sm:px-0">
+      <style>{`
+        @keyframes qp-correct-pop {
+          0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(101, 163, 13, 0.55); }
+          40% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(101, 163, 13, 0); }
+          100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(101, 163, 13, 0); }
+        }
+        @keyframes qp-wrong-shake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(5px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(3px); }
+        }
+        .qp-correct { animation: qp-correct-pop 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .qp-wrong { animation: qp-wrong-shake 420ms ease-in-out both; }
+        @media (prefers-reduced-motion: reduce) {
+          .qp-correct, .qp-wrong { animation: none; }
+        }
+      `}</style>
+
       <div className="relative w-full aspect-[1069/722]">
         <div
           className="absolute inset-0 bg-center bg-contain bg-no-repeat"
           style={{backgroundImage: `url(${ularTangga.kertas})`}}
         />
+
+        {/* Hitung mundur jawab — cuma nongol selagi belum dijawab. */}
+        {questionShownAt && selectedIndex === null ? (
+          <div className="absolute right-[8%] top-[6%] z-10">
+            <span
+              className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full border-2 text-[10px] sm:text-xs font-black shadow-md ${
+                secondsLeft <= 3
+                  ? 'border-red-700 bg-[#ef4444] text-white animate-pulse'
+                  : 'border-lime-600 bg-[#fff6e0] text-gray-800'
+              }`}
+            >
+              {secondsLeft}
+            </span>
+          </div>
+        ) : null}
 
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4">
           {/* Question Text - Responsive sizing */}
@@ -53,8 +123,8 @@ export default function QuestionPanel({
               const shouldBeRed = isSelected && isAnswered && !isCorrect;
               // 3. Jika soal sudah dijawab tapi ini bukan yang dipilih → cek apakah ini jawaban benar (tunjukkan hijau)
               const shouldBeGreenCorrect = !isSelected && isAnswered && isCorrect;
-              // 4. Jika soal belum dijawab → abu-abu normal
-              const shouldBeGray = !isAnswered;
+
+              const effectClass = shouldBeGreen || shouldBeGreenCorrect ? 'qp-correct' : shouldBeRed ? 'qp-wrong' : '';
 
               return (
                 <button
@@ -62,7 +132,7 @@ export default function QuestionPanel({
                   type="button"
                   onClick={() => onSelectOption?.(index)}
                   disabled={selectedIndex !== null}
-                  className={`w-full rounded-full border px-2 py-1 text-[9px] font-medium leading-tight transition-all sm:px-3 sm:py-1.5 sm:text-[10px] md:px-4 md:py-2 md:text-xs lg:text-sm disabled:cursor-not-allowed disabled:opacity-100 ${shouldBeGreen
+                  className={`w-full rounded-full border px-2 py-1 text-[9px] font-medium leading-tight transition-all sm:px-3 sm:py-1.5 sm:text-[10px] md:px-4 md:py-2 md:text-xs lg:text-sm disabled:cursor-not-allowed disabled:opacity-100 ${effectClass} ${shouldBeGreen
                     ? 'border-lime-600 bg-[#9dc90b] text-gray-900 font-bold' // Opsi yang dipilih & benar (sesuai referensi 2)
                     : shouldBeRed
                       ? 'border-red-700 bg-[#ef4444] text-white font-bold' // Opsi yang dipilih & salah
@@ -80,7 +150,7 @@ export default function QuestionPanel({
           {onUsePotion && selectedIndex === null && potionCount > 0 ? (
             <button
               type="button"
-              onClick={onUsePotion}
+              onClick={handlePotionClick}
               className="mt-1 flex items-center gap-1 rounded-full border border-lime-600 bg-[#e8fbe9] px-2 py-0.5 text-[8px] font-bold text-[#1c5c33] transition-colors hover:bg-[#bdeecb] sm:px-3 sm:py-1 sm:text-[9px] md:text-[10px]"
             >
               <img src={attribut.potion1} alt="" className="h-3 w-3 sm:h-4 sm:w-4" />

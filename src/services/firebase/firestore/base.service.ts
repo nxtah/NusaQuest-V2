@@ -123,3 +123,7 @@ export function informationItemsCollectionPath() {
 export function creditsCollectionPath() {
   return 'credits';
 }
+
+export function creditSectionsCollectionPath() {
+  return 'creditSections';
+}

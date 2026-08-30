@@ -62,6 +62,12 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // ── Collection: creditSections (divisi di halaman /credit) ───────────
+    match /creditSections/{sectionId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     // ── Collection: questions ──────────────────────────────────────────
     match /questions/{questionId} {
       // Active approved questions are public read; admin sees all

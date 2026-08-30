@@ -97,17 +97,41 @@ export default function RoomPage() {
               // `players` sengaja gak diikutkan di sini + pakai merge:true —
               // kalau 2 orang join room baru barengan, setDoc gak boleh
               // nimpa `players` yang udah ditulis orang lain lewat
-              // playerJoinRoom.
+              // playerJoinRoom. Nama field HARUS `status`/`maxPlayers` (bukan
+              // `gameStatus`/`capacity`/`isSinglePlayer` kayak sebelumnya) —
+              // itu field yang beneran dibaca `subscribeToGameStart`
+              // (lobby.service.ts) dan `checkRoomType` (`room.maxPlayers===1`
+              // buat derive vs-AI), field lama itu gak pernah kebaca siapapun.
               await setDoc(roomRef, {
-                isSinglePlayer: isVsAi, capacity: isVsAi ? 1 : 4, currentPlayers: 0,
-                gameStatus: 'waiting',
+                maxPlayers: isVsAi ? 1 : 4, currentPlayers: 0,
+                status: 'waiting',
                 lastResetAt: new Date().toISOString(),
               }, {merge: true});
-            } catch {
+            } catch (setDocErr) {
               // Race lumrah: orang lain udah bikin room-nya duluan sepersekian
-              // detik sebelum kita — bukan error fatal, lanjut aja ke join ulang.
+              // detik sebelum kita — bukan error fatal, lanjut aja ke join
+              // ulang. Tetap di-log (bukan diem-diem ditelan) biar kalau
+              // gagalnya BUKAN gara-gara race (mis. rules/permission), masih
+              // ketauan dari console alih-alih nyamar jadi "Room not found"
+              // yang membingungkan di percobaan join berikutnya.
+              console.warn('Gagal bikin dokumen room baru (kemungkinan race, lanjut coba join lagi):', setDocErr);
             }
-            await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, photoURL);
+            // Retry sampai 3x dengan jeda pendek — nyerap kemungkinan delay
+            // konsistensi baca-abis-tulis Firestore, bukan cuma 1x nembak
+            // ulang yang kalau kebetulan kepepet delay itu ikutan gagal dan
+            // muncul sebagai error "Room not found" yang sama di console.
+            let lastErr: unknown = err;
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, photoURL);
+                lastErr = null;
+                break;
+              } catch (retryErr) {
+                lastErr = retryErr;
+                if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 400));
+              }
+            }
+            if (lastErr) throw lastErr;
           } else {
             throw err;
           }

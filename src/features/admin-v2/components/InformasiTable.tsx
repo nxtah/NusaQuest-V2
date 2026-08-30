@@ -308,6 +308,7 @@ export default function InformasiTable() {
           value={imageUrl}
           onChange={setImageUrl}
           folder="nusaquest/informasi"
+          aspect={2490 / 984}
           required
         />
       </Modal>

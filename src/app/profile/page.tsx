@@ -69,6 +69,7 @@ export default function ProfilePage() {
 
           <div className="profile-left-region">
             <ProfileCard
+              uid={user?.uid ?? ''}
               username={username}
               email={email}
               avatarSrc={avatarSrc}
@@ -88,7 +89,7 @@ export default function ProfilePage() {
             <ProfilePanel woodSrc={background.kayu} title="Profile">
               <BadgeSection badges={liveProfile?.badges} />
               <AttributeSection potionCount={liveProfile?.inventory?.potion ?? 0} />
-              <AchievementSection />
+              <AchievementSection achievements={liveProfile?.achievements} />
             </ProfilePanel>
           </div>
 

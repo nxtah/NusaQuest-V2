@@ -1,7 +1,6 @@
 'use client';
 import {useState} from 'react';
 import Sidebar from './Sidebar';
-import DashboardHeader from './DashboardHeader';
 import QuestionsTable from './QuestionsTable';
 import InformasiTable from './InformasiTable';
 import KotaProvinsTable from './KotaProvinsTable';
@@ -21,8 +20,6 @@ export default function AdminDashboard({onLogout}: {onLogout: () => void}) {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col p-4 sm:p-6 lg:p-10 overflow-hidden lg:h-screen z-10 min-h-0">
-        <DashboardHeader activeMenu={activeMenu} />
-
         {/* Render content based on active menu */}
         {activeMenu === 'pertanyaan' && <QuestionsTable />}
         {activeMenu === 'informasi' && <InformasiTable />}

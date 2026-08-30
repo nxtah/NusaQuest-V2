@@ -16,6 +16,10 @@ const ROOMS_COLLECTION = 'rooms';
 // selama ini, game dianggap invalid & di-reset. Sama persis konsepnya
 // dengan versi NusaCard (nusa-card-game.service.ts).
 const GLOBAL_IDLE_MS = 8 * 60_000;
+// Batas waktu buat jawab soal — telat dianggap salah otomatis (lewat jalur
+// submitAnswer yang sama persis kayak salah jawab manual), bukan tebakan
+// acak. Diekspor biar client bisa pakai angka yang sama buat hitung mundur.
+export const ANSWER_TIMEOUT_MS = 8_000;
 
 function requireFirestore() {
   if (!firebaseFirestore) throw new Error('Firestore not configured');
@@ -57,6 +61,9 @@ export interface UlarTanggaGameState {
   allowExtraRoll: boolean;
   potionUsable: boolean;
   currentQuestionIndex: number;
+  /** Kapan soal SEKARANG dimunculin — dasar hitung mundur 8 detik buat
+      jawab. Cuma valid selagi `waitingForAnswer` true. */
+  questionShownAt?: number | null;
   turnCounter: number;
   questions: UlarTanggaQuestion[];
   gameStatus: 'playing' | 'finished' | 'abandoned' | 'timeout';
@@ -73,6 +80,10 @@ export interface UlarTanggaGameState {
   /** UID yang udah nge-claim reward (badge/potion) buat game ini — guard
       biar gak ke-double-grant kalau client reconnect/buka ulang WinModal. */
   rewardsClaimedBy?: string[];
+  /** UID yang statistiknya (win-streak/achievement) udah ke-proses buat
+      game ini — guard terpisah dari `rewardsClaimedBy` karena ini jalan
+      buat SEMUA pemain (menang atau kalah), bukan cuma pemenang. */
+  statsRecordedBy?: string[];
 }
 
 export interface GamePlayer {
@@ -579,6 +590,7 @@ export async function movePawn(
       showQuestion: true,
       waitingForAnswer: true,
       currentQuestionIndex: questionIndex,
+      questionShownAt: Date.now(),
       allowExtraRoll: rollsSix,
       lastUpdated: Date.now(),
       lastActionAt: Date.now(),
@@ -674,6 +686,7 @@ export async function nextTurn(
       selectedAnswerIndex: null,
       allowExtraRoll: false,
       currentQuestionIndex: 0,
+      questionShownAt: null,
       lastUpdated: Date.now(),
       lastActionAt: Date.now(),
     });
@@ -695,6 +708,7 @@ export async function nextTurn(
     selectedAnswerIndex: null,
     allowExtraRoll: false,
     currentQuestionIndex: 0,
+    questionShownAt: null,
     lastUpdated: Date.now(),
     lastActionAt: Date.now(),
   });

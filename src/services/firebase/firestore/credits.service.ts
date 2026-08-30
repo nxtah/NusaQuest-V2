@@ -18,6 +18,10 @@ export interface CreditMember {
   bio: string;
   photoURL: string;
   teamVersion: 'V1' | 'V2';
+  /** Divisi (Ketua/Developer/Designer/dst) — dikelola manual dari admin,
+      lihat credit-sections.service.ts. Kosong = belum dikelompokkan
+      (dulu field ini gak ada), ditampilin di grup "Lainnya". */
+  sectionId?: string;
   order: number;
   createdAt?: number | FieldValue;
   updatedAt?: number | FieldValue;

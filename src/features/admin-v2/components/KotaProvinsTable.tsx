@@ -72,6 +72,7 @@ export default function KotaProvinsTable() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [provinceFilter, setProvinceFilter] = useState('');
 
   // Load destinations — realtime, biar edit dari admin/tab lain langsung
   // kelihatan tanpa refresh manual.
@@ -206,6 +207,7 @@ export default function KotaProvinsTable() {
 
   const destinationsArray = Object.entries(destinations)
     .map(([id, item]) => ({id, ...item}))
+    .filter((item) => !provinceFilter || item.provinsi === provinceFilter)
     .sort((a, b) => {
       const aTime = a.createdAt || 0;
       const bTime = b.createdAt || 0;
@@ -228,7 +230,20 @@ export default function KotaProvinsTable() {
         )}
 
         {/* Top Actions Bar */}
-        <div className="flex justify-end items-center mb-6 sm:mb-8 gap-3">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 sm:mb-8 gap-3">
+          <select
+            value={provinceFilter}
+            onChange={(e) => setProvinceFilter(e.target.value)}
+            className="nq-admin-field px-4 py-2.5 rounded-xl text-sm font-semibold sm:w-56"
+          >
+            <option value="">Semua Provinsi</option>
+            {PROVINCES.map((prov) => (
+              <option key={prov} value={prov}>
+                {prov}
+              </option>
+            ))}
+          </select>
+
           <button
             onClick={handleAddNew}
             className="nq-admin-btn-primary px-5 py-2.5 rounded-full font-bold flex items-center gap-2 text-sm"

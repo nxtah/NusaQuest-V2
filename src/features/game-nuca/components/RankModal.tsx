@@ -22,6 +22,9 @@ interface RankModalProps {
         `null` kalau gak dapet apa-apa ronde ini (ranking 4+). */
     myReward?: GameReward | null;
     onContinue: () => void;
+    /** "Main Lagi" — balik langsung ke ROOM yang tadi dimainkan (bukan
+        daftar lobby), biar gampang main lagi bareng orang yang sama. */
+    onPlayAgain?: () => void;
 }
 
 const RANK_BADGES = [badge.gold1, badge.silver1, badge.bronze1];
@@ -40,7 +43,7 @@ const BADGE_ICON: Record<GameReward["badge"], string> = {
 // "punya" NusaCard, bukan efek confetti template.
 const CONFETTI_COLORS = ["#ffc93c", "#f5a916", "#fff6e0", "#2f8f74"];
 
-export default function RankModal({ isOpen, rankedPlayers, myUID, myReward, onContinue }: RankModalProps) {
+export default function RankModal({ isOpen, rankedPlayers, myUID, myReward, onContinue, onPlayAgain }: RankModalProps) {
     const hasFiredRef = useRef(false);
 
     // Confetti nembak sekali doang tiap popup ini kebuka (bukan tiap re-render
@@ -99,6 +102,23 @@ export default function RankModal({ isOpen, rankedPlayers, myUID, myReward, onCo
                     transform: translateY(-2px);
                 }
                 .nq-rank-continue-btn:active {
+                    transform: translateY(2px);
+                }
+                .nq-rank-secondary-btn {
+                    background: linear-gradient(150deg, #fffdf8 0%, #f3ede0 100%);
+                    color: #3d2411;
+                    box-shadow:
+                        0 5px 0 #d8c8a8,
+                        0 8px 14px rgba(120, 92, 40, 0.25),
+                        inset -3px -3px 6px rgba(150, 120, 60, 0.12),
+                        inset 3px 3px 5px rgba(255, 255, 255, 0.9);
+                    transition: transform 150ms ease-out, box-shadow 150ms ease-out, filter 150ms ease-out;
+                }
+                .nq-rank-secondary-btn:hover {
+                    filter: brightness(1.03);
+                    transform: translateY(-2px);
+                }
+                .nq-rank-secondary-btn:active {
                     transform: translateY(2px);
                 }
                 .nq-rank-frame {
@@ -165,13 +185,13 @@ export default function RankModal({ isOpen, rankedPlayers, myUID, myReward, onCo
                 }
             `}</style>
 
-            <div className="relative w-full max-w-md animate-in zoom-in duration-300 ease-out">
+            <div className="relative w-full max-w-2xl animate-in zoom-in duration-300 ease-out">
                 {/* Bingkai kayu — nerusin bahasa "properti papan" yang sama
                     kayak QuestionModal, biar 2 popup penting ini kerasa satu
                     keluarga, bukan modal generik. */}
-                <div className="nq-rank-frame rounded-[30px] p-[clamp(8px,1.4vw,14px)]">
+                <div className="nq-rank-frame rounded-[32px] p-[clamp(10px,1.6vw,16px)]">
                     <div
-                        className="relative overflow-visible rounded-[24px] px-5 py-8 sm:px-8 sm:py-10 flex flex-col items-center gap-4 bg-center bg-cover"
+                        className="relative overflow-visible rounded-[26px] px-6 py-10 sm:px-12 sm:py-14 flex flex-col items-center gap-5 bg-center bg-cover"
                         style={{ backgroundImage: `url(${information.kertas})` }}
                     >
                         {/* Daun teratai ngintip di pojok — motif yang sama
@@ -191,15 +211,15 @@ export default function RankModal({ isOpen, rankedPlayers, myUID, myReward, onCo
 
                         <div className="relative flex flex-col items-center">
                             <span className="nq-rank-title-glow pointer-events-none absolute left-1/2 top-1/2 h-24 w-24 sm:h-32 sm:w-32 -translate-x-1/2 -translate-y-1/2 rounded-full" />
-                            <h2 className="relative font-bauhaus text-[#3d2411] text-xl sm:text-2xl text-center tracking-wide">
+                            <h2 className="relative font-bauhaus text-[#3d2411] text-2xl sm:text-3xl text-center tracking-wide">
                                 Permainan Selesai!
                             </h2>
                         </div>
-                        <p className="text-[#4a2a1a]/80 text-xs sm:text-sm text-center font-semibold -mt-2">
+                        <p className="text-[#4a2a1a]/80 text-sm sm:text-base text-center font-semibold -mt-2">
                             Peringkat Akhir
                         </p>
 
-                        <div className="w-full flex flex-col gap-2.5">
+                        <div className="w-full flex flex-col gap-3">
                             {rankedPlayers.map((player, index) => {
                                 const rank = index + 1;
                                 const isMe = player.uid === myUID;
@@ -209,26 +229,26 @@ export default function RankModal({ isOpen, rankedPlayers, myUID, myReward, onCo
                                 return (
                                     <div
                                         key={player.uid}
-                                        className={`nq-rank-row ${isFirst ? "nq-rank-row--first" : ""} ${isMe ? "nq-rank-row--me" : ""} flex items-center gap-3 rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5`}
+                                        className={`nq-rank-row ${isFirst ? "nq-rank-row--first" : ""} ${isMe ? "nq-rank-row--me" : ""} flex items-center gap-4 rounded-2xl px-4 py-3 sm:px-6 sm:py-3.5`}
                                         style={{ animationDelay: `${index * 90}ms` }}
                                     >
-                                        <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center">
+                                        <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center">
                                             {badgeImg ? (
                                                 <img src={badgeImg} alt="" className="h-full w-full object-contain" />
                                             ) : (
-                                                <span className="font-bauhaus text-[#6b3f0a] text-base sm:text-lg">{rank}</span>
+                                                <span className="font-bauhaus text-[#6b3f0a] text-lg sm:text-xl">{rank}</span>
                                             )}
                                         </div>
 
-                                        <div className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 overflow-hidden rounded-full bg-[#e8d8b5] ring-2 ring-white/70">
+                                        <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 overflow-hidden rounded-full bg-[#e8d8b5] ring-2 ring-white/70">
                                             {player.photoURL ? (
                                                 <img src={player.photoURL} alt="" className="h-full w-full object-cover" />
                                             ) : null}
                                         </div>
 
-                                        <p className="flex-1 truncate text-sm sm:text-base font-bold text-[#4a2a1a]">
+                                        <p className="flex-1 truncate text-base sm:text-lg font-bold text-[#4a2a1a]">
                                             {player.name}
-                                            {isMe && <span className="ml-1.5 text-xs font-semibold text-[#2f8f74]">(Kamu)</span>}
+                                            {isMe && <span className="ml-1.5 text-sm font-semibold text-[#2f8f74]">(Kamu)</span>}
                                         </p>
                                     </div>
                                 );
@@ -236,24 +256,34 @@ export default function RankModal({ isOpen, rankedPlayers, myUID, myReward, onCo
                         </div>
 
                         {myReward && (
-                            <div className="nq-rank-reward w-full rounded-2xl px-4 py-3 flex items-center justify-center gap-3 text-center">
-                                <img src={BADGE_ICON[myReward.badge]} alt="" className="h-9 w-9 shrink-0" />
-                                <p className="text-sm sm:text-base font-bold text-[#4a2a1a]">
+                            <div className="nq-rank-reward w-full rounded-2xl px-5 py-4 flex items-center justify-center gap-3 text-center">
+                                <img src={BADGE_ICON[myReward.badge]} alt="" className="h-11 w-11 shrink-0" />
+                                <p className="text-base sm:text-lg font-bold text-[#4a2a1a]">
                                     Kamu dapat Badge {BADGE_LABEL[myReward.badge]}
                                     {myReward.potionAwarded && " + 1 Potion"}!
                                 </p>
                                 {myReward.potionAwarded && (
-                                    <img src={attribut.potion1} alt="" className="h-9 w-9 shrink-0" />
+                                    <img src={attribut.potion1} alt="" className="h-11 w-11 shrink-0" />
                                 )}
                             </div>
                         )}
 
-                        <button
-                            onClick={onContinue}
-                            className="nq-rank-continue-btn mt-2 px-8 py-3 rounded-full font-bold text-sm sm:text-base"
-                        >
-                            Kembali ke Lobby
-                        </button>
+                        <div className="mt-2 flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+                            {onPlayAgain && (
+                                <button
+                                    onClick={onPlayAgain}
+                                    className="nq-rank-continue-btn px-8 py-3.5 rounded-full font-bold text-sm sm:text-base"
+                                >
+                                    Main Lagi
+                                </button>
+                            )}
+                            <button
+                                onClick={onContinue}
+                                className="nq-rank-secondary-btn px-8 py-3.5 rounded-full font-bold text-sm sm:text-base"
+                            >
+                                Kembali ke Lobby
+                            </button>
+                        </div>
                     </div>
                 </div>
 

@@ -13,7 +13,7 @@ import SettingButton from "../../../../../../../components/layout/SettingButton"
 import BackButton from "../../../../../../../components/ui/BackButton";
 import Loader from "../../../../../../../components/ui/Loader";
 import { useAuth } from "../../../../../../../features/auth/hooks/useAuth";
-import { claimGameReward, getUserProfile, consumePotion, type GameReward } from "../../../../../../../services/firebase/firestore/users.service";
+import { claimGameReward, getUserProfile, consumePotion, recordMatchOutcome, type GameReward } from "../../../../../../../services/firebase/firestore/users.service";
 
 import {
   fetchGamePlayers,
@@ -217,6 +217,28 @@ export default function NusaCardPage() {
     }
   }, [myUID, isResolving, roomKey, gameState?.activeQuestion]);
 
+  // Batas 8 detik buat jawab, pola watchdog yang sama kayak throw-timer di
+  // atas — SETIAP client yang lihat cincin mundurnya nyampe 0 manggil ini
+  // sendiri-sendiri dengan index yang PASTI salah. Kalau akunya SENDIRI yang
+  // telat, lewat `handleSubmitAnswer` biasa (biar dapet feedback shake/merah
+  // yang sama kayak salah manual); kalau lagi jadi watchdog buat pemain LAIN
+  // (misal tab-nya keburu ketutup), langsung ke `submitAnswer` — gak perlu
+  // nampilin feedback lokal punya orang lain. Guard server
+  // (`currentAnsweringUID === answeringUID`) mastiin cuma 1 yang beneran
+  // ke-apply, jadi aman biarpun beberapa client manggil bareng.
+  const handleAnswerTimeoutTrigger = useCallback(() => {
+    const answeringUID = gameState?.currentAnsweringUID;
+    const activeQuestion = gameState?.activeQuestion;
+    if (!answeringUID || !activeQuestion) return;
+    const wrongIndex = activeQuestion.options.findIndex((_, i) => i !== activeQuestion.correctIndex);
+    if (wrongIndex === -1) return;
+    if (answeringUID === myUID) {
+      void handleSubmitAnswer(wrongIndex);
+    } else {
+      void submitAnswer(roomKey, answeringUID, wrongIndex);
+    }
+  }, [gameState?.currentAnsweringUID, gameState?.activeQuestion, myUID, handleSubmitAnswer, roomKey]);
+
   // ── OFFLINE-TURN RESILIENCE ──────────────────────────────────────────────
   // Mirip bot-takeover di ular-tangga: kalau pemain yang lagi kebagian
   // lempar/jawab ternyata stale (disconnect), pemain aktif PERTAMA (urutan
@@ -323,6 +345,17 @@ export default function NusaCardPage() {
     });
   }, [gameState, myUID, roomKey]);
 
+  // Win-streak/achievement — jalan buat SEMUA pemain (menang atau kalah),
+  // beda dari reward di atas yang cuma buat rank 1-3.
+  useEffect(() => {
+    if (!gameState || gameState.gameStatus !== "finished" || !myUID) return;
+    if (gameState.statsRecordedBy?.includes(myUID)) return;
+    const rank = gameState.finishedOrder.indexOf(myUID) + 1;
+    const won = rank === 1;
+    const durationMs = won ? gameState.lastUpdated - gameState.gameCreatedAt : undefined;
+    void recordMatchOutcome(roomKey, myUID, won, durationMs);
+  }, [gameState, myUID, roomKey]);
+
   // Lobby "RUANG X" (wood-themed) cuma ada satu tempat: halaman /room/...
   // Kalau gameStarted belum true di sini, arahkan balik — jangan render lobby
   // kedua yang beda desain. Navigasi HARUS di effect (bukan langsung di body
@@ -364,6 +397,8 @@ export default function NusaCardPage() {
         throwerUID={throwerUID}
         throwerTurnStartedAt={gameState?.throwerTurnStartedAt}
         onThrowTimeout={handleThrowTimeoutTrigger}
+        answerTurnStartedAt={gameState?.answerTurnStartedAt}
+        onAnswerTimeout={handleAnswerTimeoutTrigger}
         answeringUID={gameState?.currentAnsweringUID ?? null}
         activeQuestion={gameState?.activeQuestion ? { text: gameState.activeQuestion.text, options: gameState.activeQuestion.options } : null}
         isMyTurnToAnswer={isMyTurnToAnswer}
@@ -382,6 +417,7 @@ export default function NusaCardPage() {
         myUID={myUID}
         myReward={myReward}
         onContinue={() => router.push(lobbyPath)}
+        onPlayAgain={() => router.push(roomPath)}
       />
 
       <PauseModal isOpen={isPaused} onClose={() => setIsPaused(false)} />

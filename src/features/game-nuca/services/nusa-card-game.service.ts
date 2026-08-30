@@ -38,6 +38,11 @@ const GLOBAL_IDLE_MS = 8 * 60_000;
 // (itu 8 MENIT, buat seluruh meja diem; ini 10 DETIK, buat 1 giliran lempar
 // doang, berlaku ke SEMUA pemain — bukan cuma yang disconnect).
 const THROW_TIMEOUT_MS = 10_000;
+// Batas waktu buat SI PENJAWAB milih jawaban — beda dari THROW_TIMEOUT_MS
+// (itu buat pelempar milih kartu). Telat = otomatis dianggap salah (lewat
+// jalur submitAnswer yang sama persis kayak salah jawab manual), bukan
+// tebakan acak — jujur mencerminkan "kehabisan waktu".
+export const ANSWER_TIMEOUT_MS = 8_000;
 
 function requireFirestore() {
   if (!firebaseFirestore) throw new Error('Firestore not configured');
@@ -107,6 +112,10 @@ export interface NusaCardGameState {
   activeThrowerUID: string | null;
   /** Satu-satunya pemain yang kebagian jawab kartu aktif (bukan antrean semua orang). */
   currentAnsweringUID: string | null;
+  /** Kapan jendela jawab SEKARANG mulai — dasar hitung mundur 8 detik.
+      Cuma valid selagi `currentAnsweringUID`/`activeQuestion` keisi, dan
+      di-null-in bareng keduanya. */
+  answerTurnStartedAt: number | null;
   /** UID dalam urutan selesai (index 0 = juara 1) — kartunya abis duluan. */
   finishedOrder: string[];
   playerActivity: Record<string, PlayerActivity>;
@@ -118,6 +127,10 @@ export interface NusaCardGameState {
   /** UID yang udah nge-claim reward (badge/potion) buat game ini — guard
       biar gak ke-double-grant kalau client reconnect/buka ulang RankModal. */
   rewardsClaimedBy?: string[];
+  /** UID yang statistiknya (win-streak/achievement) udah ke-proses buat
+      game ini — guard terpisah dari `rewardsClaimedBy` karena ini jalan
+      buat SEMUA pemain (menang atau kalah), bukan cuma rank 1-3. */
+  statsRecordedBy?: string[];
 }
 
 /** Fetch real questions for a region, resolving mapId from the regionId. */
@@ -201,6 +214,7 @@ export async function initializeNusaCardGameState(
     activeQuestion: null,
     activeThrowerUID: null,
     currentAnsweringUID: null,
+    answerTurnStartedAt: null,
     finishedOrder: [],
     playerActivity,
     gameStatus: 'playing',
@@ -318,6 +332,7 @@ export async function throwCard(roomID: string, throwerUID: string, cardId: stri
       activeQuestion: null,
       activeThrowerUID: null,
       currentAnsweringUID: null,
+      answerTurnStartedAt: null,
       gameStatus: 'finished',
       lastUpdated: now,
       lastActionAt: now,
@@ -331,6 +346,7 @@ export async function throwCard(roomID: string, throwerUID: string, cardId: stri
     activeQuestion: card,
     activeThrowerUID: throwerUID,
     currentAnsweringUID: answerer.uid,
+    answerTurnStartedAt: now,
     lastUpdated: now,
     lastActionAt: now,
   });
@@ -454,6 +470,7 @@ export async function submitAnswer(
       activeQuestion: null,
       activeThrowerUID: null,
       currentAnsweringUID: null,
+      answerTurnStartedAt: null,
       gameStatus: 'finished',
       lastUpdated: now,
       lastActionAt: now,
@@ -469,6 +486,7 @@ export async function submitAnswer(
     activeQuestion: null,
     activeThrowerUID: null,
     currentAnsweringUID: null,
+    answerTurnStartedAt: null,
     lastUpdated: now,
     lastActionAt: now,
   });
@@ -571,6 +589,7 @@ export async function checkAndFinalizeSoleSurvivor(roomID: string): Promise<void
       activeQuestion: null,
       activeThrowerUID: null,
       currentAnsweringUID: null,
+      answerTurnStartedAt: null,
       gameStatus: 'finished',
       lastUpdated: now,
     });

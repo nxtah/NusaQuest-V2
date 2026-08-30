@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import ImageCropModal from './ImageCropModal';
 import '../admin-theme.css';
 
 interface CloudinaryUploadFieldProps {
@@ -10,6 +11,9 @@ interface CloudinaryUploadFieldProps {
   /** Folder Cloudinary tujuan, mis. `nusaquest/informasi` atau `nusaquest/credits`. */
   folder: string;
   required?: boolean;
+  /** Rasio lebar/tinggi buat area crop sebelum upload — default 1 (persegi)
+      kalau gak dikasih. */
+  aspect?: number;
 }
 
 interface SignatureResponse {
@@ -25,10 +29,14 @@ interface SignatureResponse {
 /**
  * Upload gambar langsung dari admin panel ke Cloudinary — sebelumnya admin
  * harus upload manual ke Cloudinary dulu terus tempel URL-nya sendiri.
- * Alurnya: minta signature dari `/api/upload/signature` (server, admin-only,
- * cookie sesi ke-kirim otomatis karena same-origin), lalu POST file-nya
- * LANGSUNG ke Cloudinary pakai signature itu (API secret gak pernah nyampe
- * browser). Hasil `secure_url`-nya yang disimpan ke Firestore.
+ * Sekarang juga ada langkah crop/sesuaikan dulu (`ImageCropModal`) sebelum
+ * beneran ke-upload — biar gambar apa adanya (rasio sembarang dari HP/kamera)
+ * bisa disesuaikan pas ke rasio yang dipakai tampilannya (kartu Credit,
+ * foto Informasi), bukan ke-crop otomatis serampangan sama `object-cover`.
+ * Alurnya: pilih file -> crop -> minta signature dari `/api/upload/signature`
+ * (server, admin-only) -> POST hasil crop LANGSUNG ke Cloudinary pakai
+ * signature itu (API secret gak pernah nyampe browser). Hasil `secure_url`-nya
+ * yang disimpan ke Firestore.
  */
 export default function CloudinaryUploadField({
   label,
@@ -36,19 +44,16 @@ export default function CloudinaryUploadField({
   onChange,
   folder,
   required = false,
+  aspect = 1,
 }: CloudinaryUploadFieldProps) {
   const [preview, setPreview] = useState<string | undefined>(value);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cropSource, setCropSource] = useState<{ url: string; fileName: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadFile = async (file: File) => {
     setError(null);
-    const localPreviewUrl = URL.createObjectURL(file);
-    setPreview(localPreviewUrl);
     setIsUploading(true);
 
     try {
@@ -85,8 +90,31 @@ export default function CloudinaryUploadField({
       setPreview(value);
     } finally {
       setIsUploading(false);
-      URL.revokeObjectURL(localPreviewUrl);
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    // Bukan langsung upload — buka crop modal dulu, biar admin bisa
+    // nyesuaiin bagian mana yang ditampilin sebelum beneran ke-upload.
+    setCropSource({ url: URL.createObjectURL(file), fileName: file.name });
+    e.target.value = '';
+  };
+
+  const handleCropCancel = () => {
+    if (cropSource) URL.revokeObjectURL(cropSource.url);
+    setCropSource(null);
+  };
+
+  const handleCropConfirm = async (croppedFile: File) => {
+    if (cropSource) URL.revokeObjectURL(cropSource.url);
+    setCropSource(null);
+    const localPreviewUrl = URL.createObjectURL(croppedFile);
+    setPreview(localPreviewUrl);
+    await uploadFile(croppedFile);
+    URL.revokeObjectURL(localPreviewUrl);
   };
 
   return (
@@ -133,6 +161,16 @@ export default function CloudinaryUploadField({
         onChange={handleFileChange}
         className="hidden"
       />
+
+      {cropSource && (
+        <ImageCropModal
+          imageSrc={cropSource.url}
+          fileName={cropSource.fileName}
+          aspect={aspect}
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }

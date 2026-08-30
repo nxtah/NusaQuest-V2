@@ -10,10 +10,18 @@ interface PlayerProfileNucaProps {
   status?: PlayerTurnStatus;
   sizeClassName?: string;
   avatarUrl?: string;
-  /** Durasi hitung mundur (detik) saat status === "answering". Default 7 detik. */
+  /** Durasi hitung mundur (detik) saat status === "answering". Default 8 detik. */
   answerDurationSeconds?: number;
   /** Dipanggil sekali saat hitungan mundur mencapai 0. Pakai ini untuk memajukan giliran. */
   onAnswerTimeout?: () => void;
+  /**
+   * Timestamp (ms, server) jendela jawab SEKARANG mulai — dari
+   * `NusaCardGameState.answerTurnStartedAt`. Sama filosofinya kayak
+   * `throwerTurnStartedAt`: disinkronin ke jam server beneran (bukan cuma
+   * decrement lokal) karena batas waktunya DITEGAKKAN (lihat
+   * ANSWER_TIMEOUT_MS di nusa-card-game.service.ts), bukan cuma dekorasi.
+   */
+  answerTurnStartedAt?: number | null;
   /**
    * Timestamp (ms, server) giliran lempar SEKARANG mulai — dari
    * `NusaCardGameState.throwerTurnStartedAt`. Beda dari `answerDurationSeconds`
@@ -36,8 +44,9 @@ export default function PlayerProfileNuca({
   status = "idle",
   sizeClassName,
   avatarUrl,
-  answerDurationSeconds = 7,
+  answerDurationSeconds = 8,
   onAnswerTimeout,
+  answerTurnStartedAt,
   throwerTurnStartedAt,
   throwDurationSeconds = 10,
   onThrowTimeout,
@@ -73,32 +82,31 @@ export default function PlayerProfileNuca({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, throwerTurnStartedAt, throwDurationSeconds]);
 
-  // Reset hitungan tiap kali player ini baru masuk status "answering".
+  // Hitung mundur jawab — disinkron ke `answerTurnStartedAt` (jam server)
+  // tiap tick, sama persis polanya kayak hitung mundur lempar di atas, biar
+  // gak ngedrift dan tetep bener kalau komponen baru mount di tengah jendela
+  // jawab yang udah jalan (mis. reconnect).
+  const firedAnswerTimeoutRef = useRef(false);
+
   useEffect(() => {
-    if (status !== "answering") return;
-    setSecondsLeft(answerDurationSeconds);
-  }, [status, answerDurationSeconds]);
+    if (status !== "answering" || !answerTurnStartedAt) return;
+    firedAnswerTimeoutRef.current = false;
 
-  // Jalankan hitung mundur satu detik per tick, murni sebagai efek — tidak ada
-  useEffect(() => {
-    if (status !== "answering") return;
-    if (secondsLeft <= 0) return;
+    const tick = () => {
+      const elapsed = (Date.now() - answerTurnStartedAt) / 1000;
+      const remaining = Math.max(0, answerDurationSeconds - elapsed);
+      setSecondsLeft(remaining);
+      if (remaining <= 0 && !firedAnswerTimeoutRef.current) {
+        firedAnswerTimeoutRef.current = true;
+        onAnswerTimeout?.();
+      }
+    };
 
-    const timeout = setTimeout(() => {
-      setSecondsLeft((prev) => Math.max(prev - 1, 0));
-    }, 1000);
-
-    return () => clearTimeout(timeout);
-  }, [status, secondsLeft]);
-
-  // Trigger onAnswerTimeout SETELAH render selesai (efek terpisah, aman untuk
-  useEffect(() => {
-    if (status !== "answering") return;
-    if (secondsLeft === 0) {
-      onAnswerTimeout?.();
-    }
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, secondsLeft]);
+  }, [status, answerTurnStartedAt, answerDurationSeconds]);
 
   return (
     <div className="relative flex flex-col items-center">
@@ -174,11 +182,11 @@ export default function PlayerProfileNuca({
                   strokeDashoffset:
                     CIRCUMFERENCE * (1 - secondsLeft / answerDurationSeconds),
                 }}
-                transition={{ duration: 0.9, ease: "linear" }}
+                transition={{ duration: 0.2, ease: "linear" }}
               />
             </svg>
             <span className="absolute -bottom-1.5 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-[#1c2b3a] text-[10px] font-bold text-white shadow-md">
-              {secondsLeft.toString().padStart(2, "0")}
+              {Math.ceil(secondsLeft).toString().padStart(2, "0")}
             </span>
           </>
         ) : null}

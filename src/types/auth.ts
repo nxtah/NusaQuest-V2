@@ -10,6 +10,19 @@ export interface UserBadges {
   bronze: number;
 }
 
+export interface UserStats {
+  /** Menang beruntun (rank 1 NusaCard / menang Ular Tangga) — reset ke 0
+      begitu 1 game berakhir tanpa menang. */
+  winStreak: number;
+}
+
+export interface UserAchievements {
+  /** Pernah menang dalam waktu kurang dari 10 menit. */
+  speedRun: boolean;
+  /** Pernah menang 3x berturut-turut. */
+  streak: boolean;
+}
+
 export interface AppUser {
   uid: string;
   email: string;
@@ -24,6 +37,12 @@ export interface AppUser {
       Tangga (Ular Tangga cuma pernah ngisi `gold`, gak ada peringkat 2/3
       di situ — bukan bug, emang aturan mainnya menang-kalah doang). */
   badges: UserBadges;
+  stats: UserStats;
+  achievements: UserAchievements;
+  /** Udah pernah liat popup perkenalan NusaQuest — akun baru mulai `false`
+      (nampilin popup sekali), akun lama di-backfill `true` (gak nongol
+      tiba-tiba buat yang udah lama main). */
+  hasSeenIntro: boolean;
 }
 
 export interface AuthClaims {
