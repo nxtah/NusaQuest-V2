@@ -1,20 +1,42 @@
 type CreditMemberCardProps = {
   name: string;
   role: string;
+  photoURL?: string;
   onClick: () => void;
 };
 
-export default function CreditMemberCard({ name, role, onClick }: CreditMemberCardProps) {
+export default function CreditMemberCard({ name, role, photoURL, onClick }: CreditMemberCardProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group relative overflow-hidden rounded-2xl border-2 border-orange-100/90 bg-gradient-to-b from-orange-300 via-orange-400 to-orange-600 p-3 text-left text-amber-950 shadow-[0_10px_0_rgba(138,64,13,0.45),0_16px_28px_rgba(0,0,0,0.3)] transition duration-300 [transform:perspective(900px)_rotateX(0deg)_rotateY(0deg)] hover:shadow-[0_14px_0_rgba(138,64,13,0.38),0_24px_34px_rgba(0,0,0,0.35)] hover:[transform:perspective(900px)_rotateX(2deg)_rotateY(-4deg)_translateY(-6px)] sm:p-4"
+      className="nq-credit-card group relative overflow-hidden rounded-2xl p-3 text-left text-[#4a2a1a] transition duration-200 hover:-translate-y-1 sm:p-4"
     >
-      <div className="pointer-events-none absolute inset-x-3 top-2 h-10 rounded-full bg-white/35 blur-md transition group-hover:bg-white/50" />
-      <div className="mb-3 aspect-square w-full rounded-xl border-2 border-dashed border-orange-50/90 bg-orange-50/45" />
+      <style>{`
+        .nq-credit-card {
+          background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+          box-shadow:
+            0 4px 10px rgba(139, 94, 42, 0.28),
+            inset -2px -2px 4px rgba(139, 94, 42, 0.16),
+            inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+        }
+        .nq-credit-card:hover {
+          filter: brightness(1.02);
+          box-shadow:
+            0 8px 16px rgba(139, 94, 42, 0.32),
+            inset -2px -2px 4px rgba(139, 94, 42, 0.16),
+            inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+        }
+      `}</style>
+
+      <div className="mb-3 aspect-square w-full overflow-hidden rounded-xl border-2 border-dashed border-[#c6841a]/50 bg-[#fdf6e3]">
+        {photoURL ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoURL} alt={name} className="h-full w-full object-cover" />
+        ) : null}
+      </div>
       <h2 className="line-clamp-2 text-sm font-bold sm:text-base">{name}</h2>
-      <p className="mt-1 text-xs font-semibold text-amber-900 sm:text-sm">{role}</p>
+      <p className="mt-1 text-xs font-semibold text-[#6b3f0a] sm:text-sm">{role}</p>
     </button>
   );
 }

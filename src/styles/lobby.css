@@ -79,6 +79,55 @@
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Room udah dipakai orang lain & game-nya udah mulai — gak bisa di-klik. */
+.rumah-button--locked {
+  cursor: not-allowed;
+}
+
+.rumah-button--locked .rumah-img-content {
+  filter: grayscale(0.6) brightness(0.6);
+}
+
+.rumah-button--locked:hover .rumah-img-content,
+.rumah-button--locked:active .rumah-img-content {
+  transform: none;
+  filter: grayscale(0.6) brightness(0.6);
+}
+
+/* Badge okupansi — resep claymorphism sama kayak BackButton/NavBar (gradasi
+   krem puffy + shadow berlapis) biar konsisten dengan bahasa visual app,
+   varian merah buat status "sedang bermain/terkunci". */
+.rumah-status-badge {
+  position: absolute;
+  bottom: -0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: clamp(0.5rem, 1.6vw, 0.7rem);
+  font-weight: 700;
+  white-space: nowrap;
+  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+  color: #4a2a1a;
+  box-shadow:
+    0 3px 6px rgba(139, 94, 42, 0.3),
+    inset -2px -2px 4px rgba(139, 94, 42, 0.18),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+.rumah-status-badge--locked {
+  background: linear-gradient(150deg, #ff9a8a 0%, #e0503c 100%);
+  color: #ffffff;
+  box-shadow:
+    0 3px 6px rgba(140, 30, 15, 0.4),
+    inset -2px -2px 4px rgba(120, 20, 10, 0.3),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.35);
+}
+
 .rumah-img-content {
   width: 100%;
   height: auto;

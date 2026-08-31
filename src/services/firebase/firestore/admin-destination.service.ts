@@ -1,10 +1,10 @@
 import {
   getDocument,
-  setDocument,
   updateDocument,
   addDocument,
   deleteDocument,
   getCollectionDocs,
+  listenToCollection,
 } from './base.service';
 import type {AppResult} from '@/src/utils/result';
 
@@ -27,6 +27,14 @@ export async function getAllDestinations(): Promise<
   AppResult<(KotaProvinsi & { id: string })[]>
 > {
   return getCollectionDocs<KotaProvinsi>(COLLECTION);
+}
+
+/** Realtime — dipake tabel admin biar edit dari tab/admin lain langsung
+    kelihatan tanpa refresh manual. */
+export function listenToDestinations(
+  callback: (destinations: (KotaProvinsi & { id: string })[]) => void,
+): () => void {
+  return listenToCollection<KotaProvinsi>(COLLECTION, callback);
 }
 
 export async function getDestination(

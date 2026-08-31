@@ -1,129 +1,34 @@
 /* src/app/(public)/login/login.css */
 
 .login-scene {
-  min-height: 100dvh;
   position: relative;
+  min-height: 100dvh;
   width: 100%;
   overflow: hidden;
-  background-color: #4ab8d4;
-}
-
-.login-bg-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
-
-.login-land-layer {
-  position: absolute;
-  z-index: 10;
-  width: 100%;
-  height: 80vh;
-  bottom: -8vh;
-  left: 0;
-  right: 0;
-}
-
-.login-scene-image {
-  object-fit: cover;
-}
-
-.login-ui-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 25;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem 1.5rem;
 }
 
-.login-card {
-  position: relative;
-  width: min(420px, 100%);
-  border-radius: 25px;
-  overflow: hidden;
-}
-
-.login-card-bg {
-  position: absolute;
+.login-bg-layer {
+  position: fixed;
   inset: 0;
-  z-index: 1;
+  z-index: -1;
+  overflow: hidden;
+  background-color: #4ab8d4;
 }
 
-.login-card-image {
+.login-scene-image {
   object-fit: cover;
 }
 
-.login-card-shell {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: clamp(2rem, 5vw, 3rem) clamp(1.5rem, 5vw, 2.5rem);
-  border: 1px solid rgba(244, 232, 198, 0.6);
-  background: rgba(20, 11, 2, 0.25);
-}
-
-.login-logo {
-  height: auto;
-  width: clamp(100px, 22vw, 140px);
-  margin-bottom: 0.5rem;
-}
-
-.login-title {
-  margin: 0;
-  color: #fff7df;
-  font-size: clamp(1.2rem, 3vw, 1.65rem);
-  text-align: center;
-  text-shadow: 0 3px 0 rgba(70, 35, 9, 0.7);
-}
-
-.login-subtitle {
-  margin: 0 0 0.5rem;
-  color: #f9f1dd;
-  font-size: clamp(0.8rem, 2vw, 0.95rem);
-  text-align: center;
-}
-
-.login-error {
-  width: 100%;
-  padding: 0.65rem 0.9rem;
-  background: rgba(220, 38, 38, 0.25);
-  border: 1px solid rgba(248, 113, 113, 0.6);
-  border-radius: 12px;
-  color: #fecaca;
-  font-size: clamp(0.75rem, 1.8vw, 0.85rem);
-  text-align: center;
-}
-
-.login-google-btn {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.65rem;
-  background: #ffffff;
-  color: #1f2937;
-  border: none;
-  border-radius: 999px;
-  padding: 0.85rem 1.25rem;
-  font-size: clamp(0.85rem, 2vw, 1rem);
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
-  transition: transform 160ms ease;
-}
-
-.login-google-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.login-google-btn:disabled {
-  opacity: 0.75;
-  cursor: not-allowed;
+.login-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
 .login-back-button {
@@ -131,4 +36,152 @@
   top: 2rem;
   left: 2rem;
   z-index: 50;
+}
+
+/* ==================== CARD — claymorphism gold-parchment, resep PERSIS
+   yang sama kayak AdminLogin/RankModal/QuestionModal (gradasi krem puffy +
+   shadow berlapis: outer lembut + inset gelap/terang). Satu bahasa visual
+   di SELURUH app, bukan sistem baru tiap halaman login. ==================== */
+.login-card {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  max-width: 26rem;
+}
+
+.login-panel {
+  position: relative;
+  border-radius: 2rem;
+  padding: clamp(2.4rem, 5vw, 3rem) clamp(1.9rem, 5vw, 2.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.35),
+    inset -3px -3px 8px rgba(139, 94, 42, 0.18),
+    inset 3px 3px 8px rgba(255, 255, 255, 0.85);
+}
+
+.login-logo-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.1rem;
+}
+
+.login-logo-glow {
+  position: absolute;
+  inset: -35%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 201, 60, 0.55), rgba(255, 201, 60, 0) 70%);
+  animation: login-logo-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes login-logo-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.08); }
+}
+
+.login-logo {
+  position: relative;
+  height: auto;
+  width: clamp(120px, 26vw, 156px);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+}
+
+.login-title {
+  margin: 0;
+  color: #3d2411;
+  font-size: clamp(1.25rem, 3.2vw, 1.6rem);
+  letter-spacing: 0.02em;
+}
+
+.login-subtitle {
+  margin: -0.35rem 0 0.15rem;
+  color: rgba(74, 42, 26, 0.7);
+  font-size: clamp(0.8rem, 2vw, 0.92rem);
+}
+
+.login-error {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  border-radius: 12px;
+  color: #b02020;
+  font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+  text-align: center;
+  font-weight: 600;
+}
+
+.login-google-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  background: linear-gradient(150deg, #fffdf8 0%, #f3ede0 100%);
+  color: #3d2411;
+  border: none;
+  border-radius: 999px;
+  padding: 1rem 1.4rem;
+  font-size: clamp(0.88rem, 2vw, 1rem);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    0 5px 0 #d8c8a8,
+    0 8px 14px rgba(120, 92, 40, 0.25),
+    inset -3px -3px 6px rgba(150, 120, 60, 0.12),
+    inset 3px 3px 5px rgba(255, 255, 255, 0.9);
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out, filter 150ms ease-out;
+}
+
+.login-google-btn:not(:disabled):hover {
+  filter: brightness(1.03);
+  transform: translateY(-2px);
+}
+
+.login-google-btn:not(:disabled):active {
+  transform: translateY(4px);
+  box-shadow:
+    0 1px 0 #d8c8a8,
+    0 3px 6px rgba(120, 92, 40, 0.2),
+    inset -3px -3px 6px rgba(150, 120, 60, 0.12),
+    inset 3px 3px 5px rgba(255, 255, 255, 0.9);
+}
+
+.login-google-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-footnote {
+  margin: 0.2rem 0 0;
+  color: rgba(74, 42, 26, 0.55);
+  font-size: clamp(0.7rem, 1.6vw, 0.78rem);
+}
+
+@keyframes login-card-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(4px); }
+}
+
+.login-card--shake {
+  animation: login-card-shake 0.4s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-logo-glow {
+    animation: none;
+  }
+  .login-card--shake {
+    animation: none;
+  }
 }

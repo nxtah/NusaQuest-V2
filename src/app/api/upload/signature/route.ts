@@ -10,7 +10,11 @@ export const POST = withAuth(async (request, context) => {
     timestamp?: number;
   };
 
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  // `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` adalah satu-satunya var cloud name
+  // yang ada di .env.local — sebelumnya route ini baca `CLOUDINARY_CLOUD_NAME`
+  // (tanpa prefix) yang gak pernah ke-set, jadi selalu gagal dengan 500 tiap
+  // dipanggil (makanya gak ada satupun fitur upload yang pernah kepake).
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
@@ -22,7 +26,9 @@ export const POST = withAuth(async (request, context) => {
   }
 
   const timestamp = body.timestamp ?? Math.floor(Date.now() / 1000);
-  const folder = body.folder ?? `nusaquest/users/${context.claims.uid}`;
+  // Route ini sekarang admin-only — foldernya buat aset yang admin kelola
+  // (informasi/credit/destinasi), bukan per-user lagi.
+  const folder = body.folder ?? `nusaquest/admin/${context.claims.uid}`;
 
   const signature = cloudinary.utils.api_sign_request(
     {
@@ -40,4 +46,4 @@ export const POST = withAuth(async (request, context) => {
     cloudName,
     apiKey,
   });
-});
+}, { requireAdmin: true });

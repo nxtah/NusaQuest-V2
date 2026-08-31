@@ -25,6 +25,8 @@ interface PlayerTurnBoxProps {
     options: string[];
     selectedIndex?: number | null;
     isCorrectIndex?: number | null;
+    /** Kapan soal ini dimunculin (`gameState.questionShownAt`) — dasar hitung mundur 8 detik. */
+    questionShownAt?: number | null;
   } | null;
   showQuestion?: boolean;
   players?: Player[];
@@ -32,6 +34,12 @@ interface PlayerTurnBoxProps {
   focusedPlayerIndex?: number | null;
   focusedPlayerName?: string | null;
   myPlayerId?: string;
+  /** Stok potion pemain ini, buat tombol "Pakai Potion" di QuestionPanel. */
+  potionCount?: number;
+  onUsePotion?: () => void;
+  /** `gameState.lastTurnChangeAt` — dasar hitung mundur 10 detik buat
+      lempar dadu di Dice. */
+  turnStartedAt?: number | null;
 }
 
 export default function PlayerTurnBox({
@@ -49,6 +57,9 @@ export default function PlayerTurnBox({
   focusedPlayerIndex = null,
   focusedPlayerName = null,
   myPlayerId,
+  potionCount = 0,
+  onUsePotion,
+  turnStartedAt,
 }: PlayerTurnBoxProps) {
   return (
     <div className="w-full flex justify-center">
@@ -62,6 +73,9 @@ export default function PlayerTurnBox({
               selectedIndex={question.selectedIndex ?? null}
               isCorrectIndex={question.isCorrectIndex ?? null}
               onSelectOption={onSelectAnswer}
+              potionCount={isMyTurn ? potionCount : 0}
+              onUsePotion={isMyTurn ? onUsePotion : undefined}
+              questionShownAt={question.questionShownAt}
             />
           ) : (
             <InitialPanel focusedName={focusedPlayerName} />
@@ -77,6 +91,7 @@ export default function PlayerTurnBox({
             isMyTurn={isMyTurn}
             disabled={disabled}
             myPlayerId={myPlayerId}
+            turnStartedAt={turnStartedAt}
           />
         </div>
 

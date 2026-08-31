@@ -7,6 +7,7 @@ import { useState } from 'react';
 import EditProfileModal from './EditProfileModal';
 
 type ProfileCardProps = {
+  uid: string;
   username: string;
   email: string;
   avatarSrc: string;
@@ -14,10 +15,9 @@ type ProfileCardProps = {
   onLogout: () => void;
 };
 
-export default function ProfileCard({ username, email, avatarSrc, woodSrc, onLogout }: ProfileCardProps) {
-  
+export default function ProfileCard({ uid, username, email, avatarSrc, woodSrc, onLogout }: ProfileCardProps) {
+
   const [isEditOpen, setIsEditOpen] = useState(false);
-  // const [isLoggingOut] = useState(false);
 
   return (
     <>
@@ -29,6 +29,7 @@ export default function ProfileCard({ username, email, avatarSrc, woodSrc, onLog
         <div className="profile-card-shell">
           <div className="profile-card-content">
             <div className="profile-avatar-wrap">
+              <span className="profile-avatar-glow" aria-hidden="true" />
               <Image
                 src={avatarSrc}
                 alt="Avatar pengguna"
@@ -67,6 +68,7 @@ export default function ProfileCard({ username, email, avatarSrc, woodSrc, onLog
 
       {isEditOpen && (
         <EditProfileModal
+          uid={uid}
           onClose={() => setIsEditOpen(false)}
           initialUsername={username}
           avatarSrc={avatarSrc}

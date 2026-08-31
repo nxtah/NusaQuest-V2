@@ -496,12 +496,17 @@
 
 .papan1-text {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -180%) rotate(-8deg);
+    /* Papan kayunya (di dalam image, bukan wrapper) gak center vertikal —
+       ada tiang di bawahnya yang narik "tengah kotak" ke bawah muka papan.
+       Titik ini dihitung dari pusat muka papan sebenarnya (bukan pusat
+       gambar), lalu diputar balik -8deg biar ketemu koordinat setelah
+       .papan1-image ikut ke-rotate -8deg di sekitar pusat wrapper. */
+    left: 46.9%;
+    top: 26.4%;
+    transform: translate(-50%, -50%) rotate(-8deg);
     color: #ffffff;
     font-family: 'Bauhaus', sans-serif;
-    font-size: 1rem;
+    font-size: 1.6rem;
     font-weight: 800;
     letter-spacing: 0.015em;
     text-transform: uppercase;
@@ -522,7 +527,7 @@
     }
 
     .papan1-wrapper:hover .papan1-text {
-        transform: translate(-50%, -180%) rotate(-14deg);
+        transform: translate(-50%, -50%) rotate(-14deg);
         text-shadow: 0 2px 0 rgba(18, 38, 61, 0.6);
     }
 }

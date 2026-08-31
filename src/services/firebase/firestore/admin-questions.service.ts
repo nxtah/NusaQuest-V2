@@ -3,8 +3,8 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   getDocs,
+  onSnapshot,
   updateDoc,
   query,
   where,
@@ -24,19 +24,28 @@ function getDb() {
 export interface AdminQuestion {
   id?: string;
   question: string;
-  answer: string;
-  topic: string;
+  /** 4 pilihan ganda asli — sebelumnya cuma 1 `answer` bebas teks yang di-pad
+      3 string kosong pas ditulis ke Firestore, bikin soal buatan admin
+      keluar di game beneran dengan 3 tombol jawaban kosong. */
+  options: [string, string, string, string];
+  correctIndex: number;
+  /** Id region ASLI (`regions/{regionId}`, mis. `kuliner_pa`) — sebelumnya
+      cuma label kategori bebas (`DAERAH`/`KULINER`/dst) yang gak nyambung
+      sama skema `regionId` yang beneran dipake query game. */
+  regionId: string;
   gameId?: string;
   createdAt?: number;
   updatedAt?: number;
 }
 
 function toAdminQuestion(doc: FirestoreQuestion & { id: string }): AdminQuestion {
+  const options = doc.options ?? ['', '', '', ''];
   return {
     id: doc.id,
     question: doc.text,
-    answer: doc.options[doc.correctIndex] ?? '',
-    topic: doc.regionId,
+    options: [options[0] ?? '', options[1] ?? '', options[2] ?? '', options[3] ?? ''],
+    correctIndex: doc.correctIndex ?? 0,
+    regionId: doc.regionId,
     gameId: doc.mapId,
     createdAt: doc.createdAt,
     updatedAt: doc.createdAt,
@@ -45,17 +54,18 @@ function toAdminQuestion(doc: FirestoreQuestion & { id: string }): AdminQuestion
 
 function toFirestoreQuestion(data: {
   question: string;
-  answer: string;
-  topic: string;
+  options: [string, string, string, string];
+  correctIndex: number;
+  regionId: string;
   gameId: string;
 }, existing?: Partial<FirestoreQuestion>): FirestoreQuestion {
   return {
     questionId: existing?.questionId ?? '',
-    regionId: data.topic,
+    regionId: data.regionId,
     mapId: data.gameId,
     text: data.question,
-    options: existing?.options ?? [data.answer, '', '', ''],
-    correctIndex: existing?.correctIndex ?? 0,
+    options: data.options,
+    correctIndex: (data.correctIndex >= 0 && data.correctIndex <= 3 ? data.correctIndex : 0) as 0 | 1 | 2 | 3,
     difficulty: 'easy',
     isActive: existing?.isActive ?? true,
     isApproved: existing?.isApproved ?? true,
@@ -85,6 +95,27 @@ export async function getGameQuestions(
   }
 }
 
+/** Realtime — dipake tabel admin biar soal baru/edit dari tab/admin lain
+    langsung kelihatan tanpa refresh manual. */
+export function listenToGameQuestions(
+  gameId: string,
+  callback: (questions: Record<string, AdminQuestion>) => void,
+): () => void {
+  const q = query(
+    collection(getDb(), QUESTIONS_COLLECTION),
+    where('mapId', '==', gameId),
+    orderBy('createdAt', 'desc'),
+  );
+  return onSnapshot(q, (snapshot) => {
+    const result: Record<string, AdminQuestion> = {};
+    snapshot.docs.forEach((docSnap) => {
+      const data = { id: docSnap.id, ...docSnap.data() } as FirestoreQuestion & { id: string };
+      result[docSnap.id] = toAdminQuestion(data);
+    });
+    callback(result);
+  });
+}
+
 export async function createQuestion(
   gameId: string,
   questionData: Omit<AdminQuestion, 'id' | 'gameId'>,
@@ -92,8 +123,9 @@ export async function createQuestion(
   try {
     const data = toFirestoreQuestion({
       question: questionData.question,
-      answer: questionData.answer,
-      topic: questionData.topic,
+      options: questionData.options,
+      correctIndex: questionData.correctIndex,
+      regionId: questionData.regionId,
       gameId,
     });
     const docRef = await addDoc(collection(getDb(), QUESTIONS_COLLECTION), data);
@@ -112,11 +144,9 @@ export async function updateQuestion(
     const ref = doc(getDb(), QUESTIONS_COLLECTION, questionId);
     const patch: Record<string, unknown> = {};
     if (updates.question) patch.text = updates.question;
-    if (updates.answer) {
-      patch.options = [updates.answer, '', '', ''];
-      patch.correctIndex = 0;
-    }
-    if (updates.topic) patch.regionId = updates.topic;
+    if (updates.options) patch.options = updates.options;
+    if (updates.correctIndex !== undefined) patch.correctIndex = updates.correctIndex;
+    if (updates.regionId) patch.regionId = updates.regionId;
     await updateDoc(ref, patch);
     return toSuccess({
       ...updates,

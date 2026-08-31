@@ -19,10 +19,10 @@ export default function PauseModal({
 
     return (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="relative w-[90%] max-w-[500px] flex items-center justify-center">
+            <div className="relative w-[90%] max-w-[640px] flex items-center justify-center">
                 {/* ---Konfirmasi Exit--- */}
                 {showExitConfirm ? (
-                    <div className="relative w-[80%] max-w-[380px] animate-in zoom-in duration-300 ease-out">
+                    <div className="relative w-[80%] max-w-[480px] animate-in zoom-in duration-300 ease-out">
                         <img
                             src={getPauseImage("exit_2")}
                             alt="Confirm Exit"

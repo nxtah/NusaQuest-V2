@@ -1,7 +1,9 @@
-/* Bauhaus Font */
+/* Bauhaus Font — file diganti ke Tanker.ttf, nama family 'Bauhaus' dan semua
+   consumer (.font-bauhaus, dll) dibiarkan gak berubah biar gak perlu nyentuh
+   banyak file lain, cukup ganti sumbernya di sini. */
 @font-face {
   font-family: 'Bauhaus';
-  src: url('/fonts/Bauhaus.otf') format('opentype');
+  src: url('/fonts/Tanker.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

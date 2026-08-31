@@ -59,6 +59,23 @@ html {
   -ms-overflow-style: none;
 }
 
+/* ==================== IMAGES: NOT SELECTABLE/DRAGGABLE ==================== */
+/* Gambar (aset UI, ikon, ilustrasi papan/kartu, dst) gak boleh ke-select
+   atau ke-drag di desktop — biar gak ada highlight biru/ghost-drag pas
+   user klik-drag di sekitar gambar. Teks tetap bisa di-select normal,
+   ini cuma nyasar elemen <img>. */
+img {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+}
+
 @layer components {
   /* ==================== TYPOGRAPHY HEADING ==================== */
   

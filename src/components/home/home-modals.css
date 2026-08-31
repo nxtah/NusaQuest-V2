@@ -1,3 +1,16 @@
+/* Gak ada reset box-sizing global di app ini (globals.css cek: kosong) —
+   default browser buat elemen kayak <button>/<input> itu content-box, jadi
+   width:100% + padding + border numpuk JADI LEBIH LEBAR dari slotnya
+   sendiri. Ini akar masalah kenapa search bar & tombol provinsi kelihatan
+   "ngelewatin" bingkai modal — bukan soal grid/padding container, tapi tiap
+   elemen di dalamnya beneran lebih lebar dari yang di-alokasiin buat dia. */
+.game-modal-overlay,
+.game-modal-overlay *,
+.game-modal-overlay *::before,
+.game-modal-overlay *::after {
+  box-sizing: border-box;
+}
+
 /* Game Modal Overlay */
 .game-modal-overlay {
   position: fixed;
@@ -24,15 +37,25 @@
   }
 }
 
-/* Game Modal Container */
+/* Game Modal Container — bingkai papan kayu berukir (sulur+bunga) dengan pita
+   emas buat judul, aset yang sama kayak modal Settings (`pauseAssets.board_paused`)
+   biar chrome modal di seluruh app konsisten satu "bahasa visual game panel",
+   bukan lagi kertas robek generik. */
 .game-modal-container {
-  background-image: url('https://res.cloudinary.com/dprxjzfxp/image/upload/v1777425296/kertas_dkkqen.webp');
+  background-image: url('https://res.cloudinary.com/dprxjzfxp/image/upload/v1777615635/board_pause_dp45tj.webp');
   background-size: 100% 100%;
   background-position: center;
-  padding: clamp(3.25rem, 6vw, 4rem) clamp(3rem, 6vw, 4rem) clamp(3.5rem, 6.5vw, 4.25rem);
-  max-width: clamp(520px, 90vw, 800px);
+  background-repeat: no-repeat;
+  /* Kertas diciutin lebar (1000px->720px) & ditinggiin (340px->420px) —
+     bikin pita emas judulnya proporsinya lebih tinggi/sempit (kayak modal
+     provinsi), bukan gepeng lebar. Sisi kiri-kanan tetep digedein dari
+     awal (padding lama ketipisan buat area "aman" bingkai ~17%), tapi
+     gak sebesar sebelumnya karena grid kartu game sekarang udah dibatasin
+     max-width sendiri (lihat .game-options-grid). */
+  padding: clamp(6.5rem, 13vw, 8.5rem) clamp(3rem, 10vw, 5.5rem) clamp(3.5rem, 7vw, 4.5rem);
+  max-width: clamp(500px, 70vw, 720px);
   width: 100%;
-  min-height: 340px;
+  min-height: 420px;
   max-height: 92vh;
   overflow-y: auto;
   animation: gameModalSlideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -44,19 +67,26 @@
 
 .game-modal-container--large {
   width: 95vw;
-  max-width: 1400px;
+  /* Diciutin dari 1400px — kertas & pita emas judulnya kerasa kegedean di
+     layar lebar. Grid provinsi juga dikasih max-width sendiri (lihat
+     .game-provinces-list) biar gak ngerentang penuh ngikutin kertas. */
+  max-width: 950px;
   /* min() instead of a fixed 700px: on short viewports a hard floor pushed the
      container (and its bottom rows) past the visible window with nothing to
      scroll it back into view, since .game-modal-overlay has no overflow rule. */
   min-height: min(700px, 88vh);
-  /* Top/bottom padding use vh, not vw: the parchment's jagged edge scales with
-     the container's rendered HEIGHT (background-size: 100% 100%), so a vw-based
-     value undershoots badly on wide/short viewports. */
-  padding: clamp(4rem, 8vh, 5.5rem) clamp(2rem, 5vw, 3rem) clamp(3.5rem, 8vh, 5rem);
+  /* Padding diukur langsung dari pixel gambar board_pause.webp (bukan
+     tebakan): area beige "aman" cuma ada di x:16.8%-83.2% dan y:20%-80% dari
+     bingkai. Sisi kiri-kanan sebelumnya cuma ~5-8% dari lebar container —
+     jauh lebih tipis dari 16.8% yang beneran dibutuhin, jadi grid provinsi
+     kepotong/numpuk sulur di pinggir. Top/bottom pakai vh (tinggi container),
+     sisi kiri-kanan pakai vw dengan ceiling gede biar proporsinya kejaga
+     di container lebar (sisi papan gak nyusut kayak di jarak sebelumnya). */
+  padding: clamp(6.5rem, 15vh, 8.5rem) clamp(3rem, 16vw, 10rem) clamp(6rem, 15vh, 8rem);
 }
 
 .game-modal-container--large .game-modal-header {
-  padding-top: 1.5rem;
+  padding-top: 0;
 }
 
 .game-modal-container--large .game-modal-content {
@@ -66,8 +96,8 @@
 }
 
 .game-modal-container--large .game-modal-close {
-  top: clamp(4.25rem, 8.5vh, 6rem);
-  right: clamp(3.25rem, 6.5vw, 4rem);
+  top: clamp(3.5rem, 7.5vh, 5rem);
+  right: clamp(2.5rem, 6vw, 3.5rem);
 }
 
 @keyframes gameModalSlideUp {
@@ -81,31 +111,69 @@
   }
 }
 
-/* Modal Header */
+/* Modal Header — cuma nampung subjudul di flow normal sekarang. Judulnya
+   sendiri di-lepas dari flow (position:absolute di .game-modal-title) biar
+   bisa didudukin persis di atas pita emas papan, independen dari tinggi
+   konten di bawahnya. */
 .game-modal-header {
-  margin-bottom: clamp(0.75rem, 3vw, 1rem);
-  padding-top: 0.75rem;
+  margin-bottom: clamp(0.5rem, 2vw, 0.75rem);
+  padding-top: 0;
+  min-height: 0.5rem;
 }
 
-/* Modal Title */
+/* Modal Title — didudukin di pita emas bagian atas papan kayu. Digeser
+   lebih ke atas (top lebih kecil dari sebelumnya) & font sedikit
+   diciutin — pita emasnya gak cukup tinggi buat 2 baris (judul+subjudul)
+   kalau judul duduk di tengah pita kayak dulu, subjudul jadi kepotong
+   nongol ke area beige di bawah pita. */
 .game-modal-title {
+  position: absolute;
+  top: clamp(0.8rem, 3vw, 1.4rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(58%, 20rem);
   font-family: 'Bauhaus', sans-serif;
-  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-size: clamp(1.1rem, 3.8vw, 1.75rem);
   font-weight: 800;
-  color: white;
+  color: #4a2a1a;
   text-align: center;
   letter-spacing: 0.5px;
   margin: 0;
-  line-height: 1.2;
-  -webkit-text-stroke: 2.5px #059669;
+  line-height: 1.05;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-/* Modal Subtitle */
+/* Modal provinsi — kertasnya (--large) dipersempit (950px, dari 1400px)
+   biar pita emasnya keliatan lebih compact, dan teks judulnya dibesarin
+   lagi biar keliatan lebih "ngisi" pita emas yang sekarang lebih kecil,
+   bukan ngambang kecil di tengah space kosong. */
+.game-modal-container--large .game-modal-title {
+  font-size: clamp(1.45rem, 3.8vw, 2.35rem);
+  width: min(58%, 24rem);
+}
+
+/* Subjudul provinsi — judulnya lebih gede, jadi subjudul digeser turun
+   dikit lagi biar gak numpuk. */
+.game-modal-container--large .game-modal-subtitle {
+  top: clamp(3.75rem, 9.2vw, 4.6rem);
+  font-size: clamp(0.68rem, 1.7vw, 0.85rem);
+  width: min(58%, 21rem);
+}
+
+/* Modal Subtitle — dipindah ke dalam pita emas juga, langsung di bawah
+   judul (bukan di area beige di bawah papan lagi), biar satu kesatuan
+   sama judulnya di banner. */
 .game-modal-subtitle {
-  font-size: clamp(0.8rem, 2.5vw, 0.95rem);
-  color: #6b7280;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: clamp(2.85rem, 7.8vw, 3.6rem);
+  width: min(60%, 19rem);
+  margin: 0;
+  font-size: clamp(0.65rem, 1.9vw, 0.78rem);
+  color: #6b3f0a;
   text-align: center;
-  margin-top: 0.25rem;
+  margin-top: 0;
   margin-bottom: 0;
 }
 
@@ -126,9 +194,16 @@
   gap: clamp(0.875rem, 2vw, 1.25rem);
   border-radius: 1rem;
   padding: clamp(0.75rem, 2vw, 1rem);
+  /* Medium-width & center, sama filosofinya kayak search bar/grid provinsi
+     (§46-48) — dulu ngerentang penuh ngikutin kertas sampai nutupin sulur
+     di pinggir bingkai. */
+  max-width: 37rem;
+  margin: 0 auto;
 }
 
-/* Option Card */
+/* Option Card — tiap game punya identitas warna sendiri (lihat modifier di
+   bawah) daripada satu biru generik buat semua, biar kerasa kayak milih
+   "kartu game" beneran, bukan dua tombol kembar. */
 .game-option-card {
   background: #3b82f6;
   border: 2px solid #2563eb;
@@ -144,10 +219,28 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  min-height: 130px;
+  min-height: 152px;
   font-family: inherit;
   box-shadow:
     0 4px 6px rgba(59, 130, 246, 0.3),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.15),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.game-option-card--ular-tangga {
+  background: linear-gradient(160deg, #f0793a 0%, #d6491c 100%);
+  border-color: #a83814;
+  box-shadow:
+    0 4px 6px rgba(214, 73, 28, 0.35),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.15),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.game-option-card--nusa-card {
+  background: linear-gradient(160deg, #3b5bdb 0%, #263b94 100%);
+  border-color: #1d2e73;
+  box-shadow:
+    0 4px 6px rgba(38, 59, 148, 0.35),
     inset 0 -3px 0 rgba(0, 0, 0, 0.15),
     inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
@@ -158,6 +251,22 @@
     transform: translateY(-4px);
     box-shadow:
       0 6px 12px rgba(59, 130, 246, 0.4),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.15),
+      inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .game-option-card--ular-tangga:hover {
+    background: linear-gradient(160deg, #f5885c 0%, #e0521f 100%);
+    box-shadow:
+      0 6px 12px rgba(214, 73, 28, 0.45),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.15),
+      inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .game-option-card--nusa-card:hover {
+    background: linear-gradient(160deg, #5170e8 0%, #2d45ac 100%);
+    box-shadow:
+      0 6px 12px rgba(38, 59, 148, 0.45),
       inset 0 -3px 0 rgba(0, 0, 0, 0.15),
       inset 0 2px 0 rgba(255, 255, 255, 0.3);
   }
@@ -188,8 +297,8 @@
    the label out of view. Scales with viewport width instead, capped to
    match the desktop proportions. */
 .game-option-icon-img {
-  width: clamp(56px, 16vw, 110px);
-  height: clamp(56px, 16vw, 110px);
+  width: clamp(60px, 17vw, 122px);
+  height: clamp(60px, 17vw, 122px);
   object-fit: contain;
 }
 
@@ -203,98 +312,176 @@
 
 /* Search Container */
 .game-search-container {
-  margin-bottom: clamp(0.5rem, 2vw, 0.75rem);
+  margin-bottom: clamp(0.6rem, 2vw, 0.9rem);
+  display: flex;
+  justify-content: center;
 }
 
-/* Search Input */
+/* Search Input — claymorphism: gradasi krem puffy + shadow berlapis (outer
+   lembut + inset highlight/shadow buat kesan empuk), lebar sedang & center,
+   bukan ngerentang penuh kayak form web generik. */
 .game-search-input {
   width: 100%;
-  padding: clamp(0.5rem, 1.5vw, 0.75rem) clamp(0.75rem, 2vw, 1rem);
-  border-radius: 0.75rem;
-  border: 1.5px solid #d1d5db;
-  background: rgba(255, 255, 255, 0.6);
-  color: #374151;
-  font-size: clamp(0.8rem, 2vw, 0.9rem);
+  max-width: 22rem;
+  padding: clamp(0.6rem, 1.8vw, 0.8rem) clamp(1.1rem, 2.5vw, 1.35rem);
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+  color: #4a2a1a;
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
   font-family: inherit;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  text-align: center;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  box-shadow:
+    0 4px 10px rgba(139, 94, 42, 0.25),
+    inset -3px -3px 6px rgba(139, 94, 42, 0.18),
+    inset 3px 3px 5px rgba(255, 255, 255, 0.85);
 }
 
 .game-search-input::placeholder {
-  color: #9ca3af;
+  color: rgba(74, 42, 26, 0.55);
+  font-weight: 500;
 }
 
 .game-search-input:focus {
   outline: none;
-  border-color: white;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+  box-shadow:
+    0 5px 12px rgba(139, 94, 42, 0.3),
+    inset -3px -3px 6px rgba(139, 94, 42, 0.18),
+    inset 3px 3px 5px rgba(255, 255, 255, 0.85),
+    0 0 0 3px rgba(139, 94, 42, 0.2);
 }
 
-/* Provinces List */
+/* Provinces List — dijadiin panel "cekungan" sendiri di dalam papan (border
+   + inset shadow), bukan grid ngambang telanjang, biar keliatan konten
+   sengaja dibatasin di situ dan gak kesan tumpah ke luar papan.
+   Sekarang paged (6 provinsi/halaman via komponen, lihat
+   PROVINCES_PER_PAGE), bukan list scroll panjang — gak butuh overflow-y
+   lagi, tinggi & kolomnya tetap (fixed) biar predictable buat pagination. */
 .game-provinces-list {
-  /* flex:1 (not a vh-guessed max-height) so the grid always fills exactly the
-     space actually left inside the parchment's safe zone, whatever the
-     viewport height — it can never grow past what the container has room for. */
-  flex: 1;
-  min-height: 0;
-  max-height: 400px;
-  overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: clamp(0.4rem, 1vw, 0.6rem);
-  padding: clamp(0.5rem, 1.5vw, 0.75rem);
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(0.6rem, 1.4vw, 0.9rem);
+  padding: clamp(0.75rem, 1.8vw, 1.1rem);
   box-sizing: border-box;
+  /* Lebar medium & center — sama filosofinya kayak search bar, jangan
+     ngerentang penuh ngikutin kertas. */
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto;
+  background: rgba(139, 94, 42, 0.08);
+  border: 2px solid rgba(139, 94, 42, 0.22);
+  border-radius: 1rem;
+  box-shadow: inset 0 2px 8px rgba(74, 42, 26, 0.15);
 }
 
-/* Custom Scrollbar */
-.game-provinces-list::-webkit-scrollbar {
-  width: 6px;
+/* Navigasi halaman (Prev/Next + indikator) */
+.game-province-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+  margin-top: clamp(0.6rem, 1.6vw, 0.9rem);
 }
 
-.game-provinces-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
+.game-province-page-btn {
+  border: none;
+  border-radius: 999px;
+  padding: clamp(0.45rem, 1.3vw, 0.65rem) clamp(1rem, 2.5vw, 1.4rem);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  color: #4a2a1a;
+  cursor: pointer;
+  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+  box-shadow:
+    0 3px 6px rgba(139, 94, 42, 0.25),
+    inset -2px -2px 4px rgba(139, 94, 42, 0.18),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+  transition: transform 0.15s ease-out, filter 0.15s ease-out, opacity 0.15s ease-out;
 }
 
-.game-provinces-list::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 10px;
+@media (hover: hover) {
+  .game-province-page-btn:not(:disabled):hover {
+    filter: brightness(1.03);
+    transform: translateY(-1px);
+  }
 }
 
-.game-provinces-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+.game-province-page-btn:not(:disabled):active {
+  transform: translateY(1px);
 }
 
-/* Province Item */
+.game-province-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.game-province-page-indicator {
+  font-weight: 700;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  color: #4a2a1a;
+  min-width: 3.5rem;
+  text-align: center;
+}
+
+/* Province Item — hijau, senada sama sulur/daun di bingkai papan (bukan
+   biru generik yang sama kayak tombol lain). Dibesarin dari versi
+   sebelumnya (60px min-height, font kecil) sesuai request. */
 .game-province-item {
-  background: #3b82f6;
-  border-radius: 0.5rem;
-  min-height: 60px;
-  padding: clamp(0.4rem, 1.2vw, 0.65rem);
+  position: relative;
+  background: linear-gradient(160deg, #5cb87a 0%, #2e7d4f 100%);
+  border-radius: 0.65rem;
+  min-height: 76px;
+  padding: clamp(0.6rem, 1.5vw, 0.9rem);
   cursor: pointer;
   transition: all 0.15s ease;
-  font-size: clamp(0.75rem, 2vw, 0.85rem);
+  font-size: clamp(0.85rem, 2.2vw, 1rem);
   color: white;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   font-family: inherit;
-  line-height: 1.2;
+  line-height: 1.25;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  border: 2px solid #2563eb;
+  border: 2px solid #1f5c38;
   box-shadow:
-    0 4px 6px rgba(59, 130, 246, 0.3),
+    0 4px 6px rgba(31, 92, 56, 0.3),
     inset 0 -3px 0 rgba(0, 0, 0, 0.15),
     inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 
+/* Berapa orang lagi aktif di provinsi ini — kecil & di pojok biar gak
+   ganggu tata letak nama provinsi yang udah ada, cuma nongol kalau > 0. */
+.game-province-occupancy-badge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(150deg, #ffe28a 0%, #f5a916 100%);
+  color: #4a2a1a;
+  box-shadow: 0 2px 4px rgba(120, 72, 0, 0.4), 0 0 0 2px #1f5c38;
+}
+
 @media (hover: hover) {
   .game-province-item:hover {
-    background: #2563eb;
+    background: linear-gradient(160deg, #6bc98a 0%, #368f5a 100%);
     transform: translateY(-2px);
     box-shadow:
-      0 6px 10px rgba(59, 130, 246, 0.4),
+      0 6px 10px rgba(31, 92, 56, 0.4),
       inset 0 -3px 0 rgba(0, 0, 0, 0.15),
       inset 0 2px 0 rgba(255, 255, 255, 0.3);
   }
@@ -320,38 +507,49 @@
   margin: 0;
 }
 
-/* Close Button */
+/* Close Button — gradasi kuning claymorphism, resep sama kayak BackButton
+   (components/ui/BackButton.tsx) biar konsisten satu bahasa visual "tombol
+   bulat 3D kuning" di seluruh app, bukan biru generik. */
 .game-modal-close {
   position: absolute;
-  top: clamp(2.75rem, 6vw, 3.5rem);
-  right: clamp(2rem, 5vw, 2.75rem);
-  background: #3b82f6;
-  border: 2px solid #2563eb;
+  top: clamp(1rem, 3vw, 1.5rem);
+  right: clamp(1rem, 3vw, 1.5rem);
+  background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
+  border: none;
   border-radius: 50%;
-  width: clamp(2.5rem, 6vw, 3rem);
-  height: clamp(2.5rem, 6vw, 3rem);
-  color: white;
-  font-size: clamp(1rem, 3vw, 1.25rem);
+  width: clamp(2.25rem, 5.5vw, 2.75rem);
+  height: clamp(2.25rem, 5.5vw, 2.75rem);
+  color: #6b3f0a;
+  font-size: clamp(0.9rem, 2.6vw, 1.1rem);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out, filter 0.15s ease-out;
   z-index: 10;
   font-weight: bold;
   box-shadow:
-    0 4px 6px rgba(59, 130, 246, 0.3),
-    inset 0 -3px 0 rgba(0, 0, 0, 0.15),
-    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+    0 4px 0 #c6841a,
+    0 6px 10px rgba(120, 72, 0, 0.35),
+    inset -2px -2px 5px rgba(150, 90, 0, 0.25),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.65);
 }
 
-.game-modal-close:hover {
-  background: #2563eb;
-  transform: rotate(90deg) scale(1.1);
+@media (hover: hover) {
+  .game-modal-close:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px) rotate(90deg);
+  }
 }
 
 .game-modal-close:active {
-  transform: rotate(90deg) scale(0.95);
+  transform: translateY(2px) rotate(90deg);
+  filter: brightness(0.96);
+  box-shadow:
+    0 1px 0 #c6841a,
+    0 2px 5px rgba(120, 72, 0, 0.3),
+    inset -2px -2px 5px rgba(150, 90, 0, 0.25),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.65);
 }
 
 /* Responsive Design */
@@ -365,47 +563,61 @@
   }
 
   .game-option-card {
-    min-height: 110px;
+    min-height: 124px;
   }
 
   .game-provinces-list {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 640px) {
   .game-modal-container {
-    /* Sebelumnya margin 0.5rem + padding 1.25rem/1rem bikin kartu game nempel
-       nyaris ke tepi kertas parchment (beda jauh sama desktop yang punya
-       banyak jarak di sekeliling kartu) — margin & padding dibesarin dikit
-       biar proporsinya lebih mirip desktop, bukan cuma "diperkecil" mentah. */
-    padding: 1.75rem 1.25rem 2rem;
     border-radius: 1.25rem;
     margin: 0 1rem;
   }
 
+  /* Papan lebih sempit di mobile — top/bottom padding dihitung ulang
+     (bukan diwarisin dari desktop) biar tetep nyisain jarak buat pita
+     emas judul di atas & sulur/bunga di bawah, gak numpuk kayak sisa
+     ukuran kertas lama. Discope ke modal "Pilih Game" doang — modal
+     provinsi (--large) butuh padding sendiri, lebih gede, buat nampung
+     subjudul + search + grid di bawah pita emas. */
+  .game-modal-container:not(.game-modal-container--large) {
+    padding: 4.5rem 1.25rem 4.5rem;
+  }
+
   .game-modal-container--large {
     max-width: calc(100% - 1rem);
+    padding-top: clamp(6.5rem, 23vh, 8rem);
+    /* Digedein dari sebelumnya — sekarang ada baris navigasi Prev/Next di
+       bawah grid provinsi juga, butuh clearance ekstra biar gak nabrak
+       sulur bawah. */
+    padding-bottom: clamp(8rem, 30vh, 10rem);
   }
 
-  .game-modal-title {
-    margin-bottom: 0.25rem;
-  }
-
-  /* Kertas modal "Pilih Game" jadi lebih sempit di bawah (300px) — judul
-     dibesarin lagi (1.3rem -> 1.55rem) sesuai request, dikasih jarak lebih
-     dari tombol close bulat di pojok kanan atas biar gak nabrak. Modal
-     provinsi (--large, lebih lebar) gak kesentuh, gak butuh ini. */
-  .game-modal-container:not(.game-modal-container--large) .game-modal-header {
-    padding-right: 2.5rem;
-  }
-
+  /* Kertas modal "Pilih Game" jadi lebih sempit (300px) — judul & tombol
+     close diskalain ulang buat lebar segini. Modal provinsi (--large, lebih
+     lebar) gak kesentuh, gak butuh ini. */
   .game-modal-container:not(.game-modal-container--large) .game-modal-title {
-    font-size: 1.55rem;
+    top: clamp(1.1rem, 8vw, 1.5rem);
+    width: min(64%, 11rem);
+    font-size: clamp(0.72rem, 4.6vw, 0.95rem);
+    letter-spacing: 0.2px;
   }
 
   .game-modal-container:not(.game-modal-container--large) .game-modal-subtitle {
-    font-size: 0.8rem;
+    top: clamp(2.15rem, 13vw, 2.75rem);
+    width: min(72%, 10rem);
+    font-size: clamp(0.5rem, 3vw, 0.62rem);
+  }
+
+  /* Modal provinsi di mobile — kertasnya jauh lebih sempit dari desktop,
+     jadi ukuran judul desktop (1.15-1.75rem) kegedean, nabrak tepi pita
+     emas. Diskalain ulang buat lebar mobile. */
+  .game-modal-container--large .game-modal-title {
+    font-size: clamp(0.85rem, 4.4vw, 1.05rem);
+    width: min(64%, 13rem);
   }
 
   /* Modal "Pilih Game" (bukan modal provinsi, yang pakai --large & gak
@@ -427,16 +639,16 @@
     flex-direction: row;
     justify-content: flex-start;
     text-align: left;
-    /* Dinaikin lagi (92px -> 112px) biar ikon game keliatan jelas, gak
+    /* Dinaikin lagi (112px -> 124px) biar ikon game keliatan jelas, gak
        kepotong/kekecilan di dalam tombol. */
-    min-height: 112px;
+    min-height: 124px;
     padding: 0.9rem 1.25rem;
     gap: 1.1rem;
   }
 
   .game-option-icon-img {
-    width: 78px;
-    height: 78px;
+    width: 86px;
+    height: 86px;
     flex-shrink: 0;
   }
 
@@ -447,16 +659,34 @@
   .game-modal-close {
     width: 2.25rem;
     height: 2.25rem;
+    top: 2.5rem;
+    right: 0.5rem;
   }
 
   .game-provinces-list {
-    max-height: calc(42vh - 80px);
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    padding: 0.5rem;
   }
 
   .game-province-item {
-    min-height: 80px;
-    font-size: 0.82rem;
+    min-height: 72px;
+    font-size: 0.9rem;
+  }
+
+  .game-province-pagination {
+    margin-top: 0.3rem;
+    gap: 0.5rem;
+  }
+
+  .game-province-page-btn {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  .game-province-page-indicator {
+    font-size: 0.75rem;
   }
 }
 
@@ -466,11 +696,16 @@
   }
 
   .game-modal-container {
-    padding: 1.5rem 1rem;
+    padding: 3.75rem 1rem 3.25rem;
+  }
+
+  .game-modal-container:not(.game-modal-container--large) .game-modal-title {
+    font-size: clamp(0.62rem, 4.4vw, 0.8rem);
+    top: 1rem;
   }
 
   .game-option-card {
-    min-height: 84px;
+    min-height: 92px;
     padding: 0.7rem 1rem;
     gap: 0.85rem;
   }
@@ -485,68 +720,121 @@
   }
 }
 
-/* Mobile landscape: height is the scarce dimension here, not width, so the
-   vw-based clamps above (sized for portrait) render everything oversized —
-   title, padding, and icons all pinned near their vw ceiling even though
-   there's barely any vertical room. Re-derive every size from vh instead. */
+/* Mobile landscape: height is the dimensi yang paling mepet di sini, bukan
+   lebar — jadi tiap ukuran diturunin dari vh, bukan vw. Padding atas/bawah
+   dihitung ulang buat proporsi papan kayu baru (pita emas ~18% tinggi
+   gambar, sulur bawah ~16%) — bukan angka sisa dari kertas lama. */
 @media (max-height: 500px) and (orientation: landscape) {
   .game-modal-container {
-    /* Top padding matches the desktop layout's proportion (~13.6% of container
-       height), not an ad-hoc small value — the parchment's jagged top edge
-       needs the same relative clearance regardless of how little vertical
-       room there is, or title/close button sit visibly closer to the peaks
-       than on desktop. */
-    padding: clamp(2.4rem, 11.8vh, 2.9rem) clamp(1.5rem, 4vw, 2.5rem) clamp(0.85rem, 5vh, 1.25rem);
+    padding: clamp(2.4rem, 19vh, 3.1rem) clamp(1.25rem, 4vw, 2rem) clamp(2rem, 16vh, 2.6rem);
     max-height: 94vh;
   }
 
+  /* Modal provinsi butuh clearance atas dikit lebih gede dari modal "Pilih
+     Game" — subjudulnya kepotong pita emas kalau ikut angka yang sama.
+     Sisi kiri-kanan juga digedein — bawaan 4vw ketipisan buat sulur di
+     pinggir bingkai pas container-nya lebar (landscape). */
+  .game-modal-container--large {
+    padding-top: clamp(3rem, 23vh, 3.6rem);
+    padding-left: clamp(2rem, 12vw, 5rem);
+    padding-right: clamp(2rem, 12vw, 5rem);
+  }
+
   .game-modal-header {
-    margin-bottom: 0.35rem;
-    padding-top: 0.15rem;
+    margin-bottom: 0.3rem;
+    padding-top: 0.1rem;
   }
 
-  .game-modal-title {
-    font-size: clamp(1.05rem, 5.5vh, 1.4rem);
+  /* Landscape: tinggi pita emas paling mepet dari semua breakpoint — judul
+     & subjudul digeser rapet banget, subjudul harus mulai SETELAH judul
+     abis (sebelumnya numpuk/overlap gara-gara subjudul top-nya lebih
+     kecil dari judul bottom). */
+  .game-modal-container:not(.game-modal-container--large) .game-modal-title {
+    top: clamp(0.3rem, 3vh, 0.55rem);
+    width: min(56%, 9rem);
+    font-size: clamp(0.5rem, 3vh, 0.7rem);
   }
 
-  .game-modal-subtitle {
-    font-size: 0.72rem;
-    margin-top: 0.1rem;
+  .game-modal-container:not(.game-modal-container--large) .game-modal-subtitle {
+    top: clamp(1.25rem, 8.5vh, 1.5rem);
+    width: min(62%, 8rem);
+    font-size: clamp(0.38rem, 2.2vh, 0.48rem);
+  }
+
+  .game-modal-container--large .game-modal-title {
+    top: clamp(0.3rem, 3vh, 0.55rem);
+    width: min(50%, 12rem);
+    font-size: clamp(0.6rem, 3.4vh, 0.85rem);
+  }
+
+  .game-modal-container--large .game-modal-subtitle {
+    top: clamp(1.35rem, 9.5vh, 1.7rem);
+    width: min(60%, 12rem);
+    font-size: clamp(0.42rem, 2.4vh, 0.55rem);
   }
 
   .game-modal-close {
-    /* Matches desktop's ~11.9% of container height / ~5.5% of width, so the
-       button sits at the same relative spot near the corner instead of
-       tucked further in than the desktop reference. */
-    top: clamp(2.1rem, 10.4vh, 2.6rem);
-    right: clamp(1.6rem, 5vw, 2.6rem);
-    width: 2rem;
-    height: 2rem;
-    font-size: 0.85rem;
+    top: 0.4rem;
+    right: 0.4rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.7rem;
   }
 
   .game-modal-content {
-    margin-top: 0.4rem;
-    gap: 0.5rem;
+    margin-top: 0.3rem;
+    gap: 0.4rem;
   }
 
   .game-options-grid {
-    gap: 0.6rem;
-    padding: 0.35rem;
+    gap: 0.5rem;
+    padding: 0.3rem;
   }
 
   .game-option-card {
-    min-height: 64px;
-    padding: 0.5rem;
+    min-height: 56px;
+    padding: 0.4rem 0.6rem;
     gap: 0.3rem;
   }
 
   .game-option-icon-img {
-    width: clamp(32px, 11vh, 52px);
-    height: clamp(32px, 11vh, 52px);
+    width: clamp(28px, 9vh, 44px);
+    height: clamp(28px, 9vh, 44px);
   }
 
   .game-option-label {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
+  }
+
+  /* Modal provinsi di landscape — papan gak setinggi mode potret, jadi
+     jatah tinggi buat grid provinsi juga dikecilin biar gak nabrak sulur
+     bawah, dan itemnya diringkas jadi lebih pendek. */
+  .game-modal-container--large {
+    padding-bottom: clamp(2rem, 16vh, 2.6rem);
+  }
+
+  .game-provinces-list {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    padding: 0.5rem;
+  }
+
+  .game-province-item {
+    min-height: 44px;
+    font-size: 0.72rem;
+  }
+
+  .game-province-pagination {
+    margin-top: 0.35rem;
+  }
+
+  .game-province-page-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.7rem;
+  }
+
+  .game-province-page-indicator {
+    font-size: 0.7rem;
+    min-width: 2.5rem;
   }
 }

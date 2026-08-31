@@ -20,7 +20,7 @@ import {
   shuffle,
   initializeNusaCardGameState,
   listenToGameState,
-  playCard,
+  throwCard,
   submitAnswer,
   setGameStatus,
   cleanupGame,
@@ -109,18 +109,23 @@ export default function NusaCardVsAiPage() {
   const opponentUID = AI_UID;
   const myHand: PlayerCard[] = useMemo(() => {
     if (!gameState || !myUID) return [];
+    // `id` di-suffix per slot (bukan cuma id soal asli) — sama alasan kayak
+    // di nusa-card/page.tsx: soal bisa aja kepake dobel di 1 tangan kalau
+    // konten soal masih tipis, `questionId` yang dikirim ke throwCard.
     return (gameState.playerHands?.[myUID] ?? []).map((q, index) => ({
-      id: q.id,
+      id: `${q.id}-${index}`,
+      questionId: q.id,
       title: q.text,
       subtitle: 'Q',
       hue: CARD_HUES[index % CARD_HUES.length],
     }));
   }, [gameState, myUID]);
 
-  const myCorrect = (myUID && gameState?.correctCounts[myUID]) || 0;
-  const aiCorrect = gameState?.correctCounts[opponentUID] || 0;
+  const myCardCount = (myUID && gameState?.playerHands?.[myUID]?.length) || 0;
+  const aiCardCount = gameState?.playerHands?.[opponentUID]?.length || 0;
+  const winnerUID = gameState?.finishedOrder?.[0] ?? null;
 
-  const throwerUID = gameState ? gameState.players?.[gameState.throwerIndex]?.uid : null;
+  const throwerUID = gameState ? gameState.players?.[gameState.currentThrowerIndex]?.uid : null;
   const isMyTurnToThrow = throwerUID === myUID && !gameState?.activeQuestion;
   const isMyTurnToAnswer = gameState?.currentAnsweringUID === myUID && Boolean(gameState?.activeQuestion);
   const isAiThrowing = throwerUID === opponentUID && !gameState?.activeQuestion;
@@ -131,10 +136,10 @@ export default function NusaCardVsAiPage() {
     setSelectedCardId(cardId);
   };
 
-  const handlePlayAnimationDone = async (cardId: string) => {
+  const handlePlayAnimationDone = async (_slotId: string, questionId: string) => {
     setSelectedCardId(null);
     if (!myUID) return;
-    await playCard(roomKey, myUID, cardId);
+    await throwCard(roomKey, myUID, questionId);
   };
 
   const handleAnswer = async (index: number) => {
@@ -154,7 +159,7 @@ export default function NusaCardVsAiPage() {
     if (hand.length === 0) return;
     const timeoutId = setTimeout(() => {
       const card = hand[Math.floor(Math.random() * hand.length)];
-      void playCard(roomKey, opponentUID, card.id);
+      void throwCard(roomKey, opponentUID, card.id);
     }, 1200);
     return () => clearTimeout(timeoutId);
   }, [isAiThrowing, gameState, roomKey]);
@@ -210,7 +215,7 @@ export default function NusaCardVsAiPage() {
             status={isAiThrowing ? 'thrower' : isAiAnswering ? 'answering' : 'idle'}
             sizeClassName="h-12 w-12 sm:h-14 sm:w-14"
           />
-          <p className="text-sm font-semibold text-white drop-shadow">AI Opponent — {aiCorrect} benar</p>
+          <p className="text-sm font-semibold text-white drop-shadow">AI Opponent — {aiCardCount} kartu</p>
           {isAiThrowing && <p className="text-xs text-white/80">AI memilih kartu...</p>}
         </div>
 
@@ -219,7 +224,7 @@ export default function NusaCardVsAiPage() {
           <img src={nuca.nuca} alt="Deck" className="h-20 w-14 rounded-lg shadow-lg" />
           {gameState?.gameStatus === 'finished' && (
             <p className="rounded-lg bg-white/90 px-4 py-2 text-lg font-bold text-[#1f2a1f] shadow">
-              {gameState.winnerUID === myUID ? 'Kamu menang!' : gameState.winnerUID === opponentUID ? 'AI menang!' : 'Seri!'}
+              {winnerUID === myUID ? 'Kamu menang!' : winnerUID === opponentUID ? 'AI menang!' : 'Seri!'}
             </p>
           )}
         </div>
@@ -233,7 +238,7 @@ export default function NusaCardVsAiPage() {
             avatarUrl={user?.firebasePhotoURL || user?.googlePhotoURL || undefined}
           />
           <p className="text-sm font-semibold text-white drop-shadow">
-            {user?.displayName || 'Kamu'} — {myCorrect} benar
+            {user?.displayName || 'Kamu'} — {myCardCount} kartu
           </p>
           <PlayerHandCards
             cards={myHand}

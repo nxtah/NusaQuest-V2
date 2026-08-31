@@ -31,6 +31,58 @@ export default function NavBar() {
         <div
             className={`flex flex-row items-center justify-between w-full lg:px-8 sm:p-4 py-2 lg:py-3 gap-2 lg:gap-0 z-20 relative ${poppins.className}`}
         >
+            {/* Claymorphism — resep sama kayak search bar modal provinsi/BackButton
+                (gradasi krem puffy + shadow berlapis), pindah dari glass/translucent
+                putih generik. Filter aktif dikasih gradasi hijau-teal biar beda
+                jelas dari yang inactive. */}
+            <style>{`
+                .nq-filter-pill {
+                    background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+                    color: #4a2a1a;
+                    box-shadow:
+                        0 3px 6px rgba(139, 94, 42, 0.25),
+                        inset -2px -2px 4px rgba(139, 94, 42, 0.18),
+                        inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+                    transition: transform 0.15s ease-out, filter 0.15s ease-out;
+                }
+                .nq-filter-pill:hover {
+                    filter: brightness(1.03);
+                    transform: translateY(-1px);
+                }
+                .nq-filter-pill:active {
+                    transform: translateY(1px);
+                }
+                .nq-filter-pill--active {
+                    background: linear-gradient(150deg, #6bc9ac 0%, #2f8f74 100%);
+                    color: #ffffff;
+                    box-shadow:
+                        0 3px 6px rgba(24, 89, 71, 0.35),
+                        inset -2px -2px 4px rgba(24, 89, 71, 0.25),
+                        inset 2px 2px 4px rgba(255, 255, 255, 0.4);
+                }
+                .nq-search-input {
+                    background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+                    color: #4a2a1a;
+                    border: none !important;
+                    box-shadow:
+                        0 3px 6px rgba(139, 94, 42, 0.25),
+                        inset -2px -2px 4px rgba(139, 94, 42, 0.18),
+                        inset 2px 2px 4px rgba(255, 255, 255, 0.85);
+                    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+                }
+                .nq-search-input::placeholder {
+                    color: rgba(74, 42, 26, 0.55);
+                }
+                .nq-search-input:focus {
+                    transform: translateY(-1px);
+                    box-shadow:
+                        0 4px 8px rgba(139, 94, 42, 0.3),
+                        inset -2px -2px 4px rgba(139, 94, 42, 0.18),
+                        inset 2px 2px 4px rgba(255, 255, 255, 0.85),
+                        0 0 0 3px rgba(139, 94, 42, 0.2);
+                }
+            `}</style>
+
             <div className="flex items-center gap-1.5 lg:gap-4 shrink-0 lg:flex-1 lg:min-w-0 lg:pr-4">
                 {/* Tombol Kembali */}
                 <BackButton href="/home" iconSize="md" />
@@ -43,11 +95,9 @@ export default function NavBar() {
                             onClick={() => {
                                 router.push("/information?category=" + category);
                             }}
-                            className={`px-3 lg:px-6 h-6 sm:h-8 lg:h-10 flex items-center justify-center text-[9px] sm:text-xs lg:text-base rounded-full whitespace-nowrap shrink-0 backdrop-blur-lg border ${
-                                activeCategory === category
-                                ? "bg-cyan-700 hover:bg-cyan-700/70"
-                                : "bg-white/5 hover:bg-white/20"
-                            } text-white`}
+                            className={`nq-filter-pill px-3 lg:px-6 h-6 sm:h-8 lg:h-10 flex items-center justify-center text-[9px] sm:text-xs lg:text-base rounded-full whitespace-nowrap shrink-0 font-semibold ${
+                                activeCategory === category ? "nq-filter-pill--active" : ""
+                            }`}
                         >
                             {category}
                         </button>
@@ -63,7 +113,7 @@ export default function NavBar() {
                     viewBox="0 0 24 24"
                     strokeWidth={1.5}
                     stroke="currentColor"
-                    className="w-3 h-3 lg:w-5 lg:h-5 absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/70 pointer-events-none z-10"
+                    className="w-3 h-3 lg:w-5 lg:h-5 absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-[#4a2a1a]/60 pointer-events-none z-10"
                 >
                     <path
                         strokeLinecap="round"
@@ -85,7 +135,7 @@ export default function NavBar() {
                             router.push(`/information?category=${activeCategory}`);
                         }
                     }}
-                    className="w-full lg:w-96 pl-6 lg:pl-10 pr-2 lg:pr-4 h-6 sm:h-8 lg:h-10 flex items-center text-[9px] sm:text-xs lg:text-base bg-white/5 backdrop-blur-lg border border-white/70 rounded-full text-white placeholder-white/70 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
+                    className="nq-search-input w-full lg:w-96 pl-6 lg:pl-10 pr-2 lg:pr-4 h-6 sm:h-8 lg:h-10 flex items-center text-[9px] sm:text-xs lg:text-base rounded-full outline-none font-semibold"
                 />
             </div>
         </div>

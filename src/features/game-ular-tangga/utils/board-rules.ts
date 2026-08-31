@@ -1,7 +1,6 @@
 /**
  * @file board-rules.ts
- * @description Definisi tangga serta logic perpindahan pion.
- * Data lengkap tangga (Start-End) sesuai permintaan user.
+ * @description Definisi tangga & ular serta logic perpindahan pion.
  */
 
 export const LADDERS: Record<number, number> = {
@@ -16,16 +15,30 @@ export const LADDERS: Record<number, number> = {
   86: 95,
 };
 
-/**
- * Mendapatkan posisi tujuan jika berada di pangkal tangga.
- */
+// Kepala ular (key) → ekor ular (value). Pion langsung turun, tanpa soal.
+export const SNAKES: Record<number, number> = {
+  23: 2,
+  30: 9,
+  58: 39,
+  68: 14,
+  66: 44,
+  91: 49,
+  94: 67,
+  98: 79,
+};
+
 export function getLadderTarget(pos: number): number | null {
-  return LADDERS[pos] || null;
+  return LADDERS[pos] ?? null;
 }
 
-/**
- * Mengecek apakah sebuah kotak adalah pangkal tangga.
- */
 export function isLadderStart(pos: number): boolean {
-  return !!LADDERS[pos];
+  return pos in LADDERS;
+}
+
+export function getSnakeTail(pos: number): number | null {
+  return SNAKES[pos] ?? null;
+}
+
+export function isSnakeHead(pos: number): boolean {
+  return pos in SNAKES;
 }

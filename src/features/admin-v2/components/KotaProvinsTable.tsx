@@ -2,7 +2,7 @@
 import {useEffect, useState} from 'react';
 import Modal, {FormField} from './Modal';
 import {
-  getAllDestinations,
+  listenToDestinations,
   createDestination,
   updateDestination,
   deleteDestination,
@@ -72,36 +72,29 @@ export default function KotaProvinsTable() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [provinceFilter, setProvinceFilter] = useState('');
 
-  // Load destinations
+  // Load destinations — realtime, biar edit dari admin/tab lain langsung
+  // kelihatan tanpa refresh manual.
   useEffect(() => {
-    const loadDestinations = async () => {
-      setLoading(true);
-      setError(null);
-      const result = await getAllDestinations();
-
-      if (result.success) {
-        const record: Record<string, KotaProvinsi> = {};
-        (result.data || []).forEach((item) => {
-          record[item.id] = {
-            id: item.id,
-            nama: item.nama,
-            provinsi: item.provinsi,
-            deskripsi: item.deskripsi,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            type: item.type,
-            image: item.image,
-          };
-        });
-        setDestinations(record);
-      } else {
-        setError('Failed to load destinations');
-      }
+    const unsub = listenToDestinations((items) => {
+      const record: Record<string, KotaProvinsi> = {};
+      items.forEach((item) => {
+        record[item.id] = {
+          id: item.id,
+          nama: item.nama,
+          provinsi: item.provinsi,
+          deskripsi: item.deskripsi,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          type: item.type,
+          image: item.image,
+        };
+      });
+      setDestinations(record);
       setLoading(false);
-    };
-
-    loadDestinations();
+    });
+    return () => unsub();
   }, []);
 
   const handleAddNew = () => {
@@ -214,6 +207,7 @@ export default function KotaProvinsTable() {
 
   const destinationsArray = Object.entries(destinations)
     .map(([id, item]) => ({id, ...item}))
+    .filter((item) => !provinceFilter || item.provinsi === provinceFilter)
     .sort((a, b) => {
       const aTime = a.createdAt || 0;
       const bTime = b.createdAt || 0;
@@ -222,27 +216,37 @@ export default function KotaProvinsTable() {
 
   return (
     <>
-      <div className="flex-1 bg-[#1e2532]/80 backdrop-blur-2xl rounded-[2rem] border border-white/20 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col relative">
+      <div className="nq-admin-panel flex-1 rounded-[1.75rem] p-5 sm:p-8 overflow-hidden flex flex-col relative">
         {/* Alerts */}
         {error && (
-          <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
+          <div className="mb-4 p-4 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm font-semibold">
             {error}
           </div>
         )}
         {success && (
-          <div className="mb-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg text-green-300 text-sm">
+          <div className="mb-4 p-4 bg-emerald-100 border border-emerald-300 rounded-lg text-emerald-700 text-sm font-semibold">
             {success}
           </div>
         )}
 
         {/* Top Actions Bar */}
-        <div className="flex justify-end items-center mb-8 gap-3">
-          <button className="px-6 py-3 bg-[#2d3748]/80 border border-white/20 hover:bg-[#3a4556] text-white rounded-xl font-bold transition-all shadow-md text-sm backdrop-blur-sm">
-            Save Changes
-          </button>
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 sm:mb-8 gap-3">
+          <select
+            value={provinceFilter}
+            onChange={(e) => setProvinceFilter(e.target.value)}
+            className="nq-admin-field px-4 py-2.5 rounded-xl text-sm font-semibold sm:w-56"
+          >
+            <option value="">Semua Provinsi</option>
+            {PROVINCES.map((prov) => (
+              <option key={prov} value={prov}>
+                {prov}
+              </option>
+            ))}
+          </select>
+
           <button
             onClick={handleAddNew}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.6)] text-sm"
+            className="nq-admin-btn-primary px-5 py-2.5 rounded-full font-bold flex items-center gap-2 text-sm"
           >
             <svg
               width="18"
@@ -257,56 +261,56 @@ export default function KotaProvinsTable() {
               <path d="M5 12h14" />
               <path d="M12 5v14" />
             </svg>
-            Add New
+            Tambah Destinasi
           </button>
         </div>
 
         {/* Table Container */}
-        <div className="flex-1 overflow-auto rounded-2xl border border-white/10 bg-black/30 backdrop-blur-md custom-scrollbar">
+        <div className="nq-admin-table-wrap nq-admin-scrollbar flex-1 overflow-auto rounded-2xl">
           {loading ? (
             <div className="h-full flex items-center justify-center">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                <p className="text-gray-400">Loading destinations...</p>
+                <div className="w-8 h-8 border-3 border-[#f5a916]/40 border-t-[#f5a916] rounded-full animate-spin" />
+                <p className="opacity-60">Memuat destinasi...</p>
               </div>
             </div>
           ) : destinationsArray.length > 0 ? (
-            <table className="w-full text-sm text-left">
-              <thead className="text-[11px] uppercase bg-black/60 text-gray-300 font-extrabold tracking-widest sticky top-0 z-10 backdrop-blur-xl border-b border-white/10">
+            <table className="nq-admin-table w-full text-sm text-left">
+              <thead className="text-[11px] uppercase font-extrabold tracking-widest sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-5 w-16 text-center">#</th>
-                  <th className="px-6 py-5 w-[20%]">NAMA</th>
-                  <th className="px-6 py-5 w-[15%]">PROVINSI</th>
-                  <th className="px-6 py-5 w-[20%]">TIPE</th>
-                  <th className="px-6 py-5 w-[25%]">DESKRIPSI</th>
-                  <th className="px-6 py-5 text-center">ACTIONS</th>
+                  <th className="px-6 py-5 w-[20%]">Nama</th>
+                  <th className="px-6 py-5 w-[15%]">Provinsi</th>
+                  <th className="px-6 py-5 w-[20%]">Tipe</th>
+                  <th className="px-6 py-5 w-[25%]">Deskripsi</th>
+                  <th className="px-6 py-5 text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y">
                 {destinationsArray.map((item, idx) => (
-                  <tr key={item.id} className="hover:bg-white/5 transition-colors group">
-                    <td className="px-6 py-5 font-black text-gray-400 text-center">
+                  <tr key={item.id} className="group">
+                    <td className="px-6 py-5 font-black opacity-50 text-center">
                       {idx + 1}
                     </td>
-                    <td className="px-6 py-5 font-bold text-base text-gray-100 pr-8 leading-relaxed">
+                    <td className="px-6 py-5 font-bold text-base pr-8 leading-relaxed">
                       {item.nama}
                     </td>
-                    <td className="px-6 py-5 text-gray-300 text-sm font-medium">
+                    <td className="px-6 py-5 text-sm font-medium opacity-80">
                       {item.provinsi}
                     </td>
                     <td className="px-6 py-5">
-                      <span className="px-3 py-1.5 bg-white/10 rounded-lg text-xs font-bold text-gray-200 uppercase tracking-wider border border-white/10 shadow-sm">
+                      <span className="px-3 py-1.5 bg-black/5 rounded-lg text-xs font-bold uppercase tracking-wider">
                         {item.type || '-'}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-gray-300 text-sm line-clamp-2">
+                    <td className="px-6 py-5 text-sm line-clamp-2 opacity-80">
                       {item.deskripsi || '-'}
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={() => handleEdit(item.id, item)}
-                          className="p-2.5 bg-blue-500/20 hover:bg-blue-500 text-blue-300 hover:text-white rounded-xl transition-all border border-blue-500/30 hover:border-transparent shadow-sm"
+                          className="nq-admin-icon-btn--edit p-2.5 rounded-xl"
                         >
                           <svg
                             width="16"
@@ -324,7 +328,7 @@ export default function KotaProvinsTable() {
                         </button>
                         <button
                           onClick={() => handleDelete(item.id)}
-                          className="p-2.5 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white rounded-xl transition-all border border-red-500/30 hover:border-transparent shadow-sm"
+                          className="nq-admin-icon-btn--delete p-2.5 rounded-xl"
                         >
                           <svg
                             width="16"
@@ -351,8 +355,8 @@ export default function KotaProvinsTable() {
             </table>
           ) : (
             <div className="h-full flex items-center justify-center">
-              <p className="text-gray-400 text-lg">
-                No destinations found. Create one to get started!
+              <p className="opacity-60 text-lg">
+                Belum ada destinasi. Tambahkan untuk mulai mengisi peta permainan!
               </p>
             </div>
           )}
@@ -435,24 +439,6 @@ export default function KotaProvinsTable() {
           value={editingData?.image}
         />
       </Modal>
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.2);
-          border-radius: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.4);
-        }
-      `}} />
     </>
   );
 }

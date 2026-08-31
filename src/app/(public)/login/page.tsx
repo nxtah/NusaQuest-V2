@@ -10,33 +10,29 @@ export default function LoginPage() {
     <div className="login-scene">
       <div className="login-bg-layer">
         <Image
-          src={getBackgroundImage('laut')}
-          alt="Laut"
+          src={getBackgroundImage('langit')}
+          alt=""
           fill
           sizes="100vw"
           className="login-scene-image"
           priority
         />
-      </div>
-
-      <div className="login-land-layer">
         <Image
           src={getBackgroundImage('landprofile')}
-          alt="Daratan"
+          alt=""
           fill
           sizes="100vw"
-          className="login-scene-image"
+          className="login-scene-image object-bottom"
           priority
         />
+        <div className="login-bg-overlay" />
       </div>
 
       <div className="login-back-button">
         <BackButton href={ROUTES.public.home} />
       </div>
 
-      <div className="login-ui-layer">
-        <LoginCard />
-      </div>
+      <LoginCard />
     </div>
   );
 }

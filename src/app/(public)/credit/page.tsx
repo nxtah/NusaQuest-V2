@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import localFont from 'next/font/local';
 import { Poppins } from 'next/font/google';
@@ -9,9 +9,48 @@ import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import CreditMemberCard from '@/src/components/credit/CreditMemberCard';
 import CreditMemberModal from '@/src/components/credit/CreditMemberModal';
 import BackButton from '@/src/components/ui/BackButton';
+import {
+  listenToCreditMembers,
+  groupCreditMembersByTeam,
+  type CreditMemberRecord,
+} from '@/src/services/firebase/firestore/credits.service';
+import {
+  listenToCreditSections,
+  groupCreditSectionsByTeam,
+  type CreditSectionRecord,
+} from '@/src/services/firebase/firestore/credit-sections.service';
+
+const UNSECTIONED_LABEL = 'Lainnya';
+
+/** Kelompokin member satu Tim (V1/V2) per Divisi, urut sesuai `order`
+    divisi-nya; member yang `sectionId`-nya kosong/gak match divisi manapun
+    (data lama sebelum fitur ini ada) dikumpulin ke grup "Lainnya" di
+    paling akhir biar tetep kelihatan, gak ilang diam-diam. */
+function groupMembersBySection(
+  members: CreditMemberRecord[],
+  sections: CreditSectionRecord[],
+): { label: string; members: CreditMemberRecord[] }[] {
+  const knownIds = new Set(sections.map((s) => s.id));
+  const groups = sections.map((section) => ({
+    label: section.name,
+    members: members
+      .filter((m) => m.sectionId === section.id)
+      .sort((a, b) => a.order - b.order),
+  }));
+
+  const unsectioned = members
+    .filter((m) => !m.sectionId || !knownIds.has(m.sectionId))
+    .sort((a, b) => a.order - b.order);
+
+  if (unsectioned.length > 0) {
+    groups.push({ label: UNSECTIONED_LABEL, members: unsectioned });
+  }
+
+  return groups.filter((group) => group.members.length > 0);
+}
 
 const bauhaus = localFont({
-  src: '../../../../public/fonts/Bauhaus.otf',
+  src: '../../../../public/fonts/Tanker.ttf',
 });
 
 const poppins = Poppins({
@@ -19,71 +58,33 @@ const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
 });
 
-type Member = {
-  id: string;
-  name: string;
-  role: string;
-  bio: string;
-};
-
-const teamData: Record<'V1' | 'V2', Member[]> = {
-  V1: [
-    {
-      id: 'v1-1',
-      name: 'Raka Pratama',
-      role: 'Project Manager',
-      bio: 'Mengatur arah proyek, timeline, dan sinkronisasi kebutuhan fitur lintas tim.',
-    },
-    {
-      id: 'v1-2',
-      name: 'Nadia Amalia',
-      role: 'Frontend Developer',
-      bio: 'Membangun halaman publik awal dan komponen UI inti NusaQuest V1.',
-    },
-    {
-      id: 'v1-3',
-      name: 'Fajar Maulana',
-      role: 'Backend Developer',
-      bio: 'Menangani integrasi data dan alur API untuk kebutuhan konten aplikasi.',
-    },
-    {
-      id: 'v1-4',
-      name: 'Sinta Maharani',
-      role: 'UI/UX Designer',
-      bio: 'Mendesain alur pengguna dan style visual agar pengalaman aplikasi tetap konsisten.',
-    },
-  ],
-  V2: [
-    {
-      id: 'v2-1',
-      name: 'Dimas Syahputra',
-      role: 'Tech Lead',
-      bio: 'Memimpin standar implementasi teknis dan arsitektur pengembangan di V2.',
-    },
-    {
-      id: 'v2-2',
-      name: 'Alya Putri',
-      role: 'Frontend Developer',
-      bio: 'Mengembangkan halaman interaktif terbaru serta peningkatan responsivitas mobile.',
-    },
-    {
-      id: 'v2-3',
-      name: 'Reza Saputra',
-      role: 'Game Feature Developer',
-      bio: 'Mengimplementasikan fitur game edukasi dan interaksi reward pemain.',
-    },
-    {
-      id: 'v2-4',
-      name: 'Mikhaela Tanu',
-      role: 'QA & Documentation',
-      bio: 'Melakukan validasi skenario penggunaan dan dokumentasi proses pengembangan.',
-    },
-  ],
-};
-
 export default function Page() {
   const [selectedVersion, setSelectedVersion] = useState<'V1' | 'V2'>('V1');
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMember, setSelectedMember] = useState<CreditMemberRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [teamData, setTeamData] = useState<Record<'V1' | 'V2', CreditMemberRecord[]>>({ V1: [], V2: [] });
+  const [sectionData, setSectionData] = useState<Record<'V1' | 'V2', CreditSectionRecord[]>>({ V1: [], V2: [] });
+
+  // Realtime — dulu data tim hardcode di file ini, sekarang dikelola dari
+  // admin panel (tab Credit) dan langsung kelihatan di sini begitu berubah.
+  useEffect(() => {
+    const unsub = listenToCreditMembers((members) => {
+      setTeamData(groupCreditMembersByTeam(members));
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = listenToCreditSections((sections) => setSectionData(groupCreditSectionsByTeam(sections)));
+    return () => unsub();
+  }, []);
+
+  const sectionGroups = groupMembersBySection(teamData[selectedVersion], sectionData[selectedVersion]);
+
+  const selectedMemberSectionName = selectedMember
+    ? sectionData[selectedMember.teamVersion].find((s) => s.id === selectedMember.sectionId)?.name
+    : undefined;
 
   return (
     <main className={`relative min-h-screen w-full overflow-x-hidden ${poppins.className}`}>
@@ -99,12 +100,58 @@ export default function Page() {
       </div>
 
       <section className="relative z-10 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-12 lg:py-12">
-        <div className="absolute left-4 top-4 sm:left-6 sm:top-6 lg:left-12 lg:top-12">
+        <style>{`
+          .nq-credit-toggle-active {
+            background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
+            color: #4a2a1a;
+            box-shadow:
+              0 4px 0 #c6841a,
+              0 6px 10px rgba(120, 72, 0, 0.35),
+              inset -2px -2px 4px rgba(150, 90, 0, 0.25),
+              inset 2px 2px 4px rgba(255, 255, 255, 0.65);
+          }
+          .nq-credit-toggle-inactive {
+            background: linear-gradient(150deg, #fffdf8 0%, #f3ede0 100%);
+            color: #3d2411;
+            box-shadow:
+              0 3px 0 #d8c8a8,
+              0 5px 8px rgba(120, 92, 40, 0.2),
+              inset -2px -2px 4px rgba(150, 120, 60, 0.12),
+              inset 2px 2px 4px rgba(255, 255, 255, 0.9);
+          }
+          .nq-credit-toggle-active:hover, .nq-credit-toggle-inactive:hover {
+            filter: brightness(1.04);
+            transform: translateY(-1px);
+          }
+          .nq-credit-frame {
+            background-image: url(${background.kayu});
+            background-size: cover;
+            background-position: center;
+            box-shadow:
+              0 16px 32px rgba(0, 0, 0, 0.45),
+              inset 0 0 0 3px rgba(255, 255, 255, 0.12);
+          }
+          .nq-credit-panel {
+            background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+            box-shadow:
+              inset -3px -3px 8px rgba(139, 94, 42, 0.14),
+              inset 3px 3px 8px rgba(255, 255, 255, 0.7);
+          }
+          .nq-credit-list-badge {
+            background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
+            color: #4a2a1a;
+            box-shadow:
+              0 3px 0 #c6841a,
+              0 5px 8px rgba(120, 72, 0, 0.35);
+          }
+        `}</style>
+
+        <div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6 lg:left-12 lg:top-12">
           <BackButton href="/home" />
         </div>
 
         <header className="text-center text-white">
-          <h1 className={`${bauhaus.className} text-3xl tracking-normal sm:text-4xl lg:text-5xl`}>
+          <h1 className={`${bauhaus.className} text-3xl tracking-normal drop-shadow-[0_3px_8px_rgba(0,0,0,0.4)] sm:text-4xl lg:text-5xl`}>
             Tim NusaQuest
           </h1>
 
@@ -114,10 +161,8 @@ export default function Page() {
                 key={version}
                 type="button"
                 onClick={() => setSelectedVersion(version)}
-                className={`rounded-full px-5 py-2 text-sm font-semibold transition sm:text-base ${
-                  selectedVersion === version
-                    ? 'bg-yellow-300 text-green-900'
-                    : 'bg-white/20 text-white hover:bg-white/30'
+                className={`rounded-full px-5 py-2 text-sm font-bold transition sm:text-base ${
+                  selectedVersion === version ? 'nq-credit-toggle-active' : 'nq-credit-toggle-inactive'
                 }`}
               >
                 {version}
@@ -126,20 +171,38 @@ export default function Page() {
           </div>
         </header>
 
-        <div className="mt-6 rounded-2xl border border-green-300/40 bg-green-900/20 p-4 backdrop-blur-sm sm:mt-8 sm:p-6">
-          <div className="mb-4 inline-flex rounded-full bg-green-500 px-4 py-1 text-sm font-semibold text-white">
-            List {selectedVersion}
-          </div>
+        <div className="nq-credit-frame mt-6 rounded-[28px] p-[clamp(8px,1.4vw,14px)] sm:mt-8">
+          <div className="nq-credit-panel rounded-[22px] p-4 sm:p-6">
+            <div className="nq-credit-list-badge mb-4 inline-flex rounded-full px-4 py-1 text-sm font-bold">
+              List {selectedVersion}
+            </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
-            {teamData[selectedVersion].map((member) => (
-              <CreditMemberCard
-                key={member.id}
-                onClick={() => setSelectedMember(member)}
-                name={member.name}
-                role={member.role}
-              />
-            ))}
+            {loading ? (
+              <div className="py-12 text-center font-semibold text-[#4a2a1a]/70">Memuat tim...</div>
+            ) : teamData[selectedVersion].length === 0 ? (
+              <div className="py-12 text-center font-semibold text-[#4a2a1a]/70">Belum ada anggota tim {selectedVersion}.</div>
+            ) : (
+              <div className="space-y-8">
+                {sectionGroups.map((group) => (
+                  <div key={group.label}>
+                    <h2 className={`${bauhaus.className} mb-3 text-lg tracking-wide text-[#4a2a1a] sm:text-xl`}>
+                      {group.label}
+                    </h2>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
+                      {group.members.map((member) => (
+                        <CreditMemberCard
+                          key={member.id}
+                          onClick={() => setSelectedMember(member)}
+                          name={member.name}
+                          role={member.role}
+                          photoURL={member.photoURL}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -150,7 +213,8 @@ export default function Page() {
           memberName={selectedMember.name}
           memberRole={selectedMember.role}
           memberBio={selectedMember.bio}
-          titleClassName={bauhaus.className}
+          memberPhotoURL={selectedMember.photoURL}
+          memberSection={selectedMemberSectionName}
           onClose={() => setSelectedMember(null)}
         />
       )}
