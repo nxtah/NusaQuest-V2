@@ -205,10 +205,15 @@ export default function UlarTanggaPage() {
   const isMyTurn = !!myUID && currentPlayerUID === myUID;
   const isDiceDisabled = !gameState || gameState.isMoving || gameState.waitingForAnswer || gameState.showQuestion;
   const winnerUID = gameState?.gameWinnerUID;
-  const winnerName = winnerUID
-    ? (orderedPlayers.find((p) => p.uid === winnerUID) ?? players.find((p) => p.uid === winnerUID))?.displayName
-      ?? 'Pemain'
-    : '';
+  // Dipake buat RankModal — finishedOrder KOSONG selama game masih jalan,
+  // cuma keisi lengkap begitu gameStatus 'finished'.
+  const rankedPlayers = useMemo(() => {
+    if (!gameState) return [];
+    return (gameState.finishedOrder ?? []).map((uid) => {
+      const p = orderedPlayers.find((pl) => pl.uid === uid) ?? players.find((pl) => pl.uid === uid);
+      return { uid, name: p?.displayName || p?.name || 'Pemain', photoURL: p?.photoURL };
+    });
+  }, [gameState, orderedPlayers, players]);
   // Dihitung LANGSUNG di render (bukan di dalam effect) — dulu cuma di-set
   // lewat ref di dalam effect bot-takeover, tapi effect roll-timeout (yang
   // dideklarasi lebih dulu) jalan DULUAN di commit yang sama pas giliran
@@ -250,22 +255,24 @@ export default function UlarTanggaPage() {
   const [myReward, setMyReward] = useState<GameReward | null>(null);
   useEffect(() => {
     if (!gameState || gameState.gameStatus !== 'finished' || !myUID) return;
-    if (winnerUID !== myUID) return;
+    const rank = (gameState.finishedOrder ?? []).indexOf(myUID) + 1;
+    if (rank < 1 || rank > 3) return;
     if (gameState.rewardsClaimedBy?.includes(myUID)) return;
-    void claimGameReward(roomKey, myUID, 1).then((reward) => {
+    void claimGameReward(roomKey, myUID, rank as 1 | 2 | 3).then((reward) => {
       if (reward) setMyReward(reward);
     });
-  }, [gameState, myUID, winnerUID, roomKey]);
+  }, [gameState, myUID, roomKey]);
 
-  // Win-streak/achievement — jalan buat SEMUA pemain (menang atau kalah),
-  // beda dari reward di atas yang cuma buat pemenang.
+  // Win-streak/achievement — jalan buat SEMUA pemain (peringkat berapapun),
+  // beda dari reward di atas yang cuma buat rank 1-3.
   useEffect(() => {
     if (!gameState || gameState.gameStatus !== 'finished' || !myUID) return;
     if (gameState.statsRecordedBy?.includes(myUID)) return;
-    const won = winnerUID === myUID;
+    const rank = (gameState.finishedOrder ?? []).indexOf(myUID) + 1;
+    const won = rank === 1;
     const durationMs = won && gameState.gameWonAt ? gameState.gameWonAt - gameState.gameCreatedAt : undefined;
     void recordMatchOutcome(roomKey, myUID, won, durationMs);
-  }, [gameState, myUID, winnerUID, roomKey]);
+  }, [gameState, myUID, roomKey]);
 
   const pionPositionsRaw = gameState?.pionPositions ?? new Array(orderedPlayers.length).fill(0);
   const showQuestion = gameState?.showQuestion ?? false;
