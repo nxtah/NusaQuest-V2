@@ -783,14 +783,21 @@ export async function nextTurn(
   if (!snapshot.exists()) return;
 
   const state = snapshot.data() as UlarTanggaGameState;
-  const playerCount = state.pionPositions.length;
+  const finishedOrder = state.finishedOrder ?? [];
+  const currentUID = state.playerUIDs[state.currentPlayerIndex];
+  const currentIsFinished = finishedOrder.includes(currentUID);
 
   // Dadu 6: pemain yang sama lempar lagi, giliran (index/UID) gak pindah.
   // turnCounter TETAP dinaikin di sini juga — dipakai halaman play sebagai
   // sinyal "ronde lempar baru dimulai" buat reset guard anti-double-roll bot
   // (lastBotTurnRef). Kalau gak dinaikin, bot yang dapet extra roll gak akan
   // pernah lempar lagi karena guard-nya gak pernah ke-reset.
-  if (state.allowExtraRoll) {
+  //
+  // KECUALI kalau pemain ini BARUSAN finish di giliran yang sama (misal
+  // jawab bener naik tangga sampe kotak 100, dan sebelumnya emang lagi
+  // dapet extra-roll dari dadu 6) — pemain yang udah finish gak boleh
+  // dapet giliran lagi, langsung lanjut ke logika skip di bawah.
+  if (state.allowExtraRoll && !currentIsFinished) {
     await updateDoc(ref, {
       lastTurnChangeAt: Date.now(),
       turnCounter: (state.turnCounter ?? 0) + 1,
@@ -808,8 +815,16 @@ export async function nextTurn(
     return;
   }
 
-  const nextIndex = (state.currentPlayerIndex + 1) % playerCount;
-  const nextUID = state.playerUIDs?.[nextIndex];
+  // Muter di antara pemain yang BELUM finish doang — pemain yang udah
+  // nyampe kotak 100 dilewatin selamanya buat sisa game ini.
+  const activeUIDs = state.playerUIDs.filter((uid) => !finishedOrder.includes(uid));
+  let nextIndex = state.currentPlayerIndex;
+  let nextUID: string | undefined;
+  if (activeUIDs.length > 0) {
+    const afterIdx = activeUIDs.indexOf(currentUID);
+    nextUID = afterIdx === -1 ? activeUIDs[0] : activeUIDs[(afterIdx + 1) % activeUIDs.length];
+    nextIndex = state.playerUIDs.indexOf(nextUID);
+  }
 
   await updateDoc(ref, {
     currentPlayerIndex: nextIndex,
