@@ -87,10 +87,13 @@ export default function HomePageContent() {
 
       <div className="home-hud-brand">
         <a href="https://upj.ac.id/" target="_blank" rel="noopener noreferrer" aria-label="Buka website UPJ" className="block transition-transform duration-200 hover:scale-105">
-          <img src="/icons/upj-logo.svg" alt="Logo UPJ" className="h-[clamp(2.6rem,3vw,3.6rem)] w-auto rounded-full bg-white/85 p-1" />
+          {/* Ikutin --home-scale (didefinisikan di .home-viewport, home.css)
+              biar sebanding sama scene di sekitarnya di layar gede/lebar —
+              bukan vw mentah yang nyangkut di clamp max terlalu cepet. */}
+          <img src="/icons/upj-logo.svg" alt="Logo UPJ" className="h-[clamp(2.6rem,calc(2.8rem*var(--home-scale)),6rem)] w-auto rounded-full bg-white/85 p-1" />
         </a>
         <a href="https://sif.upj.ac.id/" target="_blank" rel="noopener noreferrer" aria-label="Buka website SIF" className="block transition-transform duration-200 hover:scale-105">
-          <img src="/icons/sif-logo.svg" alt="Logo SIF" className="h-[clamp(2.6rem,3vw,3.6rem)] w-auto rounded-full bg-white/85 p-1" />
+          <img src="/icons/sif-logo.svg" alt="Logo SIF" className="h-[clamp(2.6rem,calc(2.8rem*var(--home-scale)),6rem)] w-auto rounded-full bg-white/85 p-1" />
         </a>
       </div>
 

@@ -33,7 +33,11 @@ export default function ProfileHudButton() {
         aria-label={effectiveIsLoggedIn ? 'Buka profil' : 'Masuk ke akun'}
         className="block transition-transform hover:scale-105"
       >
-        <div className="relative h-[clamp(2.8rem,3.4vw,4rem)] w-[clamp(2.8rem,3.4vw,4rem)] rounded-full border-2 border-white/60 shadow-lg bg-blue-400 flex items-center justify-center text-white overflow-hidden">
+        {/* Ikutin --home-scale (didefinisikan di home.css, .home-viewport —
+            komponen ini cuma dipake di HomePageContent, jadi var-nya selalu
+            ada) biar sebanding sama scene di layar gede/lebar, bukan vw
+            mentah yang nyangkut di clamp max terlalu cepet. */}
+        <div className="relative h-[clamp(2.8rem,calc(3rem*var(--home-scale)),7rem)] w-[clamp(2.8rem,calc(3rem*var(--home-scale)),7rem)] rounded-full border-2 border-white/60 shadow-lg bg-blue-400 flex items-center justify-center text-white overflow-hidden">
           {photoURL ? (
             <Image
               src={photoURL}
