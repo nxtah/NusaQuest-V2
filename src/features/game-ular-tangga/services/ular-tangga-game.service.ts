@@ -433,7 +433,20 @@ export async function checkAndResetAbandonedRoom(
       } else {
         const activity = gs.playerActivity ?? {};
         const keys = Object.keys(activity);
-        const anyOnline = keys.length > 0 && Object.values(activity).some((a) => a.isActive);
+        // `isActive` doang GAK CUKUP — flag ini cuma di-set false lewat
+        // `setPlayerOffline`, yang cuma kepanggil pas pemain KELUAR RAPI
+        // (klik tombol exit). Tab yang ditutup paksa/browser crash/dev
+        // server di-restart pas lagi main gak pernah sempet manggil itu,
+        // jadi `isActive` nyangkut `true` SELAMANYA di Firestore — room-nya
+        // kekunci permanen ("masih ada yang main") padahal udah lama
+        // ditinggal. Sama kayak formula staleness bot-takeover di tempat
+        // lain di file ini: `isActive` doang gak cukup, harus dicek juga
+        // `lastActivity`-nya masih seger (<=60 detik, 2x interval
+        // heartbeat 30 detik di halaman play).
+        const ts = Date.now();
+        const anyOnline = keys.length > 0 && Object.values(activity).some(
+          (a) => a.isActive && ts - a.lastActivity <= 60000,
+        );
         if (!anyOnline && keys.length > 0) shouldReset = true;
       }
     }
