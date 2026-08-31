@@ -6,6 +6,8 @@ import {
   leaveRoom as fsLeaveRoom,
   startGame as fsStartGame,
   markPlayerInactiveInRoom as fsMarkPlayerInactiveInRoom,
+  addBotToRoom as fsAddBotToRoom,
+  removeBotFromRoom as fsRemoveBotFromRoom,
 } from '@/src/features/lobby/services/rooms.service';
 import type { Room, RoomPlayer } from '@/src/types/firestore';
 
@@ -23,6 +25,9 @@ export interface RoomPlayerOld {
   name: string;
   photoURL?: string;
   joinedAt: string;
+  /** 'ai' = slot bot, dipake room page buat nampilin tombol hapus bot &
+      buat bot-detection di logic game (bot-takeover). */
+  role?: string;
 }
 
 export function subscribeRooms(
@@ -147,7 +152,18 @@ export function listenToRoomPlayers(
         name: p.name || '',
         photoURL: p.photoURL,
         joinedAt: new Date(p.joinedAt).toISOString(),
+        role: p.role,
       }));
     callback(players);
   });
+}
+
+/** Nambah bot ke slot kosong — host-only (dicek di service, bukan cuma UI). */
+export async function addBotToRoom(roomID: string, hostUid: string): Promise<void> {
+  await fsAddBotToRoom(roomID, hostUid);
+}
+
+/** Copot bot dari room — cuma bisa sebelum game mulai. */
+export async function removeBotFromRoom(roomID: string, botUid: string, hostUid: string): Promise<void> {
+  await fsRemoveBotFromRoom(roomID, botUid, hostUid);
 }

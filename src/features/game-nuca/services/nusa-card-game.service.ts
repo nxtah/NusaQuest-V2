@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField, onSnapshot } from 'firebase/firestore';
 import { firebaseFirestore } from '@/src/lib/firebase/client';
 // `getQuestions` (bukan yang dipakai di sini) butuh composite index Firestore
 // (mapId+regionId+isActive+isApproved+createdAt) yang belum ke-deploy — persis
@@ -68,12 +68,29 @@ async function reopenRoom(roomID: string): Promise<void> {
     // alasan kayak versi ular-tangga: field ini cuma ke-update pas pemain
     // LEAVE, bukan pas game/room-nya di-reset, jadi badge okupansi lobby
     // bisa masih nampilin "N orang" di room yang udah beneran kosong.
+    //
+    // Bot (role:'ai') dihapus TOTAL (bukan cuma isActive:false) — dia gak
+    // pernah "connect balik" sendiri kayak pemain asli, jadi kalau cuma
+    // dinonaktifin doang, numpuk jadi entry hantu yang bikin `currentPlayers`
+    // (dipake buat cek kapasitas joinRoom/addBotToRoom) makin lama makin
+    // gak akurat — beberapa ronde kemudian room keliatan "penuh" padahal
+    // slotnya kosong di UI. `currentPlayers` dihitung ulang dari sisa
+    // pemain asli.
     const roomSnap = await getDoc(roomRef);
-    const players = roomSnap.exists() ? (roomSnap.data().players as Record<string, unknown> | undefined) : undefined;
+    const players = roomSnap.exists()
+      ? (roomSnap.data().players as Record<string, {role?: string}> | undefined)
+      : undefined;
     if (players) {
-      for (const uid of Object.keys(players)) {
-        updates[`players.${uid}.isActive`] = false;
+      let remainingCount = 0;
+      for (const [uid, player] of Object.entries(players)) {
+        if (player?.role === 'ai') {
+          updates[`players.${uid}`] = deleteField();
+        } else {
+          updates[`players.${uid}.isActive`] = false;
+          remainingCount += 1;
+        }
       }
+      updates.currentPlayers = remainingCount;
     }
     await updateDoc(roomRef, updates);
   } catch (error) {
@@ -92,6 +109,10 @@ export interface NusaCardPlayer {
   uid: string;
   displayName: string;
   photoURL?: string;
+  /** 'ai' = slot bot (ditambahin host di room lewat "+ Tambah Bot") — dipake
+      buat nyeed playerActivity awal biar bot-takeover langsung jalan dari
+      giliran pertama, lihat initializeNusaCardGameState. */
+  role?: string;
 }
 
 export interface PlayerActivity {
@@ -201,9 +222,17 @@ export async function initializeNusaCardGameState(
 ): Promise<void> {
   const { hands, drawPile } = dealHandsAndDrawPile(players, questions);
 
+  // Bot (role:'ai') di-seed LANGSUNG stale (bukan fresh-active kayak pemain
+  // asli) — kalau enggak, bot-takeover baru mulai kepicu 60 detik SETELAH
+  // giliran pertamanya (nunggu staleness window lewat dari titik "fresh"),
+  // bikin game kerasa macet total kalau kebetulan bot dapet giliran duluan.
   const playerActivity: Record<string, PlayerActivity> = {};
   const now = Date.now();
-  players.forEach((p) => { playerActivity[p.uid] = { lastActivity: now, isActive: true }; });
+  players.forEach((p) => {
+    playerActivity[p.uid] = p.role === 'ai'
+      ? { lastActivity: now - 61_000, isActive: false }
+      : { lastActivity: now, isActive: true };
+  });
 
   const initialState: NusaCardGameState = {
     players,
@@ -571,7 +600,14 @@ export async function checkAndFinalizeSoleSurvivor(roomID: string): Promise<void
     const state = snapshot.data() as NusaCardGameState;
     if (state.gameStatus !== 'playing') return;
 
-    const nonFinished = state.players.filter((p) => !state.finishedOrder.includes(p.uid));
+    // Bot (role:'ai') dikeluarin dari perhitungan "siapa yang masih aktif" —
+    // bot emang SENGAJA di-seed permanen stale (lihat
+    // initializeNusaCardGameState) biar bot-takeover jalan, jadi kalau ikut
+    // dihitung di sini, kehadirannya doang bisa salah nge-trigger "sole
+    // survivor" walau dia masih sah main.
+    const nonFinished = state.players.filter(
+      (p) => !state.finishedOrder.includes(p.uid) && p.role !== 'ai',
+    );
     if (nonFinished.length <= 1) return;
 
     const now = Date.now();

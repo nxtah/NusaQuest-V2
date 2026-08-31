@@ -8,6 +8,7 @@ import {
   collection,
   addDoc,
   updateDoc,
+  deleteField,
   doc,
   documentId,
   getDoc,
@@ -263,6 +264,94 @@ export async function markPlayerInactiveInRoom(roomId: string, userId: string): 
     await updateDoc(roomRef, { [`players.${userId}.isActive`]: false })
   } catch (error) {
     console.error('Error marking player inactive in room:', error)
+  }
+}
+
+/**
+ * "Host" di codebase ini BUKAN ditentuin dari `RoomPlayer.role==='host'` —
+ * field itu emang ada di tipenya, tapi `joinRoom()` gak pernah nulis nilai
+ * itu (selalu `role:'player'`, walau buat pemain PERTAMA sekalipun; nilai
+ * `'host'` cuma ditulis `createRoom()`, fungsi yang gak pernah dipanggil
+ * sama alur room beneran, yang bikin dokumen room LEWAT `setDoc` langsung
+ * di halaman room). Host itu SIAPAPUN yang paling duluan join (`joinedAt`
+ * paling kecil) — sama persis kayak `isFirstPlayer` yang UI room page udah
+ * pake buat nampilin tombol "Mulai Game". Helper ini nyamain definisi itu
+ * di sisi service, biar `addBotToRoom`/`removeBotFromRoom` gak salah
+ * nolak host beneran gara-gara ngecek field yang emang gak pernah keisi.
+ */
+function isRoomHost(room: Room, uid: string): boolean {
+  const activeEntries = Object.entries(room.players || {})
+    .filter(([, p]) => p.isActive !== false)
+    .sort(([, a], [, b]) => a.joinedAt - b.joinedAt)
+  return activeEntries.length > 0 && activeEntries[0][0] === uid
+}
+
+/**
+ * Tambahin bot ke slot kosong — host-only (dicek di sini, bukan cuma di UI,
+ * biar gak bisa dipanggil langsung sama non-host lewat console/API call).
+ * Bot direpresentasiin sebagai entry BIASA di `players` map dengan
+ * `role: 'ai'` (nilai enum ini emang udah ada dari awal di tipe
+ * `RoomPlayer`, cuma belum pernah dipake) — UID sintetis `bot-1`/`bot-2`/
+ * `bot-3` (unik per room; paling banyak 3 karena host selalu nempatin slot
+ * pertama). Avatarnya numpang konvensi dicebear-bot yang UDAH dipake buat
+ * fallback avatar pemain offline di halaman game (`ular-tangga/page.tsx`),
+ * biar visual "bot" & "pemain offline" konsisten satu bahasa.
+ */
+export async function addBotToRoom(roomId: string, hostUid: string): Promise<void> {
+  try {
+    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
+    const room = await getRoomById(roomId)
+    if (!room) throw new Error('Room not found')
+    if (room.status !== 'waiting') throw new Error('Game sudah dimulai, gak bisa nambah bot lagi')
+    if (!isRoomHost(room, hostUid)) throw new Error('Cuma host yang bisa nambah bot')
+    if (room.maxPlayers != null && room.currentPlayers >= room.maxPlayers) {
+      throw new Error('Room sudah penuh')
+    }
+
+    const existingBotNumbers = Object.keys(room.players || {})
+      .map((uid) => /^bot-(\d+)$/.exec(uid)?.[1])
+      .filter((n): n is string => !!n)
+      .map(Number)
+    const nextNumber = existingBotNumbers.length > 0 ? Math.max(...existingBotNumbers) + 1 : 1
+    const botUid = `bot-${nextNumber}`
+
+    await updateDoc(roomRef, {
+      [`players.${botUid}`]: {
+        joinedAt: Date.now(),
+        role: 'ai',
+        isActive: true,
+        name: `Bot ${nextNumber}`,
+        photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${botUid}&backgroundColor=b6e3f4`,
+      },
+      currentPlayers: room.currentPlayers + 1,
+    })
+  } catch (error) {
+    console.error('Error adding bot to room:', error)
+    throw error
+  }
+}
+
+/**
+ * Copot bot dari room — cuma bisa dipanggil host, sebelum game mulai
+ * (`status === 'waiting'`), biar gak ada race sama game yang udah jalan.
+ */
+export async function removeBotFromRoom(roomId: string, botUid: string, hostUid: string): Promise<void> {
+  try {
+    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
+    const room = await getRoomById(roomId)
+    if (!room) throw new Error('Room not found')
+    if (room.status !== 'waiting') throw new Error('Game sudah dimulai, gak bisa hapus bot lagi')
+    if (!isRoomHost(room, hostUid)) throw new Error('Cuma host yang bisa hapus bot')
+    const target = room.players?.[botUid]
+    if (!target || target.role !== 'ai') throw new Error('Bukan slot bot')
+
+    await updateDoc(roomRef, {
+      [`players.${botUid}`]: deleteField(),
+      currentPlayers: Math.max(0, room.currentPlayers - 1),
+    })
+  } catch (error) {
+    console.error('Error removing bot from room:', error)
+    throw error
   }
 }
 

@@ -11,6 +11,8 @@ import {
   playerLeaveRoom,
   subscribeToGameStart,
   startGameInRoom,
+  addBotToRoom,
+  removeBotFromRoom,
   type RoomPlayerOld,
 } from '@/src/features/lobby/services/lobby.service';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
@@ -50,6 +52,16 @@ export default function RoomPage() {
   const topicID = params.topicID as string;
   const roomID = params.roomID as string;
   const isVsAi = gameID === 'nusa-card-vs-ai' || gameID === 'card-vs-ai' || gameID === 'ular-tangga-vs-ai' || gameID === 'snake-ladder-vs-ai';
+  // `isVsAi` di atas ngecek gameID — TAPI RoomSelect ("rumah" vs-AI di
+  // lobby) gak pernah ngirim gameID kayak gitu, dia cuma nambahin roomID
+  // jadi "roomvs-ai" sambil gameID-nya TETEP 'ular-tangga'/'nusa-card'
+  // biasa (lihat RoomSelect.tsx: `room${house.id}` dengan house.id='vs-ai').
+  // Jadi `isVsAi` di atas SELALU false buat room vs-AI yang beneran dipake
+  // — deteksi yang bener buat fitur tambah-bot ini emang harus dari roomID,
+  // bukan gameID. Sengaja dibikin konstanta terpisah (bukan nge-fix
+  // `isVsAi` yang udah ada) biar gak ngubah perilaku lain di halaman ini
+  // yang mungkin masih ngandelin `isVsAi` versi lama.
+  const isVsAiRoom = roomID === 'roomvs-ai' || roomID === 'vs-ai';
   // Dokumen Firestore di-scope per game+topik+slot, bukan cuma slug roomID
   // mentah ("room1") — kalau enggak, sesi Ular Tangga dan NusaCard yang
   // kebetulan pakai slot yang sama bakal numpuk ke dokumen yang sama persis.
@@ -60,6 +72,7 @@ export default function RoomPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [botBusy, setBotBusy] = useState(false);
   // true setelah checkAndResetAbandonedRoom selesai — gate buat subscribeToGameStart
   const [roomChecked, setRoomChecked] = useState(false);
   // Room udah 'playing' dan kita bukan salah satu pemain yang udah gabung —
@@ -205,14 +218,21 @@ export default function RoomPage() {
         await startGameInRoom(topicID, gameID, roomKey);
       } else if (gameID === 'ular-tangga' || gameID === 'snake-ladder') {
         const questions = shuffle(await getUlarTanggaQuestions(topicID));
+        // `role` WAJIB diikutkan — initializeUlarTanggaGameState pake ini
+        // buat nyeed slot bot langsung stale (biar bot-takeover jalan dari
+        // giliran pertama). Kehilangan field ini sebelumnya bikin bot
+        // kelihatan kayak pemain asli yang fresh-active, jadi baru
+        // ke-takeover 60 detik kemudian alih-alih langsung.
         const indexedPlayers = players.map((p, i) => ({
-          uid: p.uid, displayName: p.name, photoURL: p.photoURL, playerIndex: i,
+          uid: p.uid, displayName: p.name, photoURL: p.photoURL, playerIndex: i, role: p.role,
         }));
         await initializeUlarTanggaGameState(topicID, gameID, roomKey, indexedPlayers, questions);
         await setUlarTanggaGameStatus(topicID, gameID, roomKey, 'playing');
       } else if (gameID === 'nusa-card' || gameID === 'card') {
         const questions = shuffle(await getNusaCardQuestions(topicID));
-        const nusaCardPlayers = players.map((p) => ({uid: p.uid, displayName: p.name, photoURL: p.photoURL}));
+        // Sama kayak Ular Tangga di atas — `role` wajib ikut biar bot
+        // ke-seed stale dari awal, bukan fresh-active.
+        const nusaCardPlayers = players.map((p) => ({uid: p.uid, displayName: p.name, photoURL: p.photoURL, role: p.role}));
         await initializeNusaCardGameState(roomKey, nusaCardPlayers, questions);
         await setNusaCardGameStatus(roomKey, 'playing');
       } else {
@@ -223,6 +243,36 @@ export default function RoomPage() {
       console.error('Gagal memulai game:', error);
       setJoinError('Gagal memulai game. Coba lagi.');
       setStarting(false);
+    }
+  };
+
+  // Host isi slot kosong pake bot — bot langsung ikutan main game beneran
+  // begitu "Mulai Game" ditekan (lewat mekanisme bot-takeover yang udah ada,
+  // dibikin "langsung dianggap stale" pas game di-init — lihat
+  // initializeUlarTanggaGameState/initializeNusaCardGameState).
+  const handleAddBot = async () => {
+    if (!playerUID || botBusy) return;
+    setBotBusy(true);
+    try {
+      await addBotToRoom(roomKey, playerUID);
+    } catch (error) {
+      console.error('Gagal nambah bot:', error);
+      setJoinError(error instanceof Error ? error.message : 'Gagal nambah bot.');
+    } finally {
+      setBotBusy(false);
+    }
+  };
+
+  const handleRemoveBot = async (botUid: string) => {
+    if (!playerUID || botBusy) return;
+    setBotBusy(true);
+    try {
+      await removeBotFromRoom(roomKey, botUid, playerUID);
+    } catch (error) {
+      console.error('Gagal hapus bot:', error);
+      setJoinError(error instanceof Error ? error.message : 'Gagal hapus bot.');
+    } finally {
+      setBotBusy(false);
     }
   };
 
@@ -285,33 +335,59 @@ export default function RoomPage() {
 
         {/* Player slots di sekeliling meja */}
         <div className="room-slots-container">
-          {slotPlayers.map((player: RoomPlayerOld | null, idx) => (
-            <div key={idx} className={`room-player-slot ${player ? 'filled' : 'empty'}`}>
-              <div className="room-player-avatar-ring">
-                <div className="room-player-avatar">
-                  {player ? (
-                    player.photoURL ? (
-                      <img src={player.photoURL} alt="" className="room-player-img" />
+          {slotPlayers.map((player: RoomPlayerOld | null, idx) => {
+            const isBot = player?.role === 'ai';
+            return (
+              <div key={idx} className={`room-player-slot ${player ? 'filled' : 'empty'}`}>
+                <div className="room-player-avatar-ring">
+                  <div className="room-player-avatar">
+                    {player ? (
+                      player.photoURL ? (
+                        <img src={player.photoURL} alt="" className="room-player-img" />
+                      ) : (
+                        <span className="room-player-initial">{(player.name || '?')[0]}</span>
+                      )
+                    ) : isFirstPlayer && isVsAiRoom ? (
+                      <button
+                        type="button"
+                        className="room-add-bot-btn"
+                        onClick={handleAddBot}
+                        disabled={botBusy}
+                        aria-label="Tambah bot"
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                      </button>
                     ) : (
-                      <span className="room-player-initial">{(player.name || '?')[0]}</span>
-                    )
-                  ) : (
-                    <span className="room-player-icon">
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </span>
+                      <span className="room-player-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      </span>
+                    )}
+                  </div>
+                  {player && player.uid === playerUID && <div className="room-player-owner-badge">KAMU</div>}
+                  {isBot && isFirstPlayer && isVsAiRoom && (
+                    <button
+                      type="button"
+                      className="room-remove-bot-btn"
+                      onClick={() => handleRemoveBot(player!.uid)}
+                      disabled={botBusy}
+                      aria-label="Hapus bot"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    </button>
                   )}
                 </div>
-                {player && player.uid === playerUID && <div className="room-player-owner-badge">KAMU</div>}
+                <div className="room-player-nameplate">
+                  {player ? (
+                    <span className="room-player-name">{player.name}{isBot ? ' 🤖' : ''}</span>
+                  ) : isFirstPlayer && isVsAiRoom ? (
+                    <span className="room-player-name dim">Tambah Bot</span>
+                  ) : (
+                    <span className="room-player-name dim">Tersedia</span>
+                  )}
+                </div>
               </div>
-              <div className="room-player-nameplate">
-                {player ? (
-                  <span className="room-player-name">{player.name}</span>
-                ) : (
-                  <span className="room-player-name dim">Tersedia</span>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
