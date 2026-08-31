@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField, onSnapshot } from 'firebase/firestore';
 import { firebaseFirestore } from '@/src/lib/firebase/client';
 import { getQuestionsByRegion } from '@/src/features/game-nuca/services/questions.service';
 import { getRegionById } from '@/src/features/destination/services/regions.service';
@@ -50,6 +50,11 @@ export interface PlayerActivity {
   lastActivity: number;
   isActive: boolean;
   playerIndex: number;
+  /** 'ai' = slot bot — di-seed sekali pas init, dipake buat ngebedain "bot
+      yang sengaja dibikin selalu stale" dari "pemain asli yang beneran
+      offline" (dua-duanya keliatan identik cuma dari isActive/lastActivity
+      doang), khususnya di `checkAndFinalizeSoleSurvivor`. */
+  role?: string;
 }
 
 export interface UlarTanggaGameState {
@@ -57,6 +62,10 @@ export interface UlarTanggaGameState {
   currentPlayerUID?: string;
   lastTurnChangeAt?: number;
   playerUIDs: string[];
+  /** UID yang udah nyampe kotak 100, berurutan (index 0 = juara 1). Game
+      cuma `gameStatus: 'finished'` begitu semua playerUIDs udah masuk sini
+      — bukan lagi begitu SATU pemain nyampe duluan (lihat `appendFinisher`). */
+  finishedOrder: string[];
   pionPositions: number[];
   isMoving: boolean;
   showQuestion: boolean;
@@ -122,12 +131,32 @@ async function reopenRoom(roomID: string): Promise<void> {
     // field ini cuma ke-update pas pemain LEAVE, bukan pas game/room-nya
     // yang di-reset. Room yang "dibuka lagi" harusnya keliatan bener-bener
     // kosong buat siapapun yang mau join baru.
+    //
+    // Bot (role:'ai') BEDA dari pemain asli — pemain asli yang isActive:false
+    // masih bisa reconnect lewat joinRoom() (makanya slot-nya dipertahanin,
+    // bukan dihapus). Bot gak pernah "connect balik" sendiri (gak ada
+    // browser yang jalanin dia), jadi kalau cuma ditandain isActive:false
+    // doang, dia numpuk jadi entry hantu SELAMANYA di `players` map — dan
+    // `currentPlayers` (dipake buat cek kapasitas di joinRoom/addBotToRoom)
+    // gak pernah keitung ulang, cuma nambah terus tiap abis main. Beberapa
+    // ronde kemudian room keliatan "penuh" padahal slotnya keliatan kosong
+    // di UI. Bot dihapus TOTAL di sini (bukan cuma di-nonaktifin), dan
+    // `currentPlayers` dihitung ULANG dari sisa pemain asli.
     const roomSnap = await getDoc(roomRef);
-    const players = roomSnap.exists() ? (roomSnap.data().players as Record<string, unknown> | undefined) : undefined;
+    const players = roomSnap.exists()
+      ? (roomSnap.data().players as Record<string, {role?: string}> | undefined)
+      : undefined;
     if (players) {
-      for (const uid of Object.keys(players)) {
-        updates[`players.${uid}.isActive`] = false;
+      let remainingCount = 0;
+      for (const [uid, player] of Object.entries(players)) {
+        if (player?.role === 'ai') {
+          updates[`players.${uid}`] = deleteField();
+        } else {
+          updates[`players.${uid}.isActive`] = false;
+          remainingCount += 1;
+        }
       }
+      updates.currentPlayers = remainingCount;
     }
     await updateDoc(roomRef, updates);
   } catch (error) {
@@ -149,6 +178,7 @@ export async function updateGameState(
       const base: UlarTanggaGameState = {
         currentPlayerIndex: 0,
         playerUIDs: [],
+        finishedOrder: [],
         pionPositions: [],
         isMoving: false,
         showQuestion: false,
@@ -309,11 +339,28 @@ export async function initializeUlarTanggaGameState(
   players: GamePlayer[],
   questions: UlarTanggaQuestion[],
 ): Promise<void> {
+  // Bot (role:'ai') di-seed LANGSUNG stale, bukan dibiarin kosong — kalau
+  // dibiarin kosong (kayak sebelumnya), pemain asli emang bakal keisi
+  // sendiri lewat updatePlayerActivity() pas halaman /play mount, TAPI bot
+  // gak pernah manggil itu — activity-nya bakal gak ada SAMA SEKALI
+  // selamanya, dan bot-takeover (`activity ? ... : false`) gak pernah
+  // ke-trigger. Pemain asli tetep dikasih fresh-active di sini juga (gak
+  // ngerusak apa-apa, cuma keduluan dikit dari updatePlayerActivity milik
+  // mereka sendiri).
+  const now = Date.now();
+  const playerActivity: UlarTanggaGameState['playerActivity'] = {};
+  players.forEach((p, index) => {
+    playerActivity[p.uid] = p.role === 'ai'
+      ? { lastActivity: now - 61_000, isActive: false, playerIndex: index, role: 'ai' }
+      : { lastActivity: now, isActive: true, playerIndex: index };
+  });
+
   const initialState: UlarTanggaGameState = {
     currentPlayerIndex: 0,
     currentPlayerUID: players[0]?.uid,
     lastTurnChangeAt: Date.now(),
     playerUIDs: players.map((p) => p.uid),
+    finishedOrder: [],
     pionPositions: players.map(() => 0),
     isMoving: false,
     showQuestion: false,
@@ -328,7 +375,7 @@ export async function initializeUlarTanggaGameState(
     gameStatus: 'playing',
     gameType: 'ulartangga',
     diceState: { isRolling: false, currentNumber: 0, lastRoll: null },
-    playerActivity: {},
+    playerActivity,
     gameCreatedAt: Date.now(),
     lastUpdated: Date.now(),
     lastActionAt: Date.now(),
@@ -424,8 +471,17 @@ export async function checkAndFinalizeSoleSurvivor(
     if (state.gameStatus !== 'playing') return;
     if (!state.playerUIDs || state.playerUIDs.length < 2) return;
 
+    // Bot (role:'ai', ditandain di playerActivity pas init) dikeluarin dulu
+    // — dia SENGAJA permanen stale biar bot-takeover jalan, jadi kalau ikut
+    // dihitung "siapa yang aktif", kehadirannya doang bisa salah nge-trigger
+    // sole-survivor walau dia masih sah main.
+    const realPlayerUIDs = state.playerUIDs.filter(
+      (uid) => state.playerActivity?.[uid]?.role !== 'ai',
+    );
+    if (realPlayerUIDs.length < 2) return;
+
     const ts = Date.now();
-    const activeUIDs = state.playerUIDs.filter((uid) => {
+    const activeUIDs = realPlayerUIDs.filter((uid) => {
       const act = state.playerActivity?.[uid];
       return act ? (act.isActive && ts - act.lastActivity <= 60000) : true;
     });
@@ -496,12 +552,39 @@ export async function setPlayerOffline(
     if (!snapshot.exists()) return;
     const state = snapshot.data() as UlarTanggaGameState;
     if (state.playerActivity?.[playerId]) {
-      state.playerActivity[playerId].isActive = false;
-      await updateDoc(ref, { playerActivity: state.playerActivity });
+      // Dot-path update, bukan read-modify-write nimpa seluruh map —
+      // read-modify-write bisa nge-lost-update heartbeat pemain LAIN
+      // (updatePlayerActivity) kalau nulisnya kepepet nyelip di antara
+      // getDoc dan updateDoc di sini (dua-duanya nulis dokumen gameState
+      // yang sama).
+      await updateDoc(ref, { [`playerActivity.${playerId}.isActive`]: false });
     }
   } catch (error) {
     console.error('Error setting player offline:', error);
   }
+}
+
+/**
+ * Satu pemain nyampe kotak 100 — dicatet di `finishedOrder`, TAPI game
+ * cuma beneran `gameStatus: 'finished'` kalau SEMUA pemain udah masuk
+ * situ (aturan ular tangga beneran: main sampe semua kelar, bukan
+ * berhenti begitu satu orang menang). Kalau abis nambahin pemain ini
+ * cuma NYISA 1 pemain yang belum finish, dia juga langsung dianggap
+ * "selesai" di posisi terakhir — gak ada gunanya biarin dia lempar dadu
+ * sendirian sampe kotak 100 (pola sama kayak NusaCard's throwCard).
+ */
+function appendFinisher(
+  state: UlarTanggaGameState,
+  finishingUID: string,
+): { finishedOrder: string[]; isGameOver: boolean } {
+  const prior = state.finishedOrder ?? [];
+  if (prior.includes(finishingUID)) {
+    return { finishedOrder: prior, isGameOver: prior.length === state.playerUIDs.length };
+  }
+  const finishedOrder = [...prior, finishingUID];
+  const remaining = state.playerUIDs.filter((uid) => !finishedOrder.includes(uid));
+  const finalOrder = remaining.length === 1 ? [...finishedOrder, remaining[0]] : finishedOrder;
+  return { finishedOrder: finalOrder, isGameOver: finalOrder.length === state.playerUIDs.length };
 }
 
 export async function movePawn(
@@ -554,18 +637,20 @@ export async function movePawn(
 
   positions[playerIndex] = newPosition;
 
-  // Menang: pion sampai pas kotak 100.
+  // Nyampe kotak 100 — dicatet di finishedOrder, game cuma bener-bener
+  // kelar begitu SEMUA pemain udah finish (lihat appendFinisher).
   if (newPosition === 100) {
+    const { finishedOrder, isGameOver } = appendFinisher(state, state.playerUIDs[playerIndex]);
     await updateDoc(ref, {
       pionPositions: positions,
       isMoving: false,
-      gameStatus: 'finished',
-      gameWinnerUID: state.playerUIDs[playerIndex],
-      gameWonAt: Date.now(),
+      finishedOrder,
+      gameWinnerUID: finishedOrder[0],
+      ...(isGameOver ? { gameStatus: 'finished', gameWonAt: Date.now() } : {}),
       lastUpdated: Date.now(),
       lastActionAt: Date.now(),
     });
-    await reopenRoom(roomID);
+    if (isGameOver) await reopenRoom(roomID);
     return newPosition;
   }
 
@@ -669,15 +754,21 @@ export async function submitAnswer(
     lastActionAt: Date.now(),
   };
 
-  const isWin = isCorrect && positions[actorIndex] >= 100;
-  if (isWin) {
-    updates.gameStatus = 'finished';
-    updates.gameWinnerUID = state.playerUIDs[actorIndex];
-    updates.gameWonAt = Date.now();
+  const reachedEnd = isCorrect && positions[actorIndex] >= 100;
+  let isGameOver = false;
+  if (reachedEnd) {
+    const result = appendFinisher(state, state.playerUIDs[actorIndex]);
+    updates.finishedOrder = result.finishedOrder;
+    updates.gameWinnerUID = result.finishedOrder[0];
+    isGameOver = result.isGameOver;
+    if (isGameOver) {
+      updates.gameStatus = 'finished';
+      updates.gameWonAt = Date.now();
+    }
   }
 
   await updateDoc(ref, updates);
-  if (isWin) await reopenRoom(roomID);
+  if (isGameOver) await reopenRoom(roomID);
 
   return isCorrect;
 }
