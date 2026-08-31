@@ -2,10 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
-import { information } from "../../../assets/images/information/cloudinaryAssets";
-import { badge, attribut } from "../../../assets/images/badge/cloudinaryAssets";
-import { nuca } from "../../../assets/images/nuca/cloudinaryAssets";
-import type { GameReward } from "../../../services/firebase/firestore/users.service";
+import { information } from "../../assets/images/information/cloudinaryAssets";
+import { badge, attribut } from "../../assets/images/badge/cloudinaryAssets";
+import { nuca } from "../../assets/images/nuca/cloudinaryAssets";
+import type { GameReward } from "../../services/firebase/firestore/users.service";
 
 export interface RankedPlayer {
     uid: string;

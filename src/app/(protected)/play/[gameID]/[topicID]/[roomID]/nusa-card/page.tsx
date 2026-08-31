@@ -7,13 +7,14 @@ import GameBackground from "../../../../../../../features/game-nuca/components/G
 import GameArea, { type GameAreaPlayer } from "../../../../../../../features/game-nuca/components/GameArea";
 import type { PlayerCard } from "../../../../../../../features/game-nuca/components/PlayerHandCards";
 import type { QuestionFeedback } from "../../../../../../../features/game-nuca/components/QuestionModal";
-import RankModal from "../../../../../../../features/game-nuca/components/RankModal";
+import RankModal from "../../../../../../../components/game-shared/RankModal";
 import PauseModal from "../../../../../../../components/layout/PauseModal";
 import SettingButton from "../../../../../../../components/layout/SettingButton";
 import BackButton from "../../../../../../../components/ui/BackButton";
 import Loader from "../../../../../../../components/ui/Loader";
 import { useAuth } from "../../../../../../../features/auth/hooks/useAuth";
 import { claimGameReward, getUserProfile, consumePotion, recordMatchOutcome, type GameReward } from "../../../../../../../services/firebase/firestore/users.service";
+import { pickBotAnswerIndex } from "../../../../../../../lib/utils/bot-behavior";
 
 import {
   fetchGamePlayers,
@@ -148,14 +149,23 @@ export default function NusaCardPage() {
     return () => clearInterval(timer);
   }, [myUID, gameStarted, roomKey]);
 
+  // Urutan pemain KANONIK (bukan dirotasi per-viewer) — dipakai buat nentuin
+  // "pemain aktif pertama" (election proxy bot-takeover di bawah), BUKAN
+  // buat render. Kalau pakai `orderedPlayers` yang dirotasi (tiap viewer
+  // naro dirinya sendiri di index 0), SETIAP client aktif bakal nganggep
+  // dirinya sendiri "yang pertama" dan rebutan nge-eksekusi aksi bot yang
+  // sama bareng-bareng.
+  const canonicalPlayers = useMemo(() => {
+    return gameState?.players ?? players.map((p) => ({ uid: p.uid, displayName: p.displayName || p.name || "Pemain", photoURL: p.photoURL }));
+  }, [gameState?.players, players]);
+
   // ── Susun ulang urutan pemain: aku selalu index 0 (slot bawah) ──────────
   const orderedPlayers: GameAreaPlayer[] = useMemo(() => {
-    const source = gameState?.players ?? players.map((p) => ({ uid: p.uid, displayName: p.displayName || p.name || "Pemain", photoURL: p.photoURL }));
-    const myIndex = source.findIndex((p) => p.uid === myUID);
-    if (myIndex <= 0) return source.map((p) => ({ uid: p.uid, name: p.displayName, photoURL: p.photoURL }));
-    const rotated = [...source.slice(myIndex), ...source.slice(0, myIndex)];
+    const myIndex = canonicalPlayers.findIndex((p) => p.uid === myUID);
+    if (myIndex <= 0) return canonicalPlayers.map((p) => ({ uid: p.uid, name: p.displayName, photoURL: p.photoURL }));
+    const rotated = [...canonicalPlayers.slice(myIndex), ...canonicalPlayers.slice(0, myIndex)];
     return rotated.map((p) => ({ uid: p.uid, name: p.displayName, photoURL: p.photoURL }));
-  }, [gameState?.players, players, myUID]);
+  }, [canonicalPlayers, myUID]);
 
   const myHand: PlayerCard[] = useMemo(() => {
     if (!gameState || !myUID) return [];
@@ -249,7 +259,7 @@ export default function NusaCardPage() {
     if (!gameStarted || !gameState || gameState.gameStatus !== "playing" || isPaused) return;
     const ts = Date.now();
 
-    const firstActiveUID = orderedPlayers.find((p) => {
+    const firstActiveUID = canonicalPlayers.find((p) => {
       const act = gameState.playerActivity?.[p.uid];
       return act ? !isPlayerStale(act, ts) : true;
     })?.uid;
@@ -275,12 +285,17 @@ export default function NusaCardPage() {
         const key = `answer:${answeringUID}:${gameState.activeQuestion.id}`;
         if (lastBotActionRef.current !== key) {
           lastBotActionRef.current = key;
-          const randomIndex = Math.floor(Math.random() * gameState.activeQuestion.options.length);
-          void submitAnswer(roomKey, answeringUID, randomIndex);
+          // Bot gak asal tebak rata — condong jawab bener kayak manusia
+          // yang emang ngerti soal, sisanya nyebar ke opsi salah.
+          const botIndex = pickBotAnswerIndex(
+            gameState.activeQuestion.correctIndex,
+            gameState.activeQuestion.options.length,
+          );
+          void submitAnswer(roomKey, answeringUID, botIndex);
         }
       }
     }
-  }, [gameStarted, gameState, isPaused, throwerUID, myUID, roomKey, orderedPlayers]);
+  }, [gameStarted, gameState, isPaused, throwerUID, myUID, roomKey, canonicalPlayers]);
 
   // ── SOLE-SURVIVOR AUTO-FINISH ────────────────────────────────────────────
   // Kalau lawan-lawan keluar/disconnect tanpa sempet ngabisin kartu (jadi
@@ -291,7 +306,14 @@ export default function NusaCardPage() {
   useEffect(() => {
     if (!gameStarted || !gameState || gameState.gameStatus !== "playing" || !myUID) return;
 
-    const nonFinished = gameState.players.filter((p) => !gameState.finishedOrder.includes(p.uid));
+    // Bot (role:'ai') SENGAJA di-seed "permanen stale" dari awal (lihat
+    // initializeNusaCardGameState) biar bot-takeover langsung jalan — tapi
+    // itu artinya bot gak akan PERNAH kehitung "aktif" di sini. Kalau bot
+    // ikut, room [1 pemain asli + bot] bakal langsung ke-auto-finish begitu
+    // game mulai, padahal bot-nya emang masih sah main. Bot dikeluarin dulu.
+    const nonFinished = gameState.players.filter(
+      (p) => !gameState.finishedOrder.includes(p.uid) && p.role !== 'ai',
+    );
     if (nonFinished.length <= 1) return;
 
     const ts = Date.now();
