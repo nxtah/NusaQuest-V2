@@ -26,6 +26,12 @@ export default function Providers({children}: {children: React.ReactNode}) {
         const result = await upsertUserFromGoogle(firebaseUser);
         if (result.success) {
           setUser(result.data);
+        } else {
+          // Gagal bikin/update dokumen profil abis login — tanpa ini,
+          // useAuthStore.user tetep null padahal Firebase Auth-nya udah
+          // berhasil, jadi UI keliatan "gak kejadi apa-apa" abis pilih akun
+          // Google, tanpa jejak error apapun.
+          console.error('upsertUserFromGoogle failed after sign-in:', result.error);
         }
         setLoading(false);
         setInitialized(true);
