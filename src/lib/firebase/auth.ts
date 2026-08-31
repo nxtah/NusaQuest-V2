@@ -1,7 +1,6 @@
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
@@ -19,25 +18,18 @@ export function getFirebaseAuth() {
   return firebaseAuth!;
 }
 
-// Returns the signed-in User directly (rather than leaving callers to poll
-// currentUser or wait on the onAuthStateChanged listener) so a caller like
-// useAuth().login() can deterministically act on *this* sign-in, not
-// whichever auth state happens to be current when the listener next fires.
+// SELALU redirect, jangan popup. `signInWithPopup` butuh iframe
+// `authDomain` (nusaquest-v2-bd551.firebaseapp.com) ngobrol balik ke tab
+// pembuka lewat cross-origin storage — begitu authDomain beda origin dari
+// domain app-nya sendiri (kasus kita di Vercel), Chrome versi baru nge-
+// partition storage itu ("Partitioned cookie or storage access..." di
+// console) dan hasil login GAK PERNAH nyampe balik ke tab utama, popup-nya
+// sendiri gak "blocked" jadi fallback lama (yang cuma nyala pas
+// auth/popup-blocked) gak pernah ke-trigger. Redirect gak butuh channel
+// cross-window itu sama sekali, jadi imun dari masalah ini.
 export async function signInWithGoogle(): Promise<User | null> {
-  try {
-    const credential = await signInWithPopup(getFirebaseAuth(), googleProvider);
-    return credential.user;
-  } catch (error) {
-    // Only fall back to a full-page redirect when the popup itself couldn't
-    // open (browser blocked it) — not when the user closed it or denied
-    // consent, which must surface as a real failure to the caller.
-    const code = (error as {code?: string}).code;
-    if (code === 'auth/popup-blocked') {
-      await signInWithRedirect(getFirebaseAuth(), googleProvider);
-      return null;
-    }
-    throw error;
-  }
+  await signInWithRedirect(getFirebaseAuth(), googleProvider);
+  return null;
 }
 
 export async function getAuthRedirectResult() {

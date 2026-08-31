@@ -42,13 +42,18 @@ export default function LoginCard() {
     setError(null);
 
     try {
-      const success = await login();
-      if (success) {
+      const outcome = await login();
+      if (outcome === 'success') {
         router.push(ROUTES.public.home);
-      } else {
+      } else if (outcome === 'failed') {
         setShake(true);
         setTimeout(() => setShake(false), 400);
       }
+      // 'redirecting' — browser lagi navigasi ke accounts.google.com, bukan
+      // kegagalan, jadi gak nge-shake tombol kayak 'failed'. `finally` di
+      // bawah tetep jalan (return di try gak ngeskip finally), isLoading
+      // balik false — gak masalah, halaman keburu pindah duluan.
+      if (outcome === 'redirecting') return;
     } catch (err) {
       setError(getErrorMessage(err));
       setShake(true);

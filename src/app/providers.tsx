@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect} from 'react';
-import {onFirebaseAuthStateChanged} from '@/src/lib/firebase/auth';
+import {getAuthRedirectResult, onFirebaseAuthStateChanged} from '@/src/lib/firebase/auth';
 import {upsertUserFromGoogle} from '@/src/services/firebase/firestore/users.service';
 import {useAuthStore} from '@/src/store/useAuthStore';
 
@@ -15,6 +15,16 @@ export default function Providers({children}: {children: React.ReactNode}) {
     // touch auth — if Firebase client config is ever incomplete, fail into
     // "logged out" instead of crashing every page under it.
     try {
+      // Login sekarang SELALU lewat signInWithRedirect (lihat lib/firebase/
+      // auth.ts) — begitu browser balik dari accounts.google.com, hasilnya
+      // HARUS diambil lewat getRedirectResult(), bukan cuma ngandelin
+      // onAuthStateChanged doang. Tanpa ini, error spesifik redirect (mis.
+      // akun ditolak, konsen dibatalin) ketelen diem-diem tanpa log sama
+      // sekali — persis kayak bug upsertUserFromGoogle sebelumnya.
+      getAuthRedirectResult().catch((error) => {
+        console.error('getAuthRedirectResult failed:', error);
+      });
+
       const unsubscribe = onFirebaseAuthStateChanged(async (firebaseUser) => {
         if (!firebaseUser) {
           setUser(null);

@@ -10,17 +10,20 @@ export function useAuth() {
   const setUser = useAuthStore((state) => state.setUser);
   const reset = useAuthStore((state) => state.reset);
 
-  const login = async (): Promise<boolean> => {
+  // 'redirecting' BUKAN kegagalan — signInWithGoogle() SELALU redirect
+  // (lihat lib/firebase/auth.ts), null di sini artinya browser lagi
+  // navigasi ke accounts.google.com. Caller harus bedain ini dari 'failed'
+  // beneran, biar tombol login gak nge-shake/reset kayak abis gagal padahal
+  // cuma lagi pindah halaman.
+  const login = async (): Promise<'success' | 'redirecting' | 'failed'> => {
     const firebaseUser = await signInWithGoogle();
-    // null happens when signInWithGoogle fell back to a full-page redirect —
-    // the browser is already navigating away, nothing left to do here.
-    if (!firebaseUser) return false;
+    if (!firebaseUser) return 'redirecting';
 
     const result = await upsertUserFromGoogle(firebaseUser);
-    if (!result.success) return false;
+    if (!result.success) return 'failed';
 
     setUser(result.data);
-    return true;
+    return 'success';
   };
 
   const logout = async () => {
