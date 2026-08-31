@@ -15,18 +15,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Faktor scale yang sama persis kayak .home-container di bawah — HUD
-       chrome (logo/brand/profile, lihat bagian bawah file ini) sengaja
-       DIPISAH dari .home-container biar gak ke-crop di aspect ratio
-       ekstrem, TAPI ukurannya perlu ikut faktor scale yang SAMA, bukan vw
-       mentah dengan clamp max yang ketat — kalau enggak, di layar
-       gede/lebar (efeknya kerasa kayak "zoom out": scene keliatan penuh
-       tapi HUD-nya nyangkut di ukuran max clamp, jadi keliatan kekecilan
-       dibanding scene di sekitarnya). Dipakai lewat calc(base * var(...))
-       di elemen HUD, bukan nge-transform HUD-nya langsung — biar posisinya
-       tetap dihitung dari viewport asli, gak ikut ke-geser/ke-crop kayak
-       .home-container. */
-    --home-scale: max(calc(100vw / 1440px), calc(100vh / 670px));
     /* Sky-then-sea backdrop, split at the exact vertical center. The scaled
        stage below is always centered by this flex box, so its own
        sky/waterline/sea split (also at its vertical center) lines up with
@@ -55,7 +43,7 @@
        coastline always reaches the true screen border with no gap. On
        aspect ratios far from 1440:670 this can crop a slice off the sides
        or top/bottom - acceptable, since a visible gap looked worse. */
-    transform: scale(var(--home-scale));
+    transform: scale(max(calc(100vw / 1440px), calc(100vh / 670px)));
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -575,11 +563,7 @@
 }
 
 .logo-image {
-    /* Ikutin --home-scale (sama kayak .home-container), bukan vw mentah —
-       lihat penjelasan di .home-viewport. Clamp cuma buat jaga-jaga batas
-       aman (jangan sampe raksasa di layar super lebar / ilang di layar
-       super sempit), bukan buat nentuin ukuran normalnya. */
-    width: clamp(90px, calc(105px * var(--home-scale)), 320px);
+    width: clamp(105px, 9vw, 165px);
     height: auto;
     object-fit: contain;
     object-position: center;
