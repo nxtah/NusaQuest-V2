@@ -9,7 +9,7 @@ import Board from '@/src/features/game-ular-tangga/components/Board';
 import PlayerTurnBox from '@/src/features/game-ular-tangga/components/PlayerTurnBox';
 import {ularTangga} from '@/src/assets/images/ular-tangga/cloudinaryAssets';
 import PauseModal from '@/src/components/layout/PauseModal';
-import WinModal from '@/src/features/game-ular-tangga/components/WinModal';
+import RankModal from '@/src/components/game-shared/RankModal';
 import Loader from '@/src/components/ui/Loader';
 import SettingButton from '@/src/components/layout/SettingButton';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
@@ -204,7 +204,6 @@ export default function UlarTanggaPage() {
   const currentPlayer = orderedPlayers.find((p) => p.uid === currentPlayerUID) ?? orderedPlayers[currentPlayerIndex];
   const isMyTurn = !!myUID && currentPlayerUID === myUID;
   const isDiceDisabled = !gameState || gameState.isMoving || gameState.waitingForAnswer || gameState.showQuestion;
-  const winnerUID = gameState?.gameWinnerUID;
   // Dipake buat RankModal — finishedOrder KOSONG selama game masih jalan,
   // cuma keisi lengkap begitu gameStatus 'finished'.
   const rankedPlayers = useMemo(() => {
@@ -669,12 +668,13 @@ export default function UlarTanggaPage() {
           onClose={() => setIsPaused(false)}
         />
 
-        {/* Win Modal — menang normal (kotak 100) atau menang karena tinggal
-            satu pemain aktif, keduanya lewat gameStatus==='finished'. */}
-        <WinModal
+        {/* Rank Modal — game kelar begitu SEMUA pemain finish (lihat
+            finishedOrder/appendFinisher di service), bukan lagi begitu
+            satu pemain menang duluan. Shared sama NusaCard. */}
+        <RankModal
           isOpen={gameState?.gameStatus === 'finished'}
-          winnerName={winnerName}
-          isMe={!!myUID && winnerUID === myUID}
+          rankedPlayers={rankedPlayers}
+          myUID={myUID ?? null}
           myReward={myReward}
           onContinue={() => router.push(`/lobby/${topicID}/${gameID}`)}
           onPlayAgain={() => router.push(roomPath)}
