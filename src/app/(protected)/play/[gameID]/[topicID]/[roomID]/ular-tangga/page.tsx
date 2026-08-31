@@ -1,7 +1,7 @@
 "use client";
 
 
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {useRouter, useParams} from 'next/navigation';
 
 import GameBackground from '@/src/features/game-ular-tangga/components/GameBackground';
@@ -14,6 +14,7 @@ import Loader from '@/src/components/ui/Loader';
 import SettingButton from '@/src/components/layout/SettingButton';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
 import {claimGameReward, getUserProfile, consumePotion, recordMatchOutcome, type GameReward} from '@/src/services/firebase/firestore/users.service';
+import {pickBotAnswerIndex} from '@/src/lib/utils/bot-behavior';
 
 import {
   fetchGamePlayers,
@@ -187,11 +188,15 @@ export default function UlarTanggaPage() {
   // ── Computed values ──────────────────────────────────────────────────────
   // Urutkan players berdasarkan playerUIDs dari gameState agar index konsisten
   // meski Firestore Object.entries() berubah urutan saat player baru join.
-  const orderedPlayers = gameState?.playerUIDs?.length
-    ? gameState.playerUIDs
-        .map((uid) => players.find((p) => p.uid === uid))
-        .filter((p): p is GamePlayer => !!p)
-    : players;
+  const playerUIDsKey = gameState?.playerUIDs?.join(',') ?? '';
+  const orderedPlayers = useMemo(() => {
+    return gameState?.playerUIDs?.length
+      ? gameState.playerUIDs
+          .map((uid) => players.find((p) => p.uid === uid))
+          .filter((p): p is GamePlayer => !!p)
+      : players;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerUIDsKey, players]);
 
   const currentPlayerIndex = gameState?.currentPlayerIndex ?? 0;
   // Pakai currentPlayerUID dari Firestore — tidak bergantung urutan array lokal.
@@ -204,8 +209,31 @@ export default function UlarTanggaPage() {
     ? (orderedPlayers.find((p) => p.uid === winnerUID) ?? players.find((p) => p.uid === winnerUID))?.displayName
       ?? 'Pemain'
     : '';
-  // isBotActing dihitung langsung di handler & bot effect — tidak di render path.
+  // Dihitung LANGSUNG di render (bukan di dalam effect) — dulu cuma di-set
+  // lewat ref di dalam effect bot-takeover, tapi effect roll-timeout (yang
+  // dideklarasi lebih dulu) jalan DULUAN di commit yang sama pas giliran
+  // abis dari bot ke pemain asli, jadi sempet baca ref yang masih basi
+  // ("true" dari giliran bot yang baru kelar) sebelum effect bot-takeover
+  // sempet nge-reset-nya ke false — timer skip 10 detik jadi gak pernah
+  // kepasang buat giliran itu. Dihitung sebagai nilai render biasa, kedua
+  // effect baca nilai yang sama-sama fresh di commit yang sama.
+  const ts = Date.now();
+  const currentUID = gameState?.currentPlayerUID ?? orderedPlayers[gameState?.currentPlayerIndex ?? 0]?.uid;
+  const activity = currentUID ? gameState?.playerActivity?.[currentUID] : null;
+  const offline = activity ? (!activity.isActive || ts - activity.lastActivity > 60000) : false;
+  let isBotActingNow = false;
+  if (offline && !isMyTurn) {
+    const first = orderedPlayers.find((p) => {
+      const act = gameState?.playerActivity?.[p.uid];
+      return act ? (act.isActive && ts - act.lastActivity <= 60000) : true;
+    });
+    isBotActingNow = first?.uid === myUID;
+  }
+  // Ref dipertahankan buat callback di dalam setTimeout (handleDiceRollStart/
+  // Complete/handleSelectAnswer) yang butuh baca nilai "hidup" di luar siklus
+  // render — di-update tiap render dari nilai yang barusan dihitung di atas.
   const isBotActingRef = useRef(false);
+  isBotActingRef.current = isBotActingNow;
 
   // ── Reward badge/potion begitu game kelar — cuma pemenang yang dapet
   // (Ular Tangga menang-kalah doang, gak ada peringkat 2/3 — bukan bug,
@@ -299,12 +327,17 @@ export default function UlarTanggaPage() {
     const rawPos = isEnteringRoll
       ? (rolledNumber === 6 ? 1 : 0)
       : Math.min(currentPos + rolledNumber, 100);
-    // movePawn returns final position (after snake slide if any)
-    const finalPos = await movePawn(topicID, gameID, roomKey, gameState.currentPlayerIndex, rolledNumber);
-    const isWin = finalPos >= 100;
+    // movePawn returns final position (after snake slide if any) — kalau
+    // finalPos>=100 pemain ini FINISH, tapi game belum tentu kelar (lihat
+    // appendFinisher di service) jadi giliran tetep harus lanjut ke pemain
+    // berikutnya; nextTurn() sendiri yang bakal ngelewatin pemain yg abis
+    // finish. Satu-satunya alasan SKIP nextTurn() di sini adalah lagi
+    // nunggu jawaban soal tangga (needsQuestion) — itu nextTurn()-nya
+    // dipanggil belakangan dari handleSelectAnswer.
+    await movePawn(topicID, gameID, roomKey, gameState.currentPlayerIndex, rolledNumber);
     const hitSnake = !isEnteringRoll && isSnakeHead(rawPos);
     const needsQuestion = !isEnteringRoll && !hitSnake && isLadderStart(rawPos) && (gameState.questions?.length ?? 0) > 0;
-    if (!isWin && !needsQuestion) {
+    if (!needsQuestion) {
       await nextTurn(topicID, gameID, roomKey);
     }
   }
@@ -315,7 +348,11 @@ export default function UlarTanggaPage() {
     if (actedAnswerTurnRef.current === turn) return;
     actedAnswerTurnRef.current = turn;
     await submitAnswer(topicID, gameID, roomKey, selectedIndex);
-    setTimeout(async () => {
+    // Ditrack di ref (bukan setTimeout lepas) — konsisten sama timer bot
+    // lain di file ini, biar gak ada write nextTurn() nyusul kalau halaman
+    // ini keburu unmount atau giliran udah maju lewat jalur lain.
+    botTimersRef.current.advance = setTimeout(async () => {
+      botTimersRef.current.advance = null;
       await nextTurn(topicID, gameID, roomKey);
     }, 2000);
   }
@@ -338,7 +375,7 @@ export default function UlarTanggaPage() {
   // di dalamnya udah nyegah dobel-fire kalau kebetulan barusan dijawab manual.
   useEffect(() => {
     if (!gameState?.waitingForAnswer || !gameState?.showQuestion || !gameState?.questionShownAt) return;
-    if (!isMyTurn || isBotActingRef.current || !currentQuestion) return;
+    if (!isMyTurn || isBotActingNow || !currentQuestion) return;
 
     const deadline = gameState.questionShownAt + ANSWER_TIMEOUT_MS;
     const remaining = deadline - Date.now();
@@ -350,7 +387,7 @@ export default function UlarTanggaPage() {
     }, Math.max(0, remaining));
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState?.waitingForAnswer, gameState?.showQuestion, gameState?.questionShownAt, gameState?.turnCounter, isMyTurn]);
+  }, [gameState?.waitingForAnswer, gameState?.showQuestion, gameState?.questionShownAt, gameState?.turnCounter, isMyTurn, isBotActingNow]);
 
   // Ref biar skip lempar-dadu gak dobel-fire kalau effect ini re-run.
   const skippedRollTurnRef = useRef<number>(-1);
@@ -366,7 +403,7 @@ export default function UlarTanggaPage() {
     if (!gameStarted || !gameState || isPaused) return;
     if (gameState.isMoving || gameState.waitingForAnswer || gameState.showQuestion) return;
     if (gameState.diceState?.isRolling) return;
-    if (!isMyTurn || isBotActingRef.current || !gameState.lastTurnChangeAt) return;
+    if (!isMyTurn || isBotActingNow || !gameState.lastTurnChangeAt) return;
 
     const turn = gameState.turnCounter ?? 0;
     if (skippedRollTurnRef.current === turn) return;
@@ -390,69 +427,95 @@ export default function UlarTanggaPage() {
     gameState?.lastTurnChangeAt,
     gameState?.turnCounter,
     isMyTurn,
+    isBotActingNow,
   ]);
 
   // Ref untuk mencegah bot melempar dadu berkali-kali pada giliran yang sama (saat pion sedang berjalan)
   const lastBotTurnRef = useRef<number>(-1);
+
+  // Timer roll & jawab bot disimpan di ref (bukan `let` lokal di dalam
+  // effect) — `handleDiceRollStart` NULIS `diceState.isRolling:true` ke
+  // Firestore, yang bikin `gameState` berubah dan effect BOT TAKEOVER di
+  // bawah re-run SEBELUM completeTimer (1.5s kemudian) sempet nembak.
+  // Kalau completeTimer cuma variabel lokal yang di-clear di cleanup effect
+  // (perilaku lama), re-run itu bakal nge-cancel completeTimer-nya SENDIRI
+  // tiap kali — dadu keliatan jalan tapi handleDiceRollComplete gak pernah
+  // kepanggil, giliran macet permanen. Nyimpen di ref biar timer selamat
+  // dari re-render yang dipicu writenya sendiri; cuma di-clear pas giliran
+  // BENERAN ganti (reset-effect di bawah) atau component unmount.
+  const botTimersRef = useRef<{
+    start: ReturnType<typeof setTimeout> | null;
+    complete: ReturnType<typeof setTimeout> | null;
+    answer: ReturnType<typeof setTimeout> | null;
+    advance: ReturnType<typeof setTimeout> | null;
+  }>({ start: null, complete: null, answer: null, advance: null });
+
+  function clearBotTimers() {
+    if (botTimersRef.current.start) clearTimeout(botTimersRef.current.start);
+    if (botTimersRef.current.complete) clearTimeout(botTimersRef.current.complete);
+    if (botTimersRef.current.answer) clearTimeout(botTimersRef.current.answer);
+    if (botTimersRef.current.advance) clearTimeout(botTimersRef.current.advance);
+  }
 
   // Reset ref ketika turnCounter berubah
   useEffect(() => {
     const currentTurn = gameState?.turnCounter || 0;
     if (lastBotTurnRef.current !== currentTurn) {
       lastBotTurnRef.current = -1;
+      clearBotTimers();
+      botTimersRef.current = { start: null, complete: null, answer: null, advance: null };
     }
   }, [gameState?.turnCounter]);
 
+  // Bersihin semua timer bot yang masih ngantri kalau halaman ini di-unmount
+  // (pindah room/keluar) — biar gak ada write basi nyusul setelah komponen mati.
+  useEffect(() => {
+    return () => {
+      clearBotTimers();
+    };
+  }, []);
+
   // ── BOT TAKEOVER LOGIC ──────────────────────────────────────────────────
+  // isBotActingNow dihitung di render (lihat deklarasinya di atas, dekat
+  // isMyTurn) — dipakai langsung di sini, gak dihitung ulang, biar effect
+  // ini & effect timer lain (roll/answer timeout) selalu liat nilai yang
+  // sama-persis di commit yang sama.
   useEffect(() => {
     if (!gameStarted || !gameState || isPaused) return;
-
-    // Hitung isBotActing di dalam effect — Date.now() tidak masalah di effect.
-    const ts = Date.now();
-    const currentUID = gameState.currentPlayerUID ?? orderedPlayers[gameState.currentPlayerIndex]?.uid;
-    const activity = currentUID ? gameState.playerActivity?.[currentUID] : null;
-    const offline = activity ? (!activity.isActive || ts - activity.lastActivity > 60000) : false;
-    const myTurn = !!myUID && currentUID === myUID;
-    let botActing = false;
-    if (offline && !myTurn) {
-      const first = orderedPlayers.find(p => {
-        const act = gameState.playerActivity?.[p.uid];
-        return act ? (act.isActive && ts - act.lastActivity <= 60000) : true;
-      });
-      botActing = first?.uid === myUID;
-    }
-    isBotActingRef.current = botActing;
-    if (!botActing) return;
+    if (!isBotActingNow) return;
 
     if (gameState.waitingForAnswer && gameState.showQuestion) {
-      const timer = setTimeout(() => {
-        handleSelectAnswer(Math.floor(Math.random() * 4));
+      // Guard biar timer jawab gak dijadwal ulang tiap `gameState` berubah
+      // (mis. heartbeat 30s) selagi masih nunggu 3 detik yang sama.
+      if (botTimersRef.current.answer) return;
+      botTimersRef.current.answer = setTimeout(() => {
+        botTimersRef.current.answer = null;
+        // Bot gak asal tebak rata 1/4 — condong jawab bener kayak manusia
+        // yang emang ngerti soal, sisanya nyebar ke opsi salah (lihat
+        // pickBotAnswerIndex).
+        const optionsCount = currentQuestion?.options?.length ?? 4;
+        handleSelectAnswer(pickBotAnswerIndex(currentQuestion?.correctIndex, optionsCount));
       }, 3000);
-      return () => clearTimeout(timer);
+      return;
     }
 
     if (!gameState.diceState?.isRolling && !gameState.waitingForAnswer) {
       const currentTurnCount = gameState.turnCounter ?? 0;
-      if (lastBotTurnRef.current === currentTurnCount) return;
-      // Timer dalam (completeTimer) sebelumnya gak ke-track — kalau effect
-      // ini re-run pas startTimer udah nembak tapi completeTimer masih
-      // ngantri, cleanup lama cuma clear startTimer, completeTimer yatim
-      // tetep jalan belakangan pakai state yang udah basi. Dua-duanya
-      // sekarang di-clear bareng.
-      let completeTimer: ReturnType<typeof setTimeout> | null = null;
-      const startTimer = setTimeout(() => {
+      if (lastBotTurnRef.current === currentTurnCount || botTimersRef.current.start) return;
+      botTimersRef.current.start = setTimeout(() => {
+        botTimersRef.current.start = null;
         lastBotTurnRef.current = currentTurnCount;
         const randomDice = Math.floor(Math.random() * 6) + 1;
         handleDiceRollStart(randomDice);
-        completeTimer = setTimeout(() => { handleDiceRollComplete(randomDice); }, 1500);
+        botTimersRef.current.complete = setTimeout(() => {
+          botTimersRef.current.complete = null;
+          handleDiceRollComplete(randomDice);
+        }, 1500);
       }, 2000);
-      return () => {
-        clearTimeout(startTimer);
-        if (completeTimer) clearTimeout(completeTimer);
-      };
+      return;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameStarted, gameState, players, myUID, isPaused]);
+  }, [gameStarted, gameState, players, myUID, isPaused, isBotActingNow]);
 
   // ── AUTO-WIN SAAT TINGGAL 1 PEMAIN AKTIF ────────────────────────────────
   // Formula staleness sengaja disamain persis sama bot-takeover di atas.
@@ -463,8 +526,20 @@ export default function UlarTanggaPage() {
     if (!gameStarted || !gameState || gameState.gameStatus !== 'playing' || !myUID) return;
     if (!gameState.playerUIDs || gameState.playerUIDs.length < 2) return;
 
+    // Bot (role:'ai') SENGAJA di-seed "permanen stale" (lihat
+    // initializeUlarTanggaGameState) biar bot-takeover langsung jalan dari
+    // giliran pertama — tapi itu artinya bot gak akan PERNAH kehitung
+    // "aktif" di sini. Kalau bot ikut dihitung, room [1 pemain asli + bot]
+    // bakal keliatan "semua orang kabur" begitu game mulai, langsung
+    // ke-auto-win padahal bot-nya emang masih sah main. Bot dikeluarin dulu
+    // dari daftar sebelum ngitung siapa yang masih aktif.
+    const realPlayerUIDs = gameState.playerUIDs.filter(
+      (uid) => orderedPlayers.find((p) => p.uid === uid)?.role !== 'ai',
+    );
+    if (realPlayerUIDs.length < 2) return;
+
     const ts = Date.now();
-    const activeUIDs = gameState.playerUIDs.filter((uid) => {
+    const activeUIDs = realPlayerUIDs.filter((uid) => {
       const act = gameState.playerActivity?.[uid];
       return act ? (act.isActive && ts - act.lastActivity <= 60000) : true;
     });
@@ -472,7 +547,7 @@ export default function UlarTanggaPage() {
     if (activeUIDs.length === 1 && activeUIDs[0] === myUID) {
       checkAndFinalizeSoleSurvivor(topicID, gameID, roomKey);
     }
-  }, [gameStarted, gameState, myUID, topicID, gameID, roomKey]);
+  }, [gameStarted, gameState, myUID, topicID, gameID, roomKey, orderedPlayers]);
 
   // ── Render Loading & Locked State ─────────────────────────────────────────
   if (isGameLocked) {
