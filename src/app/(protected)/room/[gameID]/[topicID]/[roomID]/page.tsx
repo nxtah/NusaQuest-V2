@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import Image from 'next/image';
 import {doc, setDoc} from 'firebase/firestore';
@@ -32,6 +32,11 @@ import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import { information } from '@/src/assets/images/information/cloudinaryAssets';
 import Loader from '@/src/components/ui/Loader';
 import './room.css';
+
+// Durasi efek "join" (kartu turun + cincin emas ngembang) di slot pemain —
+// disamain sama panjang animasi CSS-nya (room.css: roomSlotArrive 620ms +
+// roomStampRing 700ms), dikasih sedikit ekstra biar gak kepotong.
+const JOIN_EFFECT_MS = 900;
 
 function resolveGameRoute(gameID: string, topicID: string, roomID: string): string {
   if (gameID === 'nusa-card' || gameID === 'card') return `/play/${gameID}/${topicID}/${roomID}/nusa-card`;
@@ -79,6 +84,45 @@ export default function RoomPage() {
   // jangan di-join, tampilin pesan "sedang dipakai" aja. null = belum tau /
   // gak locked.
   const [roomLocked, setRoomLocked] = useState<{ activeCount: number } | null>(null);
+  // Efek "join" (lihat room.css: .just-joined) — UID pemain yang lagi
+  // dalam jendela animasi kedatangannya. `knownUidsRef` nyimpen UID dari
+  // snapshot SEBELUMNYA (null = belum pernah nerima snapshot sama sekali)
+  // biar snapshot PERTAMA (isi room saat kita baru buka halaman) gak ikut
+  // ke-anggep "baru join" — animasi cuma nyala buat kedatangan yang
+  // BENERAN kejadian selagi kita lagi liat halaman ini.
+  const [justJoinedUids, setJustJoinedUids] = useState<Set<string>>(new Set());
+  const knownUidsRef = useRef<Set<string> | null>(null);
+  const joinTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  function diffAndMarkNewcomers(currentPlayers: RoomPlayerOld[]) {
+    const currentUids = new Set(currentPlayers.map((p) => p.uid));
+    const previousUids = knownUidsRef.current;
+    if (previousUids) {
+      const newcomers = [...currentUids].filter((uid) => !previousUids.has(uid));
+      if (newcomers.length > 0) {
+        setJustJoinedUids((prev) => {
+          const next = new Set(prev);
+          newcomers.forEach((uid) => next.add(uid));
+          return next;
+        });
+        newcomers.forEach((uid) => {
+          const existingTimer = joinTimersRef.current.get(uid);
+          if (existingTimer) clearTimeout(existingTimer);
+          const timer = setTimeout(() => {
+            joinTimersRef.current.delete(uid);
+            setJustJoinedUids((prev) => {
+              if (!prev.has(uid)) return prev;
+              const next = new Set(prev);
+              next.delete(uid);
+              return next;
+            });
+          }, JOIN_EFFECT_MS);
+          joinTimersRef.current.set(uid, timer);
+        });
+      }
+    }
+    knownUidsRef.current = currentUids;
+  }
 
   // Join room begitu auth siap. Dokumen room dibuat kalau belum ada.
   useEffect(() => {
@@ -185,10 +229,21 @@ export default function RoomPage() {
   useEffect(() => {
     if (!roomKey) return;
     const unsub = listenToRoomPlayers(roomKey, (currentPlayers) => {
+      diffAndMarkNewcomers(currentPlayers);
       setPlayers(currentPlayers);
     });
     return () => unsub();
   }, [roomKey]);
+
+  // Bersihin semua timer efek-join yang masih ngantri kalau halaman
+  // di-unmount, biar gak ada setState nyusul ke komponen yang udah mati.
+  useEffect(() => {
+    const timers = joinTimersRef.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!roomKey || !roomChecked) return;
@@ -337,8 +392,16 @@ export default function RoomPage() {
         <div className="room-slots-container">
           {slotPlayers.map((player: RoomPlayerOld | null, idx) => {
             const isBot = player?.role === 'ai';
+            const isMine = !!player && player.uid === playerUID;
+            const justJoined = !!player && justJoinedUids.has(player.uid);
+            const slotClassName = [
+              'room-player-slot',
+              player ? 'filled' : 'empty',
+              isMine ? 'mine' : '',
+              justJoined ? 'just-joined' : '',
+            ].filter(Boolean).join(' ');
             return (
-              <div key={idx} className={`room-player-slot ${player ? 'filled' : 'empty'}`}>
+              <div key={idx} className={slotClassName}>
                 <div className="room-player-avatar-ring">
                   <div className="room-player-avatar">
                     {player ? (

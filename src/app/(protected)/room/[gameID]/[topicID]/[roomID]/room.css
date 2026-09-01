@@ -105,7 +105,14 @@
 }
 
 
-/* Slots */
+/* ==================== SLOTS ====================
+   Kartu slot dibawa ke bahasa visual claymorphism yang udah dipakai di
+   seluruh app (RankModal/PauseModal/QuestionModal): permukaan parchment
+   krem + shadow "clay" ofset keras, ink-brown buat teks — gantiin coklat
+   solid gelap + teks putih yang sebelumnya beda sendiri dari komponen lain.
+   Bentuk "bendera" (clip-path pennant) DIPERTAHANKAN — itu elemen bentuk
+   yang udah pas secara tematik (kayak bendera pemain ditancepin di papan),
+   cuma materialnya yang di-refresh. */
 .room-slots-container {
   position: relative; z-index: 1;
   display: grid;
@@ -120,34 +127,67 @@
   padding: clamp(3rem, 7vh, 5rem) clamp(0.75rem, 1.5vw, 1.25rem) clamp(4rem, 9vh, 8rem);
   flex: 1;
   min-height: clamp(220px, 45vh, 360px);
-  background: #b4793c;
+  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
   clip-path: polygon(0% 0%, 100% 0%, 100% 82%, 50% 100%, 0% 82%);
-  border: 2px solid rgba(255, 215, 0, 0.3);
-  box-shadow: 
-    0 4px 6px rgba(80, 50, 10, 0.4),
-    inset 0 -3px 0 rgba(0,0,0,0.15),
-    inset 0 2px 0 rgba(255,255,255,0.3);
-}
-.room-player-slot.filled {
-  background: #b4793c;
-  border-color: rgba(255, 215, 0, 0.35);
-  box-shadow: 
-    0 6px 12px rgba(80, 50, 10, 0.5),
-    0 0 30px rgba(255, 215, 0, 0.08),
-    inset 0 -3px 0 rgba(0,0,0,0.15),
-    inset 0 2px 0 rgba(255,255,255,0.3);
+  border: 2px solid rgba(198, 132, 26, 0.35);
+  box-shadow:
+    0 6px 0 rgba(139, 94, 42, 0.32),
+    0 10px 16px rgba(74, 42, 26, 0.35),
+    inset -3px -3px 6px rgba(139, 94, 42, 0.12),
+    inset 3px 3px 5px rgba(255, 255, 255, 0.7);
+  transform: scale(1);
 }
 .room-player-slot.empty {
-  background: #8B5E2A;
-  border-color: rgba(255, 200, 50, 0.2);
+  background: rgba(232, 216, 181, 0.16);
+  border-color: rgba(198, 132, 26, 0.4);
   border-style: dashed;
-  box-shadow: 
-    0 4px 6px rgba(80, 50, 10, 0.25),
-    inset 0 -2px 0 rgba(0,0,0,0.15),
-    inset 0 2px 0 rgba(255,255,255,0.15);
+  box-shadow: inset 0 2px 8px rgba(74, 42, 26, 0.15);
+}
+/* Slot kamu sendiri — cincin teal, bahasa yang sama kayak "(Kamu)" di
+   RankModal (nq-rank-row--me), biar konsisten satu app apa artinya
+   "ini kamu". */
+.room-player-slot.mine {
+  box-shadow:
+    0 6px 0 rgba(139, 94, 42, 0.32),
+    0 10px 16px rgba(74, 42, 26, 0.35),
+    inset -3px -3px 6px rgba(139, 94, 42, 0.12),
+    inset 3px 3px 5px rgba(255, 255, 255, 0.7),
+    0 0 0 3px #2f8f74;
 }
 
-
+/* ==================== JOIN EFFECT (signature moment) ====================
+   Pemain baru "berlabuh" ke slotnya — kartu turun+membesar sekali (kayak
+   ditancepin), dibarengin cincin emas yang ngembang cepet dari belakang
+   avatar (kesan cap/stempel jatuh di peta), bukan confetti generik. Nyala
+   SEKALI doang per kejadian join (di-trigger dari page.tsx lewat class
+   `.just-joined`, dicopot lagi abis durasinya lewat), guard di JS nyegah
+   nyala ulang di re-render/snapshot yang gak relevan. */
+@keyframes roomSlotArrive {
+  0%   { transform: translateY(22px) scale(0.72); opacity: 0; }
+  55%  { transform: translateY(-6px) scale(1.05); opacity: 1; }
+  78%  { transform: translateY(0) scale(0.97); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes roomStampRing {
+  0%   { transform: scale(0.3); opacity: 0.9; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+.room-player-slot.just-joined {
+  animation: roomSlotArrive 620ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.room-player-slot.just-joined .room-player-avatar-ring::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 3px solid #f5a916;
+  animation: roomStampRing 700ms ease-out both;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-player-slot.just-joined { animation: none; }
+  .room-player-slot.just-joined .room-player-avatar-ring::after { animation: none; content: none; }
+}
 
 .room-player-avatar-ring {
   position: relative;
@@ -155,31 +195,37 @@
   height: clamp(110px, 22vw, 180px);
   border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(200,160,50,0.1));
-  border: 2px solid rgba(255,215,0,0.3);
+  background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
+  border: 3px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 4px 10px rgba(120, 72, 0, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+}
+.room-player-slot.empty .room-player-avatar-ring {
+  background: rgba(232, 216, 181, 0.3);
+  border: 2px dashed rgba(198, 132, 26, 0.45);
+  box-shadow: none;
 }
 .room-player-avatar {
   width: clamp(92px, 18vw, 152px);
   height: clamp(92px, 18vw, 152px);
   border-radius: 50%; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.1);
+  background: #fdf6e3;
 }
 .room-player-img { width: 100%; height: 100%; object-fit: cover; }
-.room-player-initial { font-family: 'Bauhaus', sans-serif; font-size: clamp(0.7rem, 2vh, 1.5rem); color: #facc15; }
-.room-player-icon { color: rgba(255,255,255,0.25); display: flex; }
+.room-player-initial { font-family: 'Bauhaus', sans-serif; font-size: clamp(0.7rem, 2vh, 1.5rem); color: #a8710f; }
+.room-player-icon { color: rgba(74, 42, 26, 0.3); display: flex; }
 .room-player-icon svg { width: clamp(14px, 2vh, 24px); height: clamp(14px, 2vh, 24px); }
 
 .room-add-bot-btn {
   width: 100%; height: 100%; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 215, 0, 0.12);
-  border: 2px dashed rgba(255, 215, 0, 0.45);
-  color: #facc15;
+  background: rgba(255, 246, 224, 0.55);
+  border: 2px dashed rgba(198, 132, 26, 0.55);
+  color: #b9790f;
   cursor: pointer;
   transition: transform 150ms ease-out, background 150ms ease-out;
 }
-.room-add-bot-btn:hover:not(:disabled) { background: rgba(255, 215, 0, 0.22); transform: scale(1.06); }
+.room-add-bot-btn:hover:not(:disabled) { background: rgba(255, 246, 224, 0.9); transform: scale(1.06); }
 .room-add-bot-btn:active:not(:disabled) { transform: scale(0.96); }
 .room-add-bot-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .room-add-bot-btn svg { width: clamp(16px, 3vh, 26px); height: clamp(16px, 3vh, 26px); }
@@ -200,10 +246,13 @@
   position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%);
   font-size: clamp(0.55rem, 1vh, 0.7rem); font-weight: 800;
   padding: 2px 7px; border-radius: 6px;
-  background: #facc15; color: #000; white-space: nowrap;
+  background: linear-gradient(150deg, #ffe28a 0%, #f5a916 100%);
+  color: #4a2a1a; white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(120, 72, 0, 0.35);
 }
-.room-player-name { font-size: clamp(0.75rem, 1.7vh, 1.1rem); font-weight: 600; color: white; text-align: center; }
-.room-player-name.dim { color: rgba(255,255,255,0.3); font-weight: 400; }
+.room-player-nameplate { margin-top: 0.35rem; }
+.room-player-name { font-size: clamp(0.75rem, 1.7vh, 1.1rem); font-weight: 600; color: #3d2411; text-align: center; }
+.room-player-name.dim { color: rgba(74, 42, 26, 0.4); font-weight: 500; }
 
 /* Info */
 .room-info-bar {
@@ -214,13 +263,16 @@
 .room-info-chip {
   display: flex; align-items: center; gap: 0.35rem;
   padding: clamp(0.3rem, 0.6vh, 0.5rem) clamp(0.6rem, 1vw, 0.9rem);
-  background: rgba(0,0,0,0.3); backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 30px;
-  font-size: clamp(0.65rem, 1vw, 0.85rem); color: rgba(255,255,255,0.75);
+  background: linear-gradient(150deg, rgba(255, 246, 224, 0.92) 0%, rgba(242, 223, 174, 0.92) 100%);
+  border: 1px solid rgba(198, 132, 26, 0.3); border-radius: 30px;
+  font-size: clamp(0.65rem, 1vw, 0.85rem); color: #4a2a1a; font-weight: 600;
+  box-shadow: 0 3px 6px rgba(74, 42, 26, 0.22);
 }
 .room-info-chip svg { width: clamp(11px, 1.1vw, 15px); height: clamp(11px, 1.1vw, 15px); flex-shrink: 0; }
 
-/* Actions */
+/* Actions — resep tombol sama persis kayak RankModal
+   (nq-rank-continue-btn/nq-rank-secondary-btn) biar 2 popup/panel penting
+   ini kerasa satu keluarga, bukan gaya beda-beda per halaman. */
 .room-actions {
   position: relative; z-index: 5; flex-shrink: 0;
   display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
@@ -230,22 +282,43 @@
 .room-btn-start {
   width: 100%;
   padding: clamp(0.6rem, 1.2vh, 0.95rem) clamp(0.75rem, 1.5vw, 1.25rem);
-  border: 2px solid #eab308; border-radius: 0.65rem;
+  border: none; border-radius: 999px;
   font-family: 'Bauhaus', sans-serif;
   font-size: clamp(0.7rem, 1.4vw, 1rem); font-weight: 700;
-  background: linear-gradient(180deg, #facc15, #eab308 40%, #ca8a04);
-  color: #1e293b; cursor: pointer; text-align: center;
-  box-shadow: 0 3px 0 #a16207, inset 0 2px 0 rgba(255,255,255,0.3);
+  background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
+  color: #4a2a1a; cursor: pointer; text-align: center;
+  box-shadow:
+    0 5px 0 #c6841a,
+    0 8px 14px rgba(120, 72, 0, 0.35),
+    inset -3px -3px 6px rgba(150, 90, 0, 0.25),
+    inset 3px 3px 5px rgba(255, 255, 255, 0.65);
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out, filter 150ms ease-out;
 }
-.room-btn-start:active { transform: translateY(2px); box-shadow: 0 1px 0 #a16207; }
-.room-btn-start:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+@media (hover: hover) {
+  .room-btn-start:not(:disabled):hover { filter: brightness(1.05); transform: translateY(-2px); }
+}
+.room-btn-start:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #c6841a, 0 3px 6px rgba(120, 72, 0, 0.3), inset -3px -3px 6px rgba(150, 90, 0, 0.25), inset 3px 3px 5px rgba(255, 255, 255, 0.65);
+}
+.room-btn-start:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .room-btn-back {
   width: 100%; padding: clamp(0.45rem, 0.9vh, 0.65rem) clamp(0.75rem, 1.5vw, 1.25rem);
-  border-radius: 0.65rem; border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.06); backdrop-filter: blur(4px);
-  color: rgba(255,255,255,0.65); cursor: pointer; text-align: center;
+  border-radius: 999px; border: none;
+  background: linear-gradient(150deg, #fffdf8 0%, #f3ede0 100%);
+  color: #3d2411; cursor: pointer; text-align: center; font-weight: 600;
   font-size: clamp(0.65rem, 1.1vw, 0.85rem);
+  box-shadow:
+    0 4px 0 #d8c8a8,
+    0 6px 10px rgba(120, 92, 40, 0.22),
+    inset -2px -2px 4px rgba(150, 120, 60, 0.12),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.9);
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
 }
+@media (hover: hover) {
+  .room-btn-back:hover { filter: brightness(1.03); transform: translateY(-1px); }
+}
+.room-btn-back:active { transform: translateY(1px); }
 .room-waiting-msg { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; font-size: clamp(0.6rem, 1.1vw, 0.8rem); color: rgba(255,255,255,0.65); }
 .room-waiting-dots { display: flex; gap: 3px; }
 .room-waiting-dots span { width: 5px; height: 5px; border-radius: 50%; background: #facc15; opacity: 0.4; animation: dotPulse 1.5s ease-in-out infinite; }
@@ -281,7 +354,9 @@
   .room-player-name { font-size: clamp(0.5rem, 2.1vw, 0.75rem); }
 }
 
-/* Mobile landscape: compact — no scroll */
+/* Mobile landscape: compact — no scroll. Sama sizing yang udah kebukti pas
+   (survey sebelumnya nandain area ini udah paling matang di app), cuma
+   materialnya ngikutin refresh parchment/gold di atas. */
 @media (max-height: 600px) and (orientation: landscape) {
   .room-header-wrapper {
     width: clamp(120px, 20vw, 160px); height: clamp(32px, 5vh, 45px);
@@ -311,6 +386,7 @@
   .room-player-initial { font-size: clamp(0.4rem, 1.6vh, 0.6rem); }
   .room-player-icon svg { width: clamp(10px, 2vh, 16px); height: clamp(10px, 2vh, 16px); }
   .room-player-name { font-size: clamp(0.4rem, 1.4vh, 0.6rem); }
+  .room-player-nameplate { margin-top: 0.15rem; }
   .room-player-owner-badge {
     font-size: clamp(0.32rem, 1vh, 0.45rem); padding: 1px 4px; bottom: -2px;
   }
@@ -326,12 +402,14 @@
   .room-btn-start {
     padding: 0.3rem 0.5rem;
     font-size: clamp(0.4rem, 1vw, 0.55rem);
-    border-radius: 0.4rem; box-shadow: 0 2px 0 #a16207;
+    border-radius: 0.4rem;
+    box-shadow: 0 2px 0 #c6841a, inset -2px -2px 4px rgba(150,90,0,0.2), inset 2px 2px 3px rgba(255,255,255,0.6);
   }
   .room-btn-back {
     padding: 0.2rem 0.5rem;
     font-size: clamp(0.35rem, 0.9vw, 0.5rem);
     border-radius: 0.4rem;
+    box-shadow: 0 2px 0 #d8c8a8;
   }
   .room-waiting-msg { font-size: clamp(0.35rem, 0.9vw, 0.5rem); gap: 0.1rem; }
   .room-waiting-dots span { width: 3px; height: 3px; }
