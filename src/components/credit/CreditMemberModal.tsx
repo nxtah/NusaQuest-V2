@@ -50,6 +50,22 @@ export default function CreditMemberModal({
     if (!memberPhotoURL || isGeneratingStory) return;
     setIsGeneratingStory(true);
     setStoryError(null);
+
+    // Tab HARUS dibuka di sini, SEBELUM await apapun — browser cuma ngasih
+    // izin window.open() tanpa diblokir kalau dipanggil langsung sebagai
+    // respons klik ("user activation"). generateTeamStoryImage() di bawah
+    // butuh waktu (load font + gambar), begitu itu di-await duluan, izin
+    // klik itu udah keburu abis pas window.open() akhirnya dipanggil —
+    // browser diem-diem nge-block-nya tanpa error, makanya tombolnya
+    // keliatan "gak ngapa-ngapain". Buka tab kosong dulu di sini, isinya
+    // baru di-set belakangan begitu blob-nya siap.
+    const pendingTab = window.open("", "_blank");
+    if (!pendingTab) {
+      setStoryError("Izinkan pop-up di browser buat lihat story-nya ya.");
+      setIsGeneratingStory(false);
+      return;
+    }
+
     try {
       const blob = await generateTeamStoryImage({
         name: memberName,
@@ -57,9 +73,10 @@ export default function CreditMemberModal({
         photoURL: memberPhotoURL,
       });
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      pendingTab.location.href = url;
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
+      pendingTab.close();
       setStoryError(err instanceof Error ? err.message : "Gagal membuat gambar story.");
     } finally {
       setIsGeneratingStory(false);
