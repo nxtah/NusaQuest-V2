@@ -87,11 +87,14 @@ export default function PlayerHandCards({
             }}
             whileHover={selectedCardId || !canPlay ? undefined : { y: -4 }}
           >
-            <p className="text-[5px] sm:text-[6px] md:text-[7px] lg:text-[10px] font-bold uppercase leading-none tracking-wide">
+            {/* Lantai minimum dinaikin dari 5px — di kartu terkecil (mobile
+                landscape) itu jauh di bawah batas kebacaan, bukan cuma
+                "kompak". */}
+            <p className="text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] font-bold uppercase leading-none tracking-wide">
               Q: Makanan
             </p>
 
-            <p className="mt-2 sm:mt-3 lg:mt-4 line-clamp-3 text-[5px] sm:text-[6px] md:text-[7px] lg:text-[9px] leading-tight text-white/95">
+            <p className="mt-2 sm:mt-3 lg:mt-4 line-clamp-3 text-[7px] sm:text-[8px] md:text-[8px] lg:text-[9px] leading-tight text-white/95">
               {card.title}
             </p>
           </motion.button>

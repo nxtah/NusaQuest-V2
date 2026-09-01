@@ -44,10 +44,22 @@ export default function Board({
             }
         };
 
+        // "orientationchange" gak selalu diikuti "resize" di semua browser/
+        // device — tanpa ini, muter HP di tengah main bisa ninggalin canvas
+        // ke-ukur pake dimensi orientasi LAMA sampe ada trigger resize lain
+        // (kadang gak pernah). Delay dikit soalnya beberapa browser masih
+        // laporin innerWidth/innerHeight versi lama sesaat sebelum
+        // orientationchange selesai settle.
+        const handleOrientationChange = () => setTimeout(updateSize, 100);
+
         window.addEventListener("resize", updateSize);
+        window.addEventListener("orientationchange", handleOrientationChange);
         updateSize();
 
-        return () => window.removeEventListener("resize", updateSize);
+        return () => {
+            window.removeEventListener("resize", updateSize);
+            window.removeEventListener("orientationchange", handleOrientationChange);
+        };
     }, []);
 
     const drawBoard = () => {
