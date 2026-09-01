@@ -728,6 +728,14 @@
   .game-modal-container {
     padding: clamp(2.4rem, 19vh, 3.1rem) clamp(1.25rem, 4vw, 2rem) clamp(2rem, 16vh, 2.6rem);
     max-height: 94vh;
+    /* Akar bug "gak match desktop" di landscape: query ini udah nyusutin
+       padding/font (vh-driven) TAPI gak pernah nimpa max-width bawaan
+       (clamp(500px,70vw,720px)) — di HP landscape lebar (mis. 812px),
+       70vw masih ngasih container ~570px, kombinasi lebar segitu + padding
+       yang udah diciutin bikin proporsinya beda jauh dari desktop (kertas
+       lebar-pendek, bukan potrait-ish kayak desktop). Width sekarang ikut
+       diturunin dari vh juga biar sebanding sama tinggi yang emang mepet. */
+    max-width: min(88vw, 480px);
   }
 
   /* Modal provinsi butuh clearance atas dikit lebih gede dari modal "Pilih
@@ -738,6 +746,11 @@
     padding-top: clamp(3rem, 23vh, 3.6rem);
     padding-left: clamp(2rem, 12vw, 5rem);
     padding-right: clamp(2rem, 12vw, 5rem);
+    /* Sama akar masalah kayak .game-modal-container di atas — base rule
+       (95vw/950px) gak pernah ke-timpa di sini, jadi provinsi grid-nya
+       ngambang di kertas yang jauh lebih lebar dari yang muat proporsional
+       buat tinggi landscape yang mepet. */
+    max-width: min(92vw, 640px);
   }
 
   .game-modal-header {
