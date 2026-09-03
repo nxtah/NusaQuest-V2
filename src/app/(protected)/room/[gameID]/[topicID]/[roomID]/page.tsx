@@ -3,8 +3,6 @@
 import {useEffect, useRef, useState} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import Image from 'next/image';
-import {doc, setDoc} from 'firebase/firestore';
-import {firebaseFirestore} from '@/src/lib/firebase/client';
 import {
   listenToRoomPlayers,
   playerJoinRoom,
@@ -131,12 +129,12 @@ export default function RoomPage() {
 
     const photoURL = user?.firebasePhotoURL || user?.googlePhotoURL || null;
 
-    // Coba join langsung dulu (1 read, di dalam playerJoinRoom) alih-alih
-    // getDoc kepunyaan-sendiri + setDoc-kalau-belum-ada + playerJoinRoom
-    // (yang juga getDoc sendiri) berurutan — kasus paling umum (room udah
-    // ada, revisit) dulu 3 read berantai buat 1 dokumen yang sama, sekarang
-    // cuma 1. Room BENERAN baru (jarang, sekali per room) yang bayar lebih:
-    // gagal join dulu ("Room not found"), baru dibikin, baru join ulang.
+    // playerJoinRoom (rooms.service.ts joinRoom) sekarang SATU transaksi
+    // atomik yang bikin-DAN-join dalam satu operasi kalau room-nya belum
+    // ada sama sekali — gak perlu lagi tangkep "Room not found", bikin
+    // dokumennya manual, terus retry sampe 3x kayak sebelumnya (dance itu
+    // ada gara-gara alur lama non-atomik: 2 temen buka link room BARU
+    // nyaris bersamaan bisa bikin salah satu entry pemain ketinggalan).
     const join = async () => {
       try {
         // Reset room ke 'waiting' kalau sesi game sebelumnya sudah selesai/ditinggal.
@@ -145,54 +143,7 @@ export default function RoomPage() {
         // sebenarnya udah ditinggal semua orang gak ke-lock permanen di sini.
         await checkAndResetAbandonedRoom(roomKey);
 
-        try {
-          await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, photoURL);
-        } catch (err) {
-          if (err instanceof Error && err.message === 'Room not found') {
-            const roomRef = doc(firebaseFirestore!, 'rooms', roomKey);
-            try {
-              // `players` sengaja gak diikutkan di sini + pakai merge:true —
-              // kalau 2 orang join room baru barengan, setDoc gak boleh
-              // nimpa `players` yang udah ditulis orang lain lewat
-              // playerJoinRoom. Nama field HARUS `status`/`maxPlayers` (bukan
-              // `gameStatus`/`capacity`/`isSinglePlayer` kayak sebelumnya) —
-              // itu field yang beneran dibaca `subscribeToGameStart`
-              // (lobby.service.ts) dan `checkRoomType` (`room.maxPlayers===1`
-              // buat derive vs-AI), field lama itu gak pernah kebaca siapapun.
-              await setDoc(roomRef, {
-                maxPlayers: isVsAi ? 1 : 4, currentPlayers: 0,
-                status: 'waiting',
-                lastResetAt: new Date().toISOString(),
-              }, {merge: true});
-            } catch (setDocErr) {
-              // Race lumrah: orang lain udah bikin room-nya duluan sepersekian
-              // detik sebelum kita — bukan error fatal, lanjut aja ke join
-              // ulang. Tetap di-log (bukan diem-diem ditelan) biar kalau
-              // gagalnya BUKAN gara-gara race (mis. rules/permission), masih
-              // ketauan dari console alih-alih nyamar jadi "Room not found"
-              // yang membingungkan di percobaan join berikutnya.
-              console.warn('Gagal bikin dokumen room baru (kemungkinan race, lanjut coba join lagi):', setDocErr);
-            }
-            // Retry sampai 3x dengan jeda pendek — nyerap kemungkinan delay
-            // konsistensi baca-abis-tulis Firestore, bukan cuma 1x nembak
-            // ulang yang kalau kebetulan kepepet delay itu ikutan gagal dan
-            // muncul sebagai error "Room not found" yang sama di console.
-            let lastErr: unknown = err;
-            for (let attempt = 0; attempt < 3; attempt++) {
-              try {
-                await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, photoURL);
-                lastErr = null;
-                break;
-              } catch (retryErr) {
-                lastErr = retryErr;
-                if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 400));
-              }
-            }
-            if (lastErr) throw lastErr;
-          } else {
-            throw err;
-          }
-        }
+        await playerJoinRoom(topicID, gameID, roomKey, playerUID, playerName, photoURL);
 
         if (isActive) {
           setHasJoined(true);

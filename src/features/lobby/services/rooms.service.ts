@@ -16,6 +16,7 @@ import {
   query,
   where,
   getDocs,
+  runTransaction,
 } from 'firebase/firestore'
 import { Room, GameState, RoomPlayer } from '@/src/types/firestore'
 
@@ -91,59 +92,95 @@ export async function joinRoom(
   userName?: string,
   userPhoto?: string | null
 ): Promise<void> {
+  const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
   try {
-    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
-    const room = await getRoomById(roomId)
+    // runTransaction — dulu ini getDoc lepas, lempar 'Room not found' kalau
+    // dokumennya belum ada, lalu si PEMANGGIL (halaman room) nangkep itu,
+    // bikin dokumennya lewat setDoc terpisah, terus nyoba join lagi sampe
+    // 3x. Kalau 2 temen buka link room yang SAMA-SAMA BARU nyaris
+    // bersamaan, dua-duanya bisa baca "belum ada" barengan, dan urutan
+    // create-vs-join-ulang di antara 2 client itu gak dijamin — salah satu
+    // entry pemain bisa ketinggalan/ke-timpa. Transaksi Firestore
+    // ngebikin-DAN-join dalam SATU operasi atomik: kalau 2 transaksi baca
+    // dokumen yang sama, yang kalah otomatis di-retry SDK-nya sendiri
+    // dengan data terbaru, gak ada lagi celah di antara dua langkah.
+    await runTransaction(requireFirestore(), async (tx) => {
+      const snapshot = await tx.get(roomRef)
 
-    if (!room) {
-      throw new Error('Room not found')
-    }
-
-    const existing = room.players?.[userId];
-
-    // Room udah 'playing' dan kita BUKAN salah satu pemain yang udah gabung
-    // — jangan biarin join (dulu ini dicek via getDoc terpisah di halaman
-    // room, sekarang numpang di read yang udah dilakuin getRoomById() di
-    // atas biar gak nambah round-trip). Reconnecting participant (existing
-    // truthy) tetap boleh lewat di bawah, gak kena block ini.
-    if (!existing && room.status === 'playing') {
-      const activeCount = Object.values(room.players || {}).filter(
-        (p) => p.isActive !== false
-      ).length
-      const lockedError = new Error('Room is currently playing') as Error & {
-        code?: string
-        activeCount?: number
+      if (!snapshot.exists()) {
+        tx.set(roomRef, {
+          maxPlayers: 4,
+          currentPlayers: 1,
+          status: 'waiting',
+          players: {
+            [userId]: {
+              joinedAt: Date.now(),
+              role: 'player',
+              isActive: true,
+              ...(userName ? { name: userName } : {}),
+              ...(userPhoto ? { photoURL: userPhoto } : {}),
+            },
+          },
+          createdAt: Date.now(),
+        })
+        return
       }
-      lockedError.code = 'ROOM_LOCKED'
-      lockedError.activeCount = activeCount
-      throw lockedError
-    }
 
-    if (existing) {
-      if (existing.isActive !== false) return; // sudah aktif, tidak perlu apa-apa
-      // Pernah join tapi di-set inactive (keluar lalu balik) — re-activate saja
-      await updateDoc(roomRef, {
-        [`players.${userId}.isActive`]: true,
-        [`players.${userId}.lastActivity`]: Date.now(),
-        ...(userName ? { [`players.${userId}.name`]: userName } : {}),
-        ...(userPhoto ? { [`players.${userId}.photoURL`]: userPhoto } : {}),
-      });
-      return;
-    }
+      const room = { roomId: snapshot.id, ...snapshot.data() } as Room
+      const existing = room.players?.[userId]
 
-    if (room.maxPlayers != null && room.currentPlayers >= room.maxPlayers) {
-      throw new Error('Room is full')
-    }
+      // Room udah 'playing' dan kita BUKAN salah satu pemain yang udah
+      // gabung — jangan biarin join. Reconnecting participant (existing
+      // truthy) tetap boleh lewat di bawah, gak kena block ini.
+      if (!existing && room.status === 'playing') {
+        const activeCount = Object.values(room.players || {}).filter(
+          (p) => p.isActive !== false
+        ).length
+        const lockedError = new Error('Room is currently playing') as Error & {
+          code?: string
+          activeCount?: number
+        }
+        lockedError.code = 'ROOM_LOCKED'
+        lockedError.activeCount = activeCount
+        throw lockedError
+      }
 
-    await updateDoc(roomRef, {
-      [`players.${userId}`]: {
-        joinedAt: Date.now(),
-        role: 'player',
-        isActive: true,
-        ...(userName ? { name: userName } : {}),
-        ...(userPhoto ? { photoURL: userPhoto } : {}),
-      },
-      currentPlayers: room.currentPlayers + 1,
+      if (existing) {
+        if (existing.isActive !== false) return; // sudah aktif, tidak perlu apa-apa
+        // Pernah join tapi di-set inactive (keluar lalu balik) — re-activate saja
+        tx.update(roomRef, {
+          [`players.${userId}.isActive`]: true,
+          [`players.${userId}.lastActivity`]: Date.now(),
+          ...(userName ? { [`players.${userId}.name`]: userName } : {}),
+          ...(userPhoto ? { [`players.${userId}.photoURL`]: userPhoto } : {}),
+        });
+        return;
+      }
+
+      if (room.maxPlayers != null && room.currentPlayers >= room.maxPlayers) {
+        throw new Error('Room is full')
+      }
+
+      const updatedPlayers = {
+        ...room.players,
+        [userId]: {
+          joinedAt: Date.now(),
+          role: 'player',
+          isActive: true,
+          ...(userName ? { name: userName } : {}),
+          ...(userPhoto ? { photoURL: userPhoto } : {}),
+        },
+      }
+
+      tx.update(roomRef, {
+        [`players.${userId}`]: updatedPlayers[userId],
+        // Dihitung ulang dari isi players hasil transaksi ini (baca yang
+        // konsisten), bukan `room.currentPlayers + 1` di atas angka yang
+        // udah bisa basi kalau ada join lain nyempil di antara baca & tulis
+        // — ini akar masalah yang sama kayak bug finishedOrder/currentPlayers
+        // di game service, sekarang dibenerin di sisi room juga.
+        currentPlayers: Object.keys(updatedPlayers).length,
+      })
     })
   } catch (error) {
     // ROOM_LOCKED itu kondisi normal (room lagi kepake) yang halaman
