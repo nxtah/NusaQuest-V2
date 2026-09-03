@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, deleteField, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField, onSnapshot, runTransaction } from 'firebase/firestore';
 import { firebaseFirestore } from '@/src/lib/firebase/client';
 // `getQuestions` (bukan yang dipakai di sini) butuh composite index Firestore
 // (mapId+regionId+isActive+isApproved+createdAt) yang belum ke-deploy — persis
@@ -314,70 +314,81 @@ function drawPenaltyCard(
  */
 export async function throwCard(roomID: string, throwerUID: string, cardId: string): Promise<void> {
   const ref = gameStateDocRef(roomID);
-  const snapshot = await getDoc(ref);
-  if (!snapshot.exists()) return;
-  const state = snapshot.data() as NusaCardGameState;
+  // runTransaction (bukan getDoc+updateDoc lepas) — ini nulis SELURUH map
+  // playerHands, bukan field per-uid, jadi kalau 2 trigger nimpuk (mis. klik
+  // asli pemain BARENGAN sama watchdog bot-takeover di halaman play yang
+  // nganggep pemain ini stale) dan dua-duanya baca snapshot yang sama
+  // sebelum salah satu nulis, yang nulis BELAKANGAN bisa nimpa balik hand
+  // yang udah dikurangin duluan pake snapshot basi — kartu "keliatan"
+  // kelempar tapi tangannya gak beneran berkurang, game gak pernah abis.
+  // Transaksi Firestore otomatis nge-retry salah satu sisi kalau baca/tulis
+  // barengan kayak gini kejadian.
+  await runTransaction(requireFirestore(), async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists()) return;
+    const state = snapshot.data() as NusaCardGameState;
 
-  const thrower = state.players[state.currentThrowerIndex];
-  if (!thrower || thrower.uid !== throwerUID || state.activeQuestion) return;
+    const thrower = state.players[state.currentThrowerIndex];
+    if (!thrower || thrower.uid !== throwerUID || state.activeQuestion) return;
 
-  const hand = state.playerHands[throwerUID] ?? [];
-  // Cari INDEX-nya, bukan filter by id — sejak §73 (siklus ulang soal biar
-  // tangan selalu 5 kartu di region yang masih tipis), gampang banget 1
-  // tangan isinya beberapa kartu dengan `id` soal yang SAMA PERSIS.
-  // `hand.filter(c => c.id !== cardId)` bakal mbuang SEMUA kartu yang
-  // id-nya sama, bukan cuma 1 kartu fisik yang dilempar — bikin tangan
-  // ke-kosongin sekaligus abis 1 lemparan (ini penyebab asli "jawab sekali
-  // langsung selesai" yang dilaporkan user, BUKAN soal konten/deal).
-  const cardIndex = hand.findIndex((c) => c.id === cardId);
-  if (cardIndex === -1) return;
-  const card = hand[cardIndex];
+    const hand = state.playerHands[throwerUID] ?? [];
+    // Cari INDEX-nya, bukan filter by id — sejak §73 (siklus ulang soal biar
+    // tangan selalu 5 kartu di region yang masih tipis), gampang banget 1
+    // tangan isinya beberapa kartu dengan `id` soal yang SAMA PERSIS.
+    // `hand.filter(c => c.id !== cardId)` bakal mbuang SEMUA kartu yang
+    // id-nya sama, bukan cuma 1 kartu fisik yang dilempar — bikin tangan
+    // ke-kosongin sekaligus abis 1 lemparan (ini penyebab asli "jawab sekali
+    // langsung selesai" yang dilaporkan user, BUKAN soal konten/deal).
+    const cardIndex = hand.findIndex((c) => c.id === cardId);
+    if (cardIndex === -1) return;
+    const card = hand[cardIndex];
 
-  const nextHand = [...hand.slice(0, cardIndex), ...hand.slice(cardIndex + 1)];
-  const now = Date.now();
+    const nextHand = [...hand.slice(0, cardIndex), ...hand.slice(cardIndex + 1)];
+    const now = Date.now();
 
-  let finishedOrder = state.finishedOrder;
-  if (nextHand.length === 0) {
-    finishedOrder = [...state.finishedOrder, throwerUID];
-  }
+    let finishedOrder = state.finishedOrder;
+    if (nextHand.length === 0) {
+      finishedOrder = [...state.finishedOrder, throwerUID];
+    }
 
-  const nextState: NusaCardGameState = {
-    ...state,
-    playerHands: { ...state.playerHands, [throwerUID]: nextHand },
-    finishedOrder,
-  };
-  const answerer = nextActivePlayerAfter(nextState, throwerUID);
+    const nextState: NusaCardGameState = {
+      ...state,
+      playerHands: { ...state.playerHands, [throwerUID]: nextHand },
+      finishedOrder,
+    };
+    const answerer = nextActivePlayerAfter(nextState, throwerUID);
 
-  // Gak ada lagi pemain aktif lain buat jawab — game langsung kelar,
-  // sisa 1 pemain (kalau ada) otomatis dapet peringkat terakhir.
-  if (!answerer) {
-    const stillActive = activePlayers(nextState).filter((p) => p.uid !== throwerUID);
-    const finalOrder = stillActive.length > 0
-      ? [...finishedOrder, ...stillActive.map((p) => p.uid)]
-      : finishedOrder;
-    await updateDoc(ref, {
+    // Gak ada lagi pemain aktif lain buat jawab — game langsung kelar,
+    // sisa 1 pemain (kalau ada) otomatis dapet peringkat terakhir.
+    if (!answerer) {
+      const stillActive = activePlayers(nextState).filter((p) => p.uid !== throwerUID);
+      const finalOrder = stillActive.length > 0
+        ? [...finishedOrder, ...stillActive.map((p) => p.uid)]
+        : finishedOrder;
+      tx.update(ref, {
+        playerHands: nextState.playerHands,
+        finishedOrder: finalOrder,
+        activeQuestion: null,
+        activeThrowerUID: null,
+        currentAnsweringUID: null,
+        answerTurnStartedAt: null,
+        gameStatus: 'finished',
+        lastUpdated: now,
+        lastActionAt: now,
+      });
+      return;
+    }
+
+    tx.update(ref, {
       playerHands: nextState.playerHands,
-      finishedOrder: finalOrder,
-      activeQuestion: null,
-      activeThrowerUID: null,
-      currentAnsweringUID: null,
-      answerTurnStartedAt: null,
-      gameStatus: 'finished',
+      finishedOrder,
+      activeQuestion: card,
+      activeThrowerUID: throwerUID,
+      currentAnsweringUID: answerer.uid,
+      answerTurnStartedAt: now,
       lastUpdated: now,
       lastActionAt: now,
     });
-    return;
-  }
-
-  await updateDoc(ref, {
-    playerHands: nextState.playerHands,
-    finishedOrder,
-    activeQuestion: card,
-    activeThrowerUID: throwerUID,
-    currentAnsweringUID: answerer.uid,
-    answerTurnStartedAt: now,
-    lastUpdated: now,
-    lastActionAt: now,
   });
 }
 
@@ -395,50 +406,56 @@ export async function throwCard(roomID: string, throwerUID: string, cardId: stri
 export async function handleThrowTimeout(roomID: string, throwerUID: string): Promise<void> {
   try {
     const ref = gameStateDocRef(roomID);
-    const snapshot = await getDoc(ref);
-    if (!snapshot.exists()) return;
-    const state = snapshot.data() as NusaCardGameState;
+    // runTransaction — alasan sama kayak throwCard: nulis seluruh playerHands,
+    // rawan ketiban race kalau timeout ini kepicu barengan sama lemparan
+    // manual beneran (mis. pelempar akhirnya klik kartu PAS-PASAN sebelum
+    // deadline, sementara client lain udah nembak handleThrowTimeout).
+    await runTransaction(requireFirestore(), async (tx) => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists()) return;
+      const state = snapshot.data() as NusaCardGameState;
 
-    const thrower = state.players[state.currentThrowerIndex];
-    if (!thrower || thrower.uid !== throwerUID || state.activeQuestion) return;
-    if (Date.now() - state.throwerTurnStartedAt < THROW_TIMEOUT_MS) return;
+      const thrower = state.players[state.currentThrowerIndex];
+      if (!thrower || thrower.uid !== throwerUID || state.activeQuestion) return;
+      if (Date.now() - state.throwerTurnStartedAt < THROW_TIMEOUT_MS) return;
 
-    const now = Date.now();
-    const { drawn, drawPile } = drawPenaltyCard(
-      state.drawPile,
-      state.playerHands,
-      throwerUID,
-      state.playerHands[throwerUID]?.[0],
-    );
-    const playerHands = {
-      ...state.playerHands,
-      [throwerUID]: [...(state.playerHands[throwerUID] ?? []), drawn].filter(Boolean),
-    };
+      const now = Date.now();
+      const { drawn, drawPile } = drawPenaltyCard(
+        state.drawPile,
+        state.playerHands,
+        throwerUID,
+        state.playerHands[throwerUID]?.[0],
+      );
+      const playerHands = {
+        ...state.playerHands,
+        [throwerUID]: [...(state.playerHands[throwerUID] ?? []), drawn].filter(Boolean),
+      };
 
-    const nextState: NusaCardGameState = { ...state, playerHands, drawPile };
-    const nextThrower = nextActivePlayerAfter(nextState, throwerUID);
+      const nextState: NusaCardGameState = { ...state, playerHands, drawPile };
+      const nextThrower = nextActivePlayerAfter(nextState, throwerUID);
 
-    if (!nextThrower) {
-      // Gak ada pemain aktif lain (harusnya jarang kejadian) — selesaikan game.
-      await updateDoc(ref, {
+      if (!nextThrower) {
+        // Gak ada pemain aktif lain (harusnya jarang kejadian) — selesaikan game.
+        tx.update(ref, {
+          playerHands,
+          drawPile,
+          activeQuestion: null,
+          gameStatus: 'finished',
+          lastUpdated: now,
+          lastActionAt: now,
+        });
+        return;
+      }
+
+      const nextThrowerIndex = state.players.findIndex((p) => p.uid === nextThrower.uid);
+      tx.update(ref, {
         playerHands,
         drawPile,
-        activeQuestion: null,
-        gameStatus: 'finished',
+        currentThrowerIndex: nextThrowerIndex === -1 ? state.currentThrowerIndex : nextThrowerIndex,
+        throwerTurnStartedAt: now,
         lastUpdated: now,
         lastActionAt: now,
       });
-      return;
-    }
-
-    const nextThrowerIndex = state.players.findIndex((p) => p.uid === nextThrower.uid);
-    await updateDoc(ref, {
-      playerHands,
-      drawPile,
-      currentThrowerIndex: nextThrowerIndex === -1 ? state.currentThrowerIndex : nextThrowerIndex,
-      throwerTurnStartedAt: now,
-      lastUpdated: now,
-      lastActionAt: now,
     });
   } catch (error) {
     console.error('Error handling NusaCard throw timeout:', error);
@@ -458,69 +475,74 @@ export async function submitAnswer(
   selectedIndex: number,
 ): Promise<{ isCorrect: boolean } | null> {
   const ref = gameStateDocRef(roomID);
-  const snapshot = await getDoc(ref);
-  if (!snapshot.exists()) return null;
-  const state = snapshot.data() as NusaCardGameState;
+  // runTransaction — sama alasan kayak throwCard: nulis seluruh playerHands,
+  // rawan ketiban race kalau jawaban manual sempet dikirim BARENGAN sama
+  // handleAnswerTimeout/bot-takeover yang jalan dari client lain.
+  return runTransaction(requireFirestore(), async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists()) return null;
+    const state = snapshot.data() as NusaCardGameState;
 
-  if (state.currentAnsweringUID !== answeringUID || !state.activeQuestion) return null;
+    if (state.currentAnsweringUID !== answeringUID || !state.activeQuestion) return null;
 
-  const isCorrect = selectedIndex === state.activeQuestion.correctIndex;
-  const now = Date.now();
+    const isCorrect = selectedIndex === state.activeQuestion.correctIndex;
+    const now = Date.now();
 
-  let playerHands = state.playerHands;
-  let drawPile = state.drawPile;
-  if (!isCorrect) {
-    const { drawn, drawPile: rest } = drawPenaltyCard(drawPile, state.playerHands, answeringUID, state.activeQuestion);
-    drawPile = rest;
-    playerHands = {
-      ...state.playerHands,
-      [answeringUID]: [...(state.playerHands[answeringUID] ?? []), drawn],
-    };
-  }
+    let playerHands = state.playerHands;
+    let drawPile = state.drawPile;
+    if (!isCorrect) {
+      const { drawn, drawPile: rest } = drawPenaltyCard(drawPile, state.playerHands, answeringUID, state.activeQuestion);
+      drawPile = rest;
+      playerHands = {
+        ...state.playerHands,
+        [answeringUID]: [...(state.playerHands[answeringUID] ?? []), drawn],
+      };
+    }
 
-  const nextThrowerIndex = state.players.findIndex((p) => p.uid === answeringUID);
+    const nextThrowerIndex = state.players.findIndex((p) => p.uid === answeringUID);
 
-  const nextState: NusaCardGameState = {
-    ...state,
-    playerHands,
-    drawPile,
-    currentThrowerIndex: nextThrowerIndex === -1 ? state.currentThrowerIndex : nextThrowerIndex,
-  };
-
-  const remaining = activePlayers(nextState);
-  if (remaining.length <= 1) {
-    const finalOrder = remaining.length === 1
-      ? [...state.finishedOrder, remaining[0].uid]
-      : state.finishedOrder;
-    await updateDoc(ref, {
+    const nextState: NusaCardGameState = {
+      ...state,
       playerHands,
       drawPile,
-      finishedOrder: finalOrder,
+      currentThrowerIndex: nextThrowerIndex === -1 ? state.currentThrowerIndex : nextThrowerIndex,
+    };
+
+    const remaining = activePlayers(nextState);
+    if (remaining.length <= 1) {
+      const finalOrder = remaining.length === 1
+        ? [...state.finishedOrder, remaining[0].uid]
+        : state.finishedOrder;
+      tx.update(ref, {
+        playerHands,
+        drawPile,
+        finishedOrder: finalOrder,
+        activeQuestion: null,
+        activeThrowerUID: null,
+        currentAnsweringUID: null,
+        answerTurnStartedAt: null,
+        gameStatus: 'finished',
+        lastUpdated: now,
+        lastActionAt: now,
+      });
+      return { isCorrect };
+    }
+
+    tx.update(ref, {
+      playerHands,
+      drawPile,
+      currentThrowerIndex: nextState.currentThrowerIndex,
+      throwerTurnStartedAt: now,
       activeQuestion: null,
       activeThrowerUID: null,
       currentAnsweringUID: null,
       answerTurnStartedAt: null,
-      gameStatus: 'finished',
       lastUpdated: now,
       lastActionAt: now,
     });
+
     return { isCorrect };
-  }
-
-  await updateDoc(ref, {
-    playerHands,
-    drawPile,
-    currentThrowerIndex: nextState.currentThrowerIndex,
-    throwerTurnStartedAt: now,
-    activeQuestion: null,
-    activeThrowerUID: null,
-    currentAnsweringUID: null,
-    answerTurnStartedAt: null,
-    lastUpdated: now,
-    lastActionAt: now,
   });
-
-  return { isCorrect };
 }
 
 export function updatePlayerActivity(roomID: string, playerId: string): Promise<void> {
