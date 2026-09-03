@@ -94,7 +94,7 @@ Migrasi dari Realtime Database ke **Cloud Firestore** sudah dilakukan untuk hamp
 - `firestore.rules` dan `firestore.indexes.json` ada, masuk version control, dan sudah **live di production** (`nusaquest-v2-bd551`, di-deploy lewat Firebase CLI). Redeploy lewat `firebase deploy --only firestore:rules,firestore:indexes` kalau ada perubahan rules/index.
 - **RTDB sudah dihapus total** dari codebase — gak ada `firebase/database` atau `firebase-admin/database` tersisa. Admin SDK pakai `getFirebaseAdminFirestore()` (`src/lib/firebase/admin.ts`).
 - Ada dua model game-state yang belum disatukan: `types/firestore.ts` (`GameState`/`playerStates`, generik) vs `features/game-ular-tangga/services/ular-tangga-game.service.ts` (`UlarTanggaGameState`, konkret dan yang benar-benar dipakai). `features/game/services/game.service.ts` melakukan unchecked cast di antara keduanya — hati-hati saat menyentuh area ini.
-- Admin-v2 (`src/features/admin-v2`) masih pakai password hardcode client-side, bukan Firebase Auth custom claim `role: 'admin'`. Karena itu rule write `destinations` cuma butuh login (`isAuth()`), bukan `isAdmin()` — kalau mau di-gate admin-only, sambungkan admin-v2 ke Firebase Auth dulu, atau write via admin-v2 bakal gagal.
+- Admin-v2 (`src/features/admin-v2`) login lewat Firebase Auth beneran (ID token → session cookie → custom claim `role: 'admin'`, di-set lewat `setCustomUserClaims` di `src/lib/firebase/admin.ts`) — bukan password hardcode lagi. Rule write `destinations`/`questions`/`informationItems`/dll pakai `isAdmin()` (cek `request.auth.token.role == 'admin'`), ditegakkan juga di server lewat `withAuth(handler, {requireAdmin: true})` pada route `/api/admin/*`, bukan cuma dipercaya dari client.
 - Akses data selalu lewat service layer supaya penggantian SDK terisolasi di satu lapisan.
 
 ---
@@ -126,7 +126,7 @@ Sudah diketahui dan masuk antrean perbaikan. **Jangan diperluas, jangan dicontoh
 
 **Auth sudah terpasang di sisi client.** `AuthProvider` (`src/app/providers.tsx`) menyambungkan `onFirebaseAuthStateChanged` ke `useAuthStore` (Zustand); `useAuth()` (`src/features/auth/hooks/useAuth.ts`) adalah hook yang benar buat dipakai di komponen/halaman. `(protected)/layout.tsx` redirect ke `/login` kalau belum login. Gunakan `useAuth()` di setiap halaman/hook yang butuh identitas user — jangan hardcode `user = null` atau UID tamu acak, itu pola lama yang sudah dibuang.
 
-Yang **masih belum ada**: `middleware.ts` (proteksi route masih murni client-side, bukan di edge), dan `/admin` (legacy, akan dihapus) tidak punya gate login. Session cookie API (`/api/auth/session`) dan `withAuth()` jalan di server tapi tidak pernah dipanggil dari client — `/api/admin/questions` dan `/api/upload/signature` (yang pakai `withAuth`) efektif tidak ke-reach lewat flow normal. Admin-v2 (`src/features/admin-v2`) pakai password hardcode client-side, bukan Firebase Auth.
+Yang **masih belum ada**: `middleware.ts` (proteksi route `(protected)` masih murni client-side, bukan di edge — bukan lubang keamanan karena Firestore rules tetap negakin akses di server, tapi bisa keliatan sekilas UI protected sebelum redirect client-side sempet jalan), dan `/admin` (legacy, akan dihapus) tidak punya gate login sama sekali. Admin-v2 (`src/features/admin-v2`) SUDAH pakai Firebase Auth + custom claim beneran (lihat catatan di atas) — session cookie API (`/api/auth/session`) dan `withAuth()` DIPANGGIL dari client (`useAdminAuth.ts`) dan aktif dipakai di `/api/admin/*`, bukan jalur mati lagi.
 
 ---
 

@@ -52,7 +52,46 @@ const nextConfig: NextConfig = {
         ];
     },
     async headers() {
+        // CSP ini SENGAJA masih pake 'unsafe-inline'/'unsafe-eval' di
+        // script-src — bikin nonce yang bener butuh middleware.ts (baca per-
+        // request nonce, suntik ke <script> tag), yang app ini belum punya
+        // (lihat CLAUDE.md — proteksi route masih murni client-side). Tanpa
+        // itu, CSP ketat beneran bakal ngeblok script inline bootstrap
+        // Next.js sendiri. Ini baseline yang jauh lebih baik daripada TANPA
+        // CSP sama sekali (yang sebelumnya), bukan CSP sempurna — nge-block
+        // origin liar/script pihak ketiga yang gak dikenal, sambil tetep
+        // ngebolehin origin yang app ini BENERAN pake (Firebase, Cloudinary,
+        // avatar Google).
+        const csp = [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://accounts.google.com",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://firebasestorage.googleapis.com",
+            "font-src 'self' data:",
+            "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://res.cloudinary.com https://api.cloudinary.com https://accounts.google.com",
+            "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'",
+        ].join('; ');
+
         return [
+            {
+                // Berlaku ke semua route — auth (login Google, session admin)
+                // gak boleh kena clickjacking/framing, dan gak ada alasan
+                // bagian app manapun butuh dibuka di dalam iframe orang lain.
+                source: '/:path*',
+                headers: [
+                    { key: 'Content-Security-Policy', value: csp },
+                    { key: 'X-Frame-Options', value: 'DENY' },
+                    { key: 'X-Content-Type-Options', value: 'nosniff' },
+                    { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+                    ...(process.env.NODE_ENV === 'production'
+                        ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }]
+                        : []),
+                ],
+            },
             {
                 // Font & logo statis di /public — jarang/gak pernah berubah,
                 // browser cache 7 hari (bukan "immutable" selamanya) biar
