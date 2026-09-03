@@ -3,9 +3,10 @@
 import Image from 'next/image';
 import {motion} from 'framer-motion';
 import {useRouter} from 'next/navigation';
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {getLogoImage} from '@/src/assets/images/home/cloudinaryAssets';
 import {ROUTES} from '@/src/lib/constants/routes';
+import {getAuthRedirectResult} from '@/src/lib/firebase/auth';
 import {useAuth} from '../hooks/useAuth';
 
 function GoogleIcon() {
@@ -32,10 +33,38 @@ function getErrorMessage(error: unknown): string {
 
 export default function LoginCard() {
   const router = useRouter();
-  const {login} = useAuth();
+  const {login, isLoggedIn, isInitialized} = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
+
+  // Login SELALU lewat signInWithRedirect (full-page navigasi ke
+  // accounts.google.com, lalu Google ngirim baliknya ke halaman INI lagi)
+  // — begitu balik, itu RELOAD PENUH (komponen ini mount ulang dari nol),
+  // bukan lanjutan `handleGoogleLogin` di bawah yang manggil login().
+  // Tanpa effect ini, gak ada apapun yang nge-redirect ke home abis login
+  // beneran sukses — state login-nya keisi lewat onAuthStateChanged di
+  // Providers, tapi gak ada yang nindaklanjutin pindah halaman, jadi
+  // keliatannya "diem aja di /login" padahal sebenarnya udah login.
+  useEffect(() => {
+    if (isInitialized && isLoggedIn) {
+      router.replace(ROUTES.public.home);
+    }
+  }, [isInitialized, isLoggedIn, router]);
+
+  // Nangkep error SPESIFIK dari hasil redirect (mis. akun ditolak/login
+  // dibatalin di accounts.google.com) begitu balik ke halaman ini.
+  // providers.tsx juga manggil getAuthRedirectResult(), tapi cuma
+  // nge-console.error — gak ada yang nunjukin ke USER. Redirect SELALU
+  // balik ke halaman yang mulai signInWithRedirect (halaman ini sendiri),
+  // jadi di sinilah tempat yang paling pas buat nunjukin alert-nya.
+  useEffect(() => {
+    getAuthRedirectResult().catch((err) => {
+      setError(getErrorMessage(err));
+      setShake(true);
+      setTimeout(() => setShake(false), 400);
+    });
+  }, []);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -43,17 +72,16 @@ export default function LoginCard() {
 
     try {
       const outcome = await login();
-      if (outcome === 'success') {
-        router.push(ROUTES.public.home);
-      } else if (outcome === 'failed') {
+      if (outcome === 'failed') {
+        setError('Gagal masuk dengan Google. Coba lagi ya!');
         setShake(true);
         setTimeout(() => setShake(false), 400);
       }
       // 'redirecting' — browser lagi navigasi ke accounts.google.com, bukan
-      // kegagalan, jadi gak nge-shake tombol kayak 'failed'. `finally` di
-      // bawah tetep jalan (return di try gak ngeskip finally), isLoading
-      // balik false — gak masalah, halaman keburu pindah duluan.
-      if (outcome === 'redirecting') return;
+      // kegagalan. 'success' gak pernah kejadian lagi di sini (login()
+      // SELALU redirect sekarang) — kalaupun suatu saat balik jadi mungkin,
+      // effect isLoggedIn di atas yang nanganin pindah ke home, bukan
+      // router.push manual di sini.
     } catch (err) {
       setError(getErrorMessage(err));
       setShake(true);
