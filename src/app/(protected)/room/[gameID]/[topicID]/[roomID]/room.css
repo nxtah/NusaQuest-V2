@@ -90,11 +90,14 @@
   border-radius: 0.5rem; padding: 0.35rem 0.75rem; margin: 0;
 }
 
-/* Arena */
+/* Arena — diciutin (900px -> 640px): medali kompak di bawah gak butuh
+   space selebar kartu pennant lama, dibiarin lebar bikin slot keliatan
+   nyebar sendiri-sendiri kayak "kartu yg belum diisi" alih-alih baris
+   pemain yang rapet kayak lobi MOBA. */
 .room-arena {
   position: relative; z-index: 5;
   width: 100%;
-  max-width: 900px;
+  max-width: 640px;
   margin: 0 auto;
   background: transparent;
   border: none;
@@ -106,53 +109,29 @@
 
 
 /* ==================== SLOTS ====================
-   Kartu slot dibawa ke bahasa visual claymorphism yang udah dipakai di
-   seluruh app (RankModal/PauseModal/QuestionModal): permukaan parchment
-   krem + shadow "clay" ofset keras, ink-brown buat teks — gantiin coklat
-   solid gelap + teks putih yang sebelumnya beda sendiri dari komponen lain.
-   Bentuk "bendera" (clip-path pennant) DIPERTAHANKAN — itu elemen bentuk
-   yang udah pas secara tematik (kayak bendera pemain ditancepin di papan),
-   cuma materialnya yang di-refresh. */
+   Sebelumnya kartu pennant (clip-path) yang dipaksa `flex:1` ngisi penuh
+   lebar kolom grid-nya — avatar-nya sendiri max 180px sementara kartunya
+   bisa sampe >200px per kolom, sisanya cuma padding kosong buat ekor
+   pennant. Itu akar "kelihatan kelebaran/kosong" yang dikeluhin. Sekarang
+   diganti gaya lobi MOBA: medali bulat (cincin emas) + label nama kecil
+   di bawahnya, slot-nya SENDIRI gak lagi dikasih background/kartu/lebar
+   paksa — ukurannya ngikutin isinya doang, grid nge-center tiap slot
+   (lihat `justify-items:center`) alih-alih meregangkannya. Aksen filled/
+   empty/kamu-sendiri sekarang nempel di cincin avatar, bukan di kartu
+   yang udah gak ada. */
 .room-slots-container {
   position: relative; z-index: 1;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  gap: clamp(0.75rem, 2vw, 1.5rem);
   width: 100%; align-content: center;
+  justify-items: center;
 }
 
 .room-player-slot {
   position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-  padding: clamp(3rem, 7vh, 5rem) clamp(0.75rem, 1.5vw, 1.25rem) clamp(4rem, 9vh, 8rem);
-  flex: 1;
-  min-height: clamp(220px, 45vh, 360px);
-  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
-  clip-path: polygon(0% 0%, 100% 0%, 100% 82%, 50% 100%, 0% 82%);
-  border: 2px solid rgba(198, 132, 26, 0.35);
-  box-shadow:
-    0 6px 0 rgba(139, 94, 42, 0.32),
-    0 10px 16px rgba(74, 42, 26, 0.35),
-    inset -3px -3px 6px rgba(139, 94, 42, 0.12),
-    inset 3px 3px 5px rgba(255, 255, 255, 0.7);
-  transform: scale(1);
-}
-.room-player-slot.empty {
-  background: rgba(232, 216, 181, 0.16);
-  border-color: rgba(198, 132, 26, 0.4);
-  border-style: dashed;
-  box-shadow: inset 0 2px 8px rgba(74, 42, 26, 0.15);
-}
-/* Slot kamu sendiri — cincin teal, bahasa yang sama kayak "(Kamu)" di
-   RankModal (nq-rank-row--me), biar konsisten satu app apa artinya
-   "ini kamu". */
-.room-player-slot.mine {
-  box-shadow:
-    0 6px 0 rgba(139, 94, 42, 0.32),
-    0 10px 16px rgba(74, 42, 26, 0.35),
-    inset -3px -3px 6px rgba(139, 94, 42, 0.12),
-    inset 3px 3px 5px rgba(255, 255, 255, 0.7),
-    0 0 0 3px #2f8f74;
+  gap: clamp(0.3rem, 0.9vh, 0.55rem);
 }
 
 /* ==================== JOIN EFFECT (signature moment) ====================
@@ -191,8 +170,8 @@
 
 .room-player-avatar-ring {
   position: relative;
-  width: clamp(110px, 22vw, 180px);
-  height: clamp(110px, 22vw, 180px);
+  width: clamp(64px, 9vw, 96px);
+  height: clamp(64px, 9vw, 96px);
   border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
@@ -204,9 +183,16 @@
   border: 2px dashed rgba(198, 132, 26, 0.45);
   box-shadow: none;
 }
+/* Medali kamu sendiri — cincin teal, bahasa yang sama kayak "(Kamu)" di
+   RankModal (nq-rank-row--me), biar konsisten satu app apa artinya
+   "ini kamu". Dulu nempel di box-shadow kartu; sekarang di cincinnya
+   langsung karena kartunya udah gak ada. */
+.room-player-slot.mine .room-player-avatar-ring {
+  box-shadow: 0 4px 10px rgba(120, 72, 0, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.5), 0 0 0 3px #2f8f74;
+}
 .room-player-avatar {
-  width: clamp(92px, 18vw, 152px);
-  height: clamp(92px, 18vw, 152px);
+  width: clamp(54px, 7.6vw, 82px);
+  height: clamp(54px, 7.6vw, 82px);
   border-radius: 50%; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   background: #fdf6e3;
@@ -250,9 +236,28 @@
   color: #4a2a1a; white-space: nowrap;
   box-shadow: 0 2px 4px rgba(120, 72, 0, 0.35);
 }
-.room-player-nameplate { margin-top: 0.35rem; }
-.room-player-name { font-size: clamp(0.75rem, 1.7vh, 1.1rem); font-weight: 600; color: #3d2411; text-align: center; }
-.room-player-name.dim { color: rgba(74, 42, 26, 0.4); font-weight: 500; }
+/* Label nama — pil parchment kecil di bawah medali, bukan nameplate
+   lebar kayak sebelumnya (itu sisa dari lebar kartu pennant yang udah
+   dibuang). */
+.room-player-nameplate {
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+  border: 1px solid rgba(198, 132, 26, 0.3);
+  box-shadow: 0 2px 4px rgba(74, 42, 26, 0.2);
+  max-width: clamp(72px, 16vw, 130px);
+}
+.room-player-slot.empty .room-player-nameplate {
+  background: rgba(232, 216, 181, 0.22);
+  border-style: dashed;
+  box-shadow: none;
+}
+.room-player-name {
+  display: block;
+  font-size: clamp(0.65rem, 1.5vh, 0.85rem); font-weight: 600; color: #3d2411; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.room-player-name.dim { color: rgba(74, 42, 26, 0.45); font-weight: 500; }
 
 /* Info */
 .room-info-bar {
@@ -336,10 +341,6 @@
    sampai header & tombol "Mulai Game" ke-cut dari viewport). */
 @media (max-width: 639px) {
   .room-slots-container { grid-template-columns: repeat(4, 1fr); gap: clamp(0.3rem, 1.5vw, 0.6rem); }
-  .room-player-slot {
-    padding: clamp(0.5rem, 2.5vh, 1.1rem) clamp(0.2rem, 1vw, 0.4rem) clamp(1rem, 4vh, 1.8rem);
-    min-height: clamp(130px, 30vh, 200px);
-  }
   .room-player-avatar-ring {
     width: clamp(48px, 16vw, 78px);
     height: clamp(48px, 16vw, 78px);
@@ -374,19 +375,13 @@
   }
   .room-slots-container { grid-template-columns: repeat(4, 1fr); gap: 0.3rem; }
 
-  .room-player-slot {
-    /* Sama kayak desktop — tetep bentuk "bendera" (clip-path) + layout kolom
-       (avatar di atas, nama di bawah), cuma diskalain kecil biar muat di
-       viewport landscape yang pendek. Bukan diganti row/kotak biasa. */
-    padding: clamp(0.5rem, 3vh, 1rem) clamp(0.15rem, 1vw, 0.35rem) clamp(0.8rem, 4vh, 1.4rem);
-    min-height: clamp(90px, 34vh, 150px);
-  }
+  .room-player-slot { gap: clamp(0.15rem, 0.6vh, 0.3rem); }
   .room-player-avatar-ring { width: clamp(34px, 10vh, 56px); height: clamp(34px, 10vh, 56px); }
   .room-player-avatar { width: clamp(28px, 8vh, 46px); height: clamp(28px, 8vh, 46px); }
   .room-player-initial { font-size: clamp(0.4rem, 1.6vh, 0.6rem); }
   .room-player-icon svg { width: clamp(10px, 2vh, 16px); height: clamp(10px, 2vh, 16px); }
+  .room-player-nameplate { padding: 0.1rem 0.4rem; }
   .room-player-name { font-size: clamp(0.4rem, 1.4vh, 0.6rem); }
-  .room-player-nameplate { margin-top: 0.15rem; }
   .room-player-owner-badge {
     font-size: clamp(0.32rem, 1vh, 0.45rem); padding: 1px 4px; bottom: -2px;
   }
