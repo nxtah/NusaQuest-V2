@@ -78,6 +78,16 @@
   text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
+/* Keterangan game/provinsi/nomor room — chip kecil di bawah subtitle. */
+.room-meta {
+  flex-shrink: 0; position: relative; z-index: 5;
+  font-family: 'Poppins', sans-serif; font-weight: 600;
+  font-size: clamp(0.6rem, 1.3vw, 0.8rem);
+  color: rgba(255,255,255,0.65);
+  margin: 0;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
 .room-join-error {
   flex-shrink: 0; position: relative; z-index: 5;
   font-size: clamp(0.65rem, 1.4vw, 0.9rem); font-weight: 600;
@@ -356,6 +366,7 @@
   .room-header-branch-right { margin-left: -25px; }
   .room-board-text { font-size: clamp(0.5rem, 1.2vw, 0.65rem); top: -10px; }
   .room-subtitle { font-size: clamp(0.35rem, 0.7vw, 0.45rem); margin: 0.05rem 0; }
+  .room-meta { font-size: clamp(0.3rem, 0.6vw, 0.4rem); margin: 0; }
 
   .room-body { max-width: 300px; gap: 0.3rem; }
 

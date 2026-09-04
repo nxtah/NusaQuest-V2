@@ -28,6 +28,7 @@ import {
 } from '@/src/features/game-nuca/services/nusa-card-game.service';
 import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import { information } from '@/src/assets/images/information/cloudinaryAssets';
+import { getRegionById } from '@/src/features/destination/services/regions.service';
 import Loader from '@/src/components/ui/Loader';
 import './room.css';
 
@@ -42,6 +43,22 @@ function resolveGameRoute(gameID: string, topicID: string, roomID: string): stri
   if (gameID === 'ular-tangga' || gameID === 'snake-ladder') return `/play/${gameID}/${topicID}/${roomID}/ular-tangga`;
   if (gameID === 'ular-tangga-vs-ai' || gameID === 'snake-ladder-vs-ai') return `/play/${gameID}/${topicID}/${roomID}/ular-tangga-vs-ai`;
   return `/lobby/${topicID}/${gameID}`;
+}
+
+// Label game yang enak dibaca — `gameID` di URL cuma slug ('ular-tangga',
+// 'card', dst, termasuk varian vs-AI), bukan nama yang pantas ditunjukin.
+function resolveGameLabel(gameID: string): string {
+  if (gameID === 'nusa-card' || gameID === 'card' || gameID === 'nusa-card-vs-ai' || gameID === 'card-vs-ai') return 'Nusa Card';
+  if (gameID === 'ular-tangga' || gameID === 'snake-ladder' || gameID === 'ular-tangga-vs-ai' || gameID === 'snake-ladder-vs-ai') return 'Ular Tangga';
+  return gameID;
+}
+
+// Label room yang enak dibaca dari slug-nya ('room1' -> '1', 'roomvs-ai'/
+// 'vs-ai' -> 'VS AI').
+function resolveRoomLabel(roomID: string): string {
+  if (roomID === 'roomvs-ai' || roomID === 'vs-ai') return 'VS AI';
+  const match = /^room(\d+)$/.exec(roomID);
+  return match ? match[1] : roomID;
 }
 
 export default function RoomPage() {
@@ -69,6 +86,19 @@ export default function RoomPage() {
   // mentah ("room1") — kalau enggak, sesi Ular Tangga dan NusaCard yang
   // kebetulan pakai slot yang sama bakal numpuk ke dokumen yang sama persis.
   const roomKey = `${gameID}_${topicID}_${roomID}`;
+
+  // Nama provinsi buat ditunjukin di lobby ("lagi main di provinsi mana") —
+  // `topicID` di URL ini sebenernya ID dokumen `regions` (bukan cuma kode
+  // provinsi mentah), jadi bisa langsung diambil satu dokumen doang, gak
+  // perlu tau `mapId`-nya duluan.
+  const [provinceName, setProvinceName] = useState<string | null>(null);
+  useEffect(() => {
+    let isActive = true;
+    getRegionById(topicID)
+      .then((region) => { if (isActive) setProvinceName(region?.name ?? null); })
+      .catch(() => { if (isActive) setProvinceName(null); });
+    return () => { isActive = false; };
+  }, [topicID]);
 
   const [players, setPlayers] = useState<RoomPlayerOld[]>([]);
   const [loading, setLoading] = useState(true);
@@ -308,11 +338,22 @@ export default function RoomPage() {
   const maxSlots = 4;
   const slotPlayers: (RoomPlayerOld | null)[] = [...players];
   while (slotPlayers.length < maxSlots) { slotPlayers.push(null); }
-  // Kartu "Kamu" — dedikasi ampil kamu sendiri, terpisah dari roster.
-  // Ambil dari entry player kamu sendiri di `players` (udah kesimpen dari
-  // join, termasuk photoURL) — bukan langsung dari `user` (useAuth), biar
-  // konsisten sama apa yang beneran kesimpen/ke-share ke pemain lain.
-  const myPlayer = players.find((p) => p.uid === playerUID) ?? null;
+  // Kartu "Kamu" — dedikasi tampil kamu sendiri, terpisah dari roster.
+  // Diutamain dari entry player kamu sendiri di `players` (data yang
+  // beneran kesimpen & ke-share ke pemain lain, termasuk photoURL) — TAPI
+  // itu baru keisi setelah listener realtime (listenToRoomPlayers) sempet
+  // nerima snapshot yang ngikutin tulisan join kamu, sebuah request
+  // Firestore TERPISAH dari transaksi join itu sendiri. Ada jendela waktu
+  // (biasanya cuma sepersekian detik, tapi bisa kerasa lebih lama di
+  // koneksi lambat) di mana kamu UDAH beneran join tapi listener-nya
+  // belum sempet nyusul — sebelumnya di jendela itu kartu "Kamu" gak
+  // nongol SAMA SEKALI (persis laporan "profil saya gak ada pas masuk
+  // room"). Fallback ke data lokal (`user` dari useAuth(), yang udah ada
+  // dari SEBELUM efek join manapun jalan) biar kartu ini SELALU muncul
+  // begitu identitas kamu diketahui, gak nunggu round-trip listener.
+  const myPhotoURL = user?.firebasePhotoURL || user?.googlePhotoURL || null;
+  const myPlayer = players.find((p) => p.uid === playerUID)
+    ?? (playerUID ? { uid: playerUID, name: playerName, photoURL: myPhotoURL ?? undefined, joinedAt: '' } : null);
 
   if (loading) {
     return <Loader message="Memuat ruangan..." />;
@@ -359,8 +400,12 @@ export default function RoomPage() {
         <img src={information.tanamankanan} alt="" className="room-header-branch room-header-branch-right" />
       </div>
 
-      {/* Subtitle */}
+      {/* Subtitle + keterangan game/provinsi/room — biar orang yang masuk
+          langsung tau lagi di room mana, bukan cuma nomor ruangnya doang. */}
       <p className="room-subtitle">Pilih pemain yang siap bertanding</p>
+      <p className="room-meta">
+        {resolveGameLabel(gameID)} · {provinceName ?? '...'} · Room {resolveRoomLabel(roomID)}
+      </p>
       {joinError && <p className="room-join-error">{joinError}</p>}
 
       <div className="room-body">
