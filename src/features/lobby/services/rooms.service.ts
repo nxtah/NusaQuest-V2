@@ -139,14 +139,26 @@ export async function joinRoom(
 
       const room = { roomId: snapshot.id, ...snapshot.data() } as Room
       const existing = room.players?.[userId]
+      // Jumlah pemain BENERAN AKTIF sekarang — bukan `room.currentPlayers`,
+      // yang cuma pernah DITAMBAH (tiap ada join baru / addBotToRoom) dan
+      // GAK PERNAH DIKURANGIN pas pemain keluar (`leaveRoom`/
+      // `markPlayerInactiveInRoom` cuma nulis `isActive:false`, gak pernah
+      // nyentuh field ini). Efeknya: field itu jadi "total unik yang PERNAH
+      // masuk room ini sepanjang sejarahnya", bukan "berapa yang lagi ada
+      // sekarang" — begitu angka itu nyampe `maxPlayers` (bisa kejadian
+      // cuma dalam beberapa ronde di room yang sering dipake, contoh room1),
+      // room itu KEKUNCI PERMANEN buat pemain baru SELAMANYA walau
+      // sebenernya lagi kosong beneran. Ini akar bug "room1 sering gak bisa
+      // dipake" — dikonfirmasi langsung dari data produksi (banyak room
+      // beneran currentPlayers>=maxPlayers padahal 0 pemain aktif).
+      const activeCount = Object.values(room.players || {}).filter(
+        (p) => p.isActive !== false
+      ).length
 
       // Room udah 'playing' dan kita BUKAN salah satu pemain yang udah
       // gabung — jangan biarin join. Reconnecting participant (existing
       // truthy) tetap boleh lewat di bawah, gak kena block ini.
       if (!existing && room.status === 'playing') {
-        const activeCount = Object.values(room.players || {}).filter(
-          (p) => p.isActive !== false
-        ).length
         const lockedError = new Error('Room is currently playing') as Error & {
           code?: string
           activeCount?: number
@@ -164,33 +176,29 @@ export async function joinRoom(
           [`players.${userId}.lastActivity`]: Date.now(),
           ...(userName ? { [`players.${userId}.name`]: userName } : {}),
           ...(userPhoto ? { [`players.${userId}.photoURL`]: userPhoto } : {}),
+          // Samain juga di sini — reaktivasi bukan cuma nambah balik
+          // ke hitungan aktif, tapi juga kesempatan ngebenerin
+          // `currentPlayers` kalau dokumen ini kena bug lama di atas.
+          currentPlayers: activeCount + 1,
         });
         return;
       }
 
-      if (room.maxPlayers != null && room.currentPlayers >= room.maxPlayers) {
+      if (room.maxPlayers != null && activeCount >= room.maxPlayers) {
         throw new Error('Room is full')
       }
 
-      const updatedPlayers = {
-        ...room.players,
-        [userId]: {
+      tx.update(roomRef, {
+        [`players.${userId}`]: {
           joinedAt: serverTimestamp(),
           role: 'player',
           isActive: true,
           ...(userName ? { name: userName } : {}),
           ...(userPhoto ? { photoURL: userPhoto } : {}),
         },
-      }
-
-      tx.update(roomRef, {
-        [`players.${userId}`]: updatedPlayers[userId],
-        // Dihitung ulang dari isi players hasil transaksi ini (baca yang
-        // konsisten), bukan `room.currentPlayers + 1` di atas angka yang
-        // udah bisa basi kalau ada join lain nyempil di antara baca & tulis
-        // — ini akar masalah yang sama kayak bug finishedOrder/currentPlayers
-        // di game service, sekarang dibenerin di sisi room juga.
-        currentPlayers: Object.keys(updatedPlayers).length,
+        // Live (pemain aktif + diri sendiri yang baru join), bukan total
+        // historis — biar gak numpuk kayak bug di atas.
+        currentPlayers: activeCount + 1,
       })
     })
   } catch (error) {
@@ -263,25 +271,40 @@ export async function leaveRoom(
   userId: string,
   finalPosition?: number
 ): Promise<void> {
+  const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
   try {
-    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
-    const room = await getRoomById(roomId)
+    // Transaksi (bukan getDoc+updateDoc lepas) — biar `currentPlayers` yang
+    // ditulis ulang di sini selalu dihitung dari data TERBARU, bukan
+    // snapshot yang udah bisa basi kalau ada join/leave lain nyempil di
+    // antara baca & tulis. Ini pasangan dari fix `joinRoom`: keluar HARUS
+    // ngurangin hitungan yang sama yang dipake buat nge-gate join baru,
+    // kalau enggak room-nya bakal balik kekunci lagi walau kelihatannya
+    // "udah dibenerin".
+    let wasPlaying = false
+    await runTransaction(requireFirestore(), async (tx) => {
+      const snapshot = await tx.get(roomRef)
+      if (!snapshot.exists()) throw new Error('Room not found')
 
-    if (!room) {
-      throw new Error('Room not found')
-    }
+      const room = { roomId: snapshot.id, ...snapshot.data() } as Room
+      wasPlaying = room.status === 'playing'
 
-    // Mark player as inactive
-    const updates: Record<string, unknown> = {
-      [`players.${userId}.isActive`]: false,
-    };
-    if (finalPosition !== undefined) {
-      updates[`players.${userId}.finalPosition`] = finalPosition;
-    }
-    await updateDoc(roomRef, updates)
+      const updates: Record<string, unknown> = {
+        [`players.${userId}.isActive`]: false,
+      }
+      if (finalPosition !== undefined) {
+        updates[`players.${userId}.finalPosition`] = finalPosition
+      }
+
+      const activeCountAfterLeaving = Object.entries(room.players || {}).filter(
+        ([uid, p]) => uid !== userId && p.isActive !== false
+      ).length
+      updates.currentPlayers = activeCountAfterLeaving
+
+      tx.update(roomRef, updates)
+    })
 
     // If game is playing, update game state
-    if (room.status === 'playing') {
+    if (wasPlaying) {
       const gsRef = doc(requireFirestore(), GAME_STATES_COLLECTION, roomId)
       await updateDoc(gsRef, {
         [`playerStates.${userId}.isWaiting`]: true,
@@ -307,9 +330,22 @@ export async function leaveRoom(
  * Bermain • N orang" ke-lock permanen.
  */
 export async function markPlayerInactiveInRoom(roomId: string, userId: string): Promise<void> {
+  const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
   try {
-    const roomRef = doc(requireFirestore(), ROOMS_COLLECTION, roomId)
-    await updateDoc(roomRef, { [`players.${userId}.isActive`]: false })
+    // Transaksi biar `currentPlayers` ke-hitung ulang dari data terbaru —
+    // sama alasannya kayak `leaveRoom` (lihat komentar di sana).
+    await runTransaction(requireFirestore(), async (tx) => {
+      const snapshot = await tx.get(roomRef)
+      if (!snapshot.exists()) return
+      const room = { roomId: snapshot.id, ...snapshot.data() } as Room
+      const activeCountAfterLeaving = Object.entries(room.players || {}).filter(
+        ([uid, p]) => uid !== userId && p.isActive !== false
+      ).length
+      tx.update(roomRef, {
+        [`players.${userId}.isActive`]: false,
+        currentPlayers: activeCountAfterLeaving,
+      })
+    })
   } catch (error) {
     console.error('Error marking player inactive in room:', error)
   }

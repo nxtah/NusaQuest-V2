@@ -213,6 +213,23 @@ export default function RoomPage() {
     return () => { if (hasJoined && playerUID) void playerLeaveRoom(topicID, gameID, roomKey, playerUID); };
   }, [topicID, gameID, roomKey, playerUID, hasJoined]);
 
+  // Cleanup di atas cuma nyala kalau komponen ini UNMOUNT lewat React (pindah
+  // halaman di dalam app) — kalau user langsung nutup tab/browser/matiin HP,
+  // React gak pernah sempet ngejalanin cleanup effect-nya sama sekali, jadi
+  // slot-nya nyangkut "isActive:true" SELAMANYA di mata pemain lain (persis
+  // laporan "kaya masih ada cache orangnya"). `pagehide` nyala di kasus itu
+  // (beda dari `beforeunload`, yang gak reliable di banyak browser mobile).
+  // Ini best-effort — browser BISA motong request sebelum kelar, gak ada
+  // jaminan 100% kayak unmount biasa, tapi jauh lebih baik daripada gak ada
+  // sama sekali, dan menutup celah utama yang dikeluhkan.
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (hasJoined && playerUID) void playerLeaveRoom(topicID, gameID, roomKey, playerUID);
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    return () => window.removeEventListener('pagehide', handlePageHide);
+  }, [topicID, gameID, roomKey, playerUID, hasJoined]);
+
   // Host menekan "Mulai Game": bootstrap game-state yang BENERAN dulu (soal +
   // urutan pemain) sebelum flip status room ke 'playing'. Sebelumnya ini cuma
   // manggil startGameInRoom yang nulis skema gameStates generik yang gak
