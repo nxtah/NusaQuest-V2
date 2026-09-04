@@ -29,6 +29,7 @@ import {
 import { background } from '@/src/assets/images/background/cloudinaryAssets';
 import { information } from '@/src/assets/images/information/cloudinaryAssets';
 import { getRegionById } from '@/src/features/destination/services/regions.service';
+import { sendChatMessage, subscribeRoomChat, type ChatMessage } from '@/src/services/firebase/firestore/chat.service';
 import Loader from '@/src/components/ui/Loader';
 import './room.css';
 
@@ -210,6 +211,52 @@ export default function RoomPage() {
 
     return () => { isActive = false; };
   }, [isInitialized, playerUID, playerName, hasJoined, topicID, gameID, roomID, roomKey, user, isVsAi]);
+
+  // Chat sementara — cuma buat obrolan santai selagi nunggu di lobby,
+  // ke-scope ke room ini doang (subcollection rooms/{roomKey}/chat, udah
+  // digerbang firestore.rules cuma buat partisipan room ini), dibatasin 50
+  // pesan terakhir (lihat chat.service.ts) biar gak numpuk gak jelas.
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const chatListRef = useRef<HTMLDivElement | null>(null);
+  const [chatUnread, setChatUnread] = useState(0);
+
+  useEffect(() => {
+    if (!roomKey || !hasJoined) return;
+    const unsub = subscribeRoomChat(roomKey, (messages) => {
+      setChatMessages((prev) => {
+        if (!chatOpen && messages.length > prev.length) {
+          setChatUnread((n) => n + (messages.length - prev.length));
+        }
+        return messages;
+      });
+    });
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomKey, hasJoined]);
+
+  useEffect(() => {
+    if (chatOpen) {
+      setChatUnread(0);
+      chatListRef.current?.scrollTo({ top: chatListRef.current.scrollHeight });
+    }
+  }, [chatOpen, chatMessages]);
+
+  const handleSendChat = async () => {
+    const text = chatInput.trim();
+    if (!text || !playerUID || chatSending) return;
+    setChatSending(true);
+    setChatInput('');
+    try {
+      await sendChatMessage(roomKey, playerUID, playerName, text);
+    } catch (error) {
+      console.error('Gagal kirim chat:', error);
+    } finally {
+      setChatSending(false);
+    }
+  };
 
   // Real-time: slot ke-update langsung begitu ada yang join/leave, gak nunggu polling.
   useEffect(() => {
@@ -548,6 +595,61 @@ export default function RoomPage() {
           Kembali ke Lobby
         </button>
       </div>
+
+      {/* Chat sementara — cuma buat obrolan santai nunggu di lobby, gak
+          relevan buat room vs-AI (isinya cuma kamu sendiri). Toggle,
+          bukan permanen kepampang, biar gak makan tempat di layar
+          landscape yang udah sempit. */}
+      {!isVsAiRoom && hasJoined && (
+        <>
+          <button
+            type="button"
+            className="room-chat-toggle"
+            onClick={() => setChatOpen((v) => !v)}
+            aria-label={chatOpen ? 'Tutup chat' : 'Buka chat'}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            {chatUnread > 0 && <span className="room-chat-badge">{chatUnread > 9 ? '9+' : chatUnread}</span>}
+          </button>
+
+          {chatOpen && (
+            <div className="room-chat-panel">
+              <div className="room-chat-header">
+                <span>Chat Lobby</span>
+                <button type="button" onClick={() => setChatOpen(false)} aria-label="Tutup chat">×</button>
+              </div>
+              <div className="room-chat-list" ref={chatListRef}>
+                {chatMessages.length === 0 ? (
+                  <p className="room-chat-empty">Belum ada obrolan. Sapa dulu, yuk!</p>
+                ) : (
+                  chatMessages.map((msg) => (
+                    <div key={msg.id} className={`room-chat-msg ${msg.userId === playerUID ? 'mine' : ''}`}>
+                      <span className="room-chat-msg-name">{msg.userId === playerUID ? 'Kamu' : msg.userName}</span>
+                      <span className="room-chat-msg-text">{msg.message}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <form
+                className="room-chat-input-row"
+                onSubmit={(e) => { e.preventDefault(); void handleSendChat(); }}
+              >
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Ketik pesan..."
+                  maxLength={200}
+                  className="room-chat-input"
+                />
+                <button type="submit" className="room-chat-send" disabled={!chatInput.trim() || chatSending} aria-label="Kirim">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+                </button>
+              </form>
+            </div>
+          )}
+        </>
+      )}
 
     </div>
   );

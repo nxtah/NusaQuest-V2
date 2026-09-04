@@ -127,3 +127,7 @@ export function creditsCollectionPath() {
 export function creditSectionsCollectionPath() {
   return 'creditSections';
 }
+
+export function feedbackCollectionPath() {
+  return 'feedback';
+}

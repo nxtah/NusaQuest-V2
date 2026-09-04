@@ -120,6 +120,18 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ── Collection: feedback (popup rating+saran abis main) ─────────────
+    match /feedback/{feedbackId} {
+      // Cuma admin yang boleh baca (buat menu Monitoring) — bukan data
+      // publik. Nulis boleh siapapun yang login, TAPI `userId` di body-nya
+      // HARUS sama kayak UID yang lagi login — nyegah orang ngirim feedback
+      // ngatasnamain user lain. Append-only, gak boleh diubah/dihapus
+      // (termasuk sama admin) biar catatan feedback-nya jujur/gak diotak-atik.
+      allow read: if isAdmin();
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // ── Collection: adminLogs ──────────────────────────────────────────
     match /adminLogs/{logId} {
       allow read: if isAdmin();

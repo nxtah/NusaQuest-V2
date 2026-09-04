@@ -10,6 +10,8 @@ import PlayerTurnBox from '@/src/features/game-ular-tangga/components/PlayerTurn
 import {ularTangga} from '@/src/assets/images/ular-tangga/cloudinaryAssets';
 import PauseModal from '@/src/components/layout/PauseModal';
 import RankModal from '@/src/components/game-shared/RankModal';
+import FeedbackPopup from '@/src/components/game-shared/FeedbackPopup';
+import { submitFeedback } from '@/src/services/firebase/firestore/feedback.service';
 import Loader from '@/src/components/ui/Loader';
 import SettingButton from '@/src/components/layout/SettingButton';
 import {useAuth} from '@/src/features/auth/hooks/useAuth';
@@ -67,6 +69,7 @@ export default function UlarTanggaPage() {
   const [gameState, setGameState] = useState<UlarTanggaGameState | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
   const [isGameLocked, setIsGameLocked] = useState<boolean>(false);
 
@@ -111,24 +114,34 @@ export default function UlarTanggaPage() {
       setPlayers(fetchedPlayers);
     });
 
+    // Sama persis dipake di dua tempat: cleanup effect (React unmount —
+    // pindah halaman NORMAL di dalam app) dan listener `pagehide` di bawah
+    // (tab/browser ditutup PAKSA — React gak pernah sempet ngejalanin
+    // cleanup effect-nya sama sekali di kasus itu). Tanpa yang kedua,
+    // pemain yang nutup browser mid-game nyangkut "isActive:true"
+    // SELAMANYA, bikin badge okupansi lobby nunjukin room "ada orang"
+    // padahal beneran kosong.
+    const leaveOnExit = () => {
+      if (!isJoined) return;
+      if (!gameStartedRef.current) {
+        playerLeaveRoom(topicID, gameID, roomKey, user.uid).catch(() => { });
+      } else {
+        setPlayerOffline(topicID, gameID, roomKey, user.uid).catch(() => { });
+        // `setPlayerOffline` doang cuma nyentuh gameState (playerActivity)
+        // — badge okupansi lobby (RoomSelect.tsx) baca `room.players[uid]
+        // .isActive`, field TERPISAH yang gak pernah ke-update kalau keluar
+        // mid-game, bikin room ke-lock "Sedang Bermain" selamanya walau
+        // pemainnya udah lama kabur. Update juga di sini.
+        markPlayerInactiveInRoom(roomKey, user.uid).catch(() => { });
+      }
+    };
+    window.addEventListener('pagehide', leaveOnExit);
+
     return () => {
       unsub();
-      // Saat komponen unmount (keluar halaman):
-      // Jika game BELUM mulai, keluarkan user dari room.
-      // Jika game SUDAH mulai, ubah status jadi offline (agar bot jalan & bisa reconnect).
-      if (isJoined) {
-        if (!gameStartedRef.current) {
-          playerLeaveRoom(topicID, gameID, roomKey, user.uid).catch(() => { });
-        } else {
-          setPlayerOffline(topicID, gameID, roomKey, user.uid).catch(() => { });
-          // `setPlayerOffline` doang cuma nyentuh gameState (playerActivity)
-          // — badge okupansi lobby (RoomSelect.tsx) baca `room.players[uid]
-          // .isActive`, field TERPISAH yang gak pernah ke-update kalau keluar
-          // mid-game, bikin room ke-lock "Sedang Bermain" selamanya walau
-          // pemainnya udah lama kabur. Update juga di sini.
-          markPlayerInactiveInRoom(roomKey, user.uid).catch(() => { });
-        }
-      }
+      window.removeEventListener('pagehide', leaveOnExit);
+      // Saat komponen unmount (keluar halaman) lewat navigasi NORMAL:
+      leaveOnExit();
     };
   }, [topicID, gameID, roomKey, user]);
 
@@ -672,12 +685,32 @@ export default function UlarTanggaPage() {
             finishedOrder/appendFinisher di service), bukan lagi begitu
             satu pemain menang duluan. Shared sama NusaCard. */}
         <RankModal
-          isOpen={gameState?.gameStatus === 'finished'}
+          isOpen={gameState?.gameStatus === 'finished' && !showFeedback}
           rankedPlayers={rankedPlayers}
           myUID={myUID ?? null}
           myReward={myReward}
-          onContinue={() => router.push(`/lobby/${topicID}/${gameID}`)}
+          onContinue={() => setShowFeedback(true)}
           onPlayAgain={() => router.push(roomPath)}
+        />
+
+        {/* Feedback rating+saran — muncul abis RankModal, sebelum beneran
+            balik ke lobby. Opsional (ada "Lewati"), gak nge-block navigasi. */}
+        <FeedbackPopup
+          isOpen={showFeedback}
+          onSkip={() => router.push(`/lobby/${topicID}/${gameID}`)}
+          onSubmit={async (rating, comment) => {
+            if (user) {
+              await submitFeedback({
+                userId: user.uid,
+                userName: user.displayName || 'Pemain',
+                gameType: 'ular-tangga',
+                regionId: topicID,
+                rating,
+                comment,
+              }).catch(() => {});
+            }
+            router.push(`/lobby/${topicID}/${gameID}`);
+          }}
         />
       </div>
     </main>

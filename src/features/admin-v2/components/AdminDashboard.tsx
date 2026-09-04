@@ -5,6 +5,7 @@ import QuestionsTable from './QuestionsTable';
 import InformasiTable from './InformasiTable';
 import KotaProvinsTable from './KotaProvinsTable';
 import CreditTable from './CreditTable';
+import MonitoringPanel from './MonitoringPanel';
 import '../admin-theme.css';
 
 export default function AdminDashboard({onLogout}: {onLogout: () => void}) {
@@ -25,6 +26,7 @@ export default function AdminDashboard({onLogout}: {onLogout: () => void}) {
         {activeMenu === 'informasi' && <InformasiTable />}
         {activeMenu === 'kota' && <KotaProvinsTable />}
         {activeMenu === 'credit' && <CreditTable />}
+        {activeMenu === 'monitoring' && <MonitoringPanel />}
       </main>
     </div>
   );

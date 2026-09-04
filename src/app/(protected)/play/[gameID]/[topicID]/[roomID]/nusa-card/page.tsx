@@ -8,6 +8,8 @@ import GameArea, { type GameAreaPlayer } from "../../../../../../../features/gam
 import type { PlayerCard } from "../../../../../../../features/game-nuca/components/PlayerHandCards";
 import type { QuestionFeedback } from "../../../../../../../features/game-nuca/components/QuestionModal";
 import RankModal from "../../../../../../../components/game-shared/RankModal";
+import FeedbackPopup from "../../../../../../../components/game-shared/FeedbackPopup";
+import { submitFeedback } from "../../../../../../../services/firebase/firestore/feedback.service";
 import PauseModal from "../../../../../../../components/layout/PauseModal";
 import SettingButton from "../../../../../../../components/layout/SettingButton";
 import BackButton from "../../../../../../../components/ui/BackButton";
@@ -61,6 +63,7 @@ export default function NusaCardPage() {
   const [gameState, setGameState] = useState<NusaCardGameState | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [isResolving, setIsResolving] = useState(false);
@@ -82,24 +85,32 @@ export default function NusaCardPage() {
 
     const unsub = fetchGamePlayers(topicID, gameID, roomKey, setPlayers);
 
+    // Sama pola kayak ular-tangga: kalau game BELUM mulai, keluarin dari
+    // room; kalau SUDAH mulai, tandain offline aja (biar bisa reconnect &
+    // biar bot-takeover di bawah bisa kedeteksi). Dipake dari DUA tempat:
+    // cleanup effect (unmount normal) DAN listener `pagehide` (tab/browser
+    // ditutup paksa — React gak sempet ngejalanin cleanup sama sekali di
+    // kasus itu, bikin pemain nyangkut "isActive:true" selamanya).
+    const leaveOnExit = () => {
+      if (!isJoined) return;
+      if (!gameStartedRef.current) {
+        playerLeaveRoom(topicID, gameID, roomKey, user.uid).catch(() => {});
+      } else {
+        void setPlayerOffline(roomKey, user.uid);
+        // `setPlayerOffline` cuma nyentuh gameState (playerActivity) —
+        // badge okupansi lobby (RoomSelect.tsx) baca `room.players[uid]
+        // .isActive`, field TERPISAH yang gak pernah ke-update kalau
+        // keluar mid-game, bikin room ke-lock "Sedang Bermain" selamanya
+        // walau pemainnya udah lama kabur. Update juga di sini.
+        void markPlayerInactiveInRoom(roomKey, user.uid);
+      }
+    };
+    window.addEventListener('pagehide', leaveOnExit);
+
     return () => {
       unsub();
-      // Sama pola kayak ular-tangga: kalau game BELUM mulai, keluarin dari
-      // room; kalau SUDAH mulai, tandain offline aja (biar bisa reconnect &
-      // biar bot-takeover di bawah bisa kedeteksi).
-      if (isJoined) {
-        if (!gameStartedRef.current) {
-          playerLeaveRoom(topicID, gameID, roomKey, user.uid).catch(() => {});
-        } else {
-          void setPlayerOffline(roomKey, user.uid);
-          // `setPlayerOffline` cuma nyentuh gameState (playerActivity) —
-          // badge okupansi lobby (RoomSelect.tsx) baca `room.players[uid]
-          // .isActive`, field TERPISAH yang gak pernah ke-update kalau
-          // keluar mid-game, bikin room ke-lock "Sedang Bermain" selamanya
-          // walau pemainnya udah lama kabur. Update juga di sini.
-          void markPlayerInactiveInRoom(roomKey, user.uid);
-        }
-      }
+      window.removeEventListener('pagehide', leaveOnExit);
+      leaveOnExit();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicID, gameID, roomKey, user]);
@@ -434,12 +445,32 @@ export default function NusaCardPage() {
       />
 
       <RankModal
-        isOpen={gameState?.gameStatus === "finished"}
+        isOpen={gameState?.gameStatus === "finished" && !showFeedback}
         rankedPlayers={rankedPlayers}
         myUID={myUID}
         myReward={myReward}
-        onContinue={() => router.push(lobbyPath)}
+        onContinue={() => setShowFeedback(true)}
         onPlayAgain={() => router.push(roomPath)}
+      />
+
+      {/* Feedback rating+saran — muncul abis RankModal, sebelum beneran
+          balik ke lobby. Opsional (ada "Lewati"), gak nge-block navigasi. */}
+      <FeedbackPopup
+        isOpen={showFeedback}
+        onSkip={() => router.push(lobbyPath)}
+        onSubmit={async (rating, comment) => {
+          if (user) {
+            await submitFeedback({
+              userId: user.uid,
+              userName: user.displayName || "Pemain",
+              gameType: "nusa-card",
+              regionId: topicID,
+              rating,
+              comment,
+            }).catch(() => {});
+          }
+          router.push(lobbyPath);
+        }}
       />
 
       <PauseModal isOpen={isPaused} onClose={() => setIsPaused(false)} />

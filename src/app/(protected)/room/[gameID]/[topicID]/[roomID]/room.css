@@ -347,6 +347,99 @@
 .room-waiting-dots span:nth-child(3) { animation-delay: 0.6s; }
 @keyframes dotPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
 
+/* Chat sementara — tombol bulat ngambang pojok kanan bawah + panel yang
+   nongol di atasnya pas dibuka. Toggle (bukan permanen kepampang) biar
+   gak makan tempat di layar landscape yang udah sempit. */
+.room-chat-toggle {
+  position: fixed; right: clamp(0.75rem, 3vw, 1.5rem); bottom: clamp(0.75rem, 3vh, 1.5rem);
+  z-index: 20;
+  width: clamp(42px, 8vw, 52px); height: clamp(42px, 8vw, 52px);
+  border-radius: 50%; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(150deg, #ffe28a 0%, #ffc93c 55%, #f5a916 100%);
+  color: #4a2a1a;
+  box-shadow: 0 4px 0 #c6841a, 0 8px 14px rgba(120, 72, 0, 0.35);
+  transition: transform 150ms ease-out;
+}
+.room-chat-toggle:active { transform: translateY(2px); }
+.room-chat-badge {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 999px; background: #ef4444; color: #fff;
+  font-size: 0.6rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px #4a2a1a22;
+}
+
+.room-chat-panel {
+  position: fixed; z-index: 25;
+  right: clamp(0.75rem, 3vw, 1.5rem); bottom: clamp(4.5rem, 12vh, 5.5rem);
+  width: min(90vw, 300px); max-height: min(60vh, 420px);
+  display: flex; flex-direction: column;
+  border-radius: 1rem; overflow: hidden;
+  background: linear-gradient(150deg, #fff6e0 0%, #f2dfae 100%);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4), inset 0 0 0 2px rgba(198, 132, 26, 0.3);
+}
+.room-chat-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  font-family: 'Bauhaus', sans-serif; font-size: 0.8rem; color: #4a2a1a;
+  background: rgba(198, 132, 26, 0.15);
+  flex-shrink: 0;
+}
+.room-chat-header button {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 1.1rem; color: #4a2a1a; line-height: 1;
+}
+.room-chat-list {
+  flex: 1; overflow-y: auto; min-height: 80px;
+  padding: 0.5rem 0.75rem; display: flex; flex-direction: column; gap: 0.4rem;
+}
+.room-chat-empty {
+  margin: auto; text-align: center;
+  font-size: 0.7rem; color: rgba(74, 42, 26, 0.5);
+}
+.room-chat-msg { display: flex; flex-direction: column; max-width: 85%; }
+.room-chat-msg.mine { align-self: flex-end; align-items: flex-end; }
+.room-chat-msg-name {
+  font-size: 0.55rem; font-weight: 700; color: #8b5e2a;
+  margin-bottom: 1px;
+}
+.room-chat-msg-text {
+  font-size: 0.75rem; color: #3d2411; line-height: 1.3;
+  background: rgba(255,255,255,0.6); padding: 0.3rem 0.55rem; border-radius: 0.6rem;
+  word-break: break-word;
+}
+.room-chat-msg.mine .room-chat-msg-text { background: rgba(47, 143, 116, 0.25); }
+.room-chat-input-row {
+  display: flex; gap: 0.4rem; padding: 0.5rem;
+  border-top: 1px solid rgba(198, 132, 26, 0.25);
+  flex-shrink: 0;
+}
+.room-chat-input {
+  flex: 1; min-width: 0;
+  border: none; border-radius: 999px; padding: 0.4rem 0.7rem;
+  font-size: 0.75rem; background: rgba(255,255,255,0.75); color: #3d2411;
+}
+.room-chat-input:focus { outline: 2px solid #2f8f74; }
+.room-chat-send {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; border: none;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: linear-gradient(150deg, #ffe28a 0%, #f5a916 100%); color: #4a2a1a;
+}
+.room-chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Landscape pendek: chat toggle/panel diciutin biar gak makan porsi
+   layar yang udah mepet. */
+@media (max-height: 600px) and (orientation: landscape) {
+  .room-chat-toggle { width: 34px; height: 34px; right: 0.5rem; bottom: 0.5rem; }
+  .room-chat-toggle svg { width: 15px; height: 15px; }
+  .room-chat-panel { width: min(70vw, 240px); max-height: 75vh; bottom: 3rem; right: 0.5rem; }
+  .room-chat-header { padding: 0.3rem 0.5rem; font-size: 0.65rem; }
+  .room-chat-msg-text { font-size: 0.62rem; padding: 0.2rem 0.4rem; }
+  .room-chat-input { font-size: 0.62rem; padding: 0.3rem 0.5rem; }
+}
+
 /* Mobile portrait — jarang kena beneran (rotate-prompt app-level nutup
    viewport <768px potret), tapi tetep dijaga buat tablet potret sempit. */
 @media (max-width: 639px) {

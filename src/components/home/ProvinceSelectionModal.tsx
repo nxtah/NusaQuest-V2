@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { GameType, GAME_TYPES } from '../../features/home/types';
 import { getRegions } from '../../features/destination/services/regions.service';
 import { getRoomsOccupancy } from '../../features/lobby/services/rooms.service';
+import { checkAndResetAbandonedRoom, checkAndInvalidateIfIdle as checkUlarTanggaIdle } from '../../features/game-ular-tangga/services/ular-tangga-game.service';
+import { checkAndInvalidateIfIdle as checkNusaCardIdle } from '../../features/game-nuca/services/nusa-card-game.service';
 import type { Region } from '../../types/firestore';
 
 // Room slot yang beneran dishare sama orang lain (bukan 'vs-ai', single-player).
@@ -93,9 +95,28 @@ export default function ProvinceSelectionModal({
       MULTIPLAYER_ROOM_IDS.map((roomNum) => `${selectedGame}_${region.regionId}_room${roomNum}`)
     );
 
-    getRoomsOccupancy(roomIds)
-      .then((summary) => {
-        if (cancelled) return;
+    // Badge di sini kepake data SATU KALI baca (getRoomsOccupancy), beda
+    // dari RoomSelect.tsx (grid pilih rumah) yang realtime DAN proaktif
+    // "nyembuhin" room yang `isActive:true`-nya nyangkut gara-gara tab
+    // ditutup paksa/browser crash (checkAndResetAbandonedRoom/
+    // checkAndInvalidateIfIdle). Tanpa langkah yang sama di sini, badge
+    // modal ini bisa nunjukin "2 orang" padahal room-nya BENERAN kosong —
+    // baru "sembuh" kalau ada yang kebetulan buka RoomSelect provinsi itu
+    // duluan. Disamain di sini juga biar modal ini gak pernah nunjukin
+    // angka basi, gak perlu nunggu ke-trigger dari layar lain.
+    const isUlarTangga = selectedGame === 'ular-tangga';
+    const reconcile = roomIds.map((roomId) =>
+      (isUlarTangga
+        ? Promise.all([checkAndResetAbandonedRoom(roomId), checkUlarTanggaIdle(roomId)])
+        : checkNusaCardIdle(roomId)
+      ).catch(() => {})
+    );
+
+    Promise.all(reconcile).then(() => {
+      if (cancelled) return null;
+      return getRoomsOccupancy(roomIds);
+    }).then((summary) => {
+        if (cancelled || !summary) return;
         const perRegion: Record<string, number> = {};
         for (const region of pagedRegions) {
           const total = MULTIPLAYER_ROOM_IDS.reduce((sum, roomNum) => {
