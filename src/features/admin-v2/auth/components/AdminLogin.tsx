@@ -7,7 +7,7 @@ import { getLogoImage } from '@/src/assets/images/home/cloudinaryAssets';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 
 export default function AdminLogin() {
-  const { login, error: authError } = useAdminAuth();
+  const { login, error: authError, successMessage } = useAdminAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
@@ -49,6 +49,12 @@ export default function AdminLogin() {
           />
           <p className="font-bauhaus text-[#4a2a1a]/80 tracking-widest text-sm uppercase">Admin Portal</p>
         </div>
+
+        {successMessage && (
+          <div role="alert" className="mb-6 p-3 bg-green-500/15 border border-green-500/40 rounded-xl text-green-800 text-sm font-semibold">
+            {successMessage}
+          </div>
+        )}
 
         {error && (
           <div role="alert" className="mb-6 p-3 bg-red-500/15 border border-red-500/40 rounded-xl text-red-800 text-sm font-semibold">
