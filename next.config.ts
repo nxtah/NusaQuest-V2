@@ -66,7 +66,10 @@ const nextConfig: NextConfig = {
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://accounts.google.com",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://firebasestorage.googleapis.com",
+            // api.dicebear.com — avatar bot di room lobby (addBotToRoom,
+            // rooms.service.ts) pake ini, tanpa masuk daftar sini bakal
+            // keblokir CSP total di production (avatar bot jadi gambar rusak).
+            "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://firebasestorage.googleapis.com https://api.dicebear.com",
             "font-src 'self' data:",
             "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://res.cloudinary.com https://api.cloudinary.com https://accounts.google.com",
             "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com",

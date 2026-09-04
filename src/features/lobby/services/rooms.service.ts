@@ -17,6 +17,7 @@ import {
   where,
   getDocs,
   runTransaction,
+  serverTimestamp,
 } from 'firebase/firestore'
 import { Room, GameState, RoomPlayer } from '@/src/types/firestore'
 
@@ -38,17 +39,23 @@ export async function createRoom(params: {
   try {
     const { gameType, mapId, regionId, maxPlayers, hostId, hostName, hostPhoto } = params
 
-    const room: Omit<Room, 'roomId'> = {
+    // Bukan diketik `Omit<Room, 'roomId'>` secara eksplisit — `joinedAt` di
+    // sini `serverTimestamp()` (FieldValue), belum jadi `Timestamp` beneran
+    // sampai server commit, jadi gak cocok sama tipe baca `RoomPlayer.joinedAt:
+    // Timestamp | null`. Pola yang sama dipakai di tempat lain di codebase
+    // ini (users.service.ts, credits.service.ts, dll) — payload tulis
+    // dibiarin infer, tipe strict cuma buat hasil BACA.
+    const room = {
       gameType,
       mapId,
       regionId,
       maxPlayers,
       currentPlayers: 1,
-      status: 'waiting',
+      status: 'waiting' as const,
       players: {
         [hostId]: {
-          joinedAt: Date.now(),
-          role: 'host',
+          joinedAt: serverTimestamp(),
+          role: 'host' as const,
           isActive: true,
           ...(hostName ? { name: hostName } : {}),
           ...(hostPhoto ? { photoURL: hostPhoto } : {}),
@@ -59,7 +66,11 @@ export async function createRoom(params: {
     }
 
     const docRef = await addDoc(collection(requireFirestore(), ROOMS_COLLECTION), room)
-    return { roomId: docRef.id, ...room }
+    // joinedAt beneran (Timestamp) belum kebentuk di objek lokal ini (baru
+    // resolve di server) — cast ke Room di sini konsisten sama getRoomById
+    // (baca ulang dari Firestore juga selalu di-cast, gak pernah dijamin
+    // exact-shape dari TS structural typing doang).
+    return { roomId: docRef.id, ...room } as unknown as Room
   } catch (error) {
     console.error('Error creating room:', error)
     throw error
@@ -114,7 +125,7 @@ export async function joinRoom(
           status: 'waiting',
           players: {
             [userId]: {
-              joinedAt: Date.now(),
+              joinedAt: serverTimestamp(),
               role: 'player',
               isActive: true,
               ...(userName ? { name: userName } : {}),
@@ -164,7 +175,7 @@ export async function joinRoom(
       const updatedPlayers = {
         ...room.players,
         [userId]: {
-          joinedAt: Date.now(),
+          joinedAt: serverTimestamp(),
           role: 'player',
           isActive: true,
           ...(userName ? { name: userName } : {}),
@@ -316,10 +327,19 @@ export async function markPlayerInactiveInRoom(roomId: string, userId: string): 
  * di sisi service, biar `addBotToRoom`/`removeBotFromRoom` gak salah
  * nolak host beneran gara-gara ngecek field yang emang gak pernah keisi.
  */
+function joinedAtMillis(p: RoomPlayer): number {
+  // `joinedAt` bisa `null` sesaat — echo lokal Firestore buat tulisan
+  // `serverTimestamp()` milik CLIENT INI SENDIRI, sebelum server confirm
+  // nilai aslinya (baca komentar di RoomPlayer.joinedAt, types/firestore.ts).
+  // Infinity biar dia keurut PALING BELAKANG (bukan tersimulasikan "paling
+  // duluan" gara-gara 0/undefined) selama nunggu konfirmasi.
+  return p.joinedAt?.toMillis() ?? Infinity
+}
+
 function isRoomHost(room: Room, uid: string): boolean {
   const activeEntries = Object.entries(room.players || {})
     .filter(([, p]) => p.isActive !== false)
-    .sort(([, a], [, b]) => a.joinedAt - b.joinedAt)
+    .sort(([, a], [, b]) => joinedAtMillis(a) - joinedAtMillis(b))
   return activeEntries.length > 0 && activeEntries[0][0] === uid
 }
 
@@ -354,7 +374,7 @@ export async function addBotToRoom(roomId: string, hostUid: string): Promise<voi
 
     await updateDoc(roomRef, {
       [`players.${botUid}`]: {
-        joinedAt: Date.now(),
+        joinedAt: serverTimestamp(),
         role: 'ai',
         isActive: true,
         name: `Bot ${nextNumber}`,

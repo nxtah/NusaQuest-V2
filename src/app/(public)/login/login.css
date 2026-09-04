@@ -185,3 +185,49 @@
     animation: none;
   }
 }
+
+/* Mobile landscape: tinggi yang mepet, bukan lebar — semua ukuran diturunin
+   dari vh (bukan vw/dvh kayak default di atas), pola yang sama kayak
+   room.css/home-modals.css. Tanpa ini, padding/logo/font tetep sebesar mode
+   potret walau tinggi viewport cuma ~375px, bikin kartu login overflow/
+   perlu discroll di HP yang direbahin. */
+@media (max-height: 600px) and (orientation: landscape) {
+  .login-scene {
+    padding: 0.75rem 1.5rem;
+  }
+  .login-back-button {
+    top: 0.75rem;
+    left: 0.75rem;
+  }
+  .login-panel {
+    padding: clamp(1rem, 6vh, 1.5rem) clamp(1.25rem, 5vw, 2rem);
+    gap: clamp(0.35rem, 1.2vh, 0.6rem);
+    border-radius: 1.25rem;
+  }
+  .login-logo-wrap {
+    margin-bottom: 0;
+  }
+  .login-logo {
+    width: clamp(64px, 14vh, 96px);
+  }
+  .login-title {
+    font-size: clamp(0.95rem, 4.5vh, 1.2rem);
+  }
+  .login-subtitle {
+    margin: -0.15rem 0 0;
+    font-size: clamp(0.62rem, 2.6vh, 0.75rem);
+  }
+  .login-error {
+    padding: 0.35rem 0.7rem;
+    font-size: clamp(0.62rem, 2.4vh, 0.72rem);
+  }
+  .login-google-btn {
+    padding: clamp(0.5rem, 2.6vh, 0.75rem) 1.2rem;
+    font-size: clamp(0.72rem, 2.8vh, 0.85rem);
+    gap: 0.5rem;
+  }
+  .login-footnote {
+    margin: 0;
+    font-size: clamp(0.58rem, 2.2vh, 0.68rem);
+  }
+}

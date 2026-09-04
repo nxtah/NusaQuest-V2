@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { signInWithGoogle, signOutFirebase } from '@/src/lib/firebase/auth';
+import { signInWithGoogle, signOutFirebase, getAuthRedirectResult } from '@/src/lib/firebase/auth';
+import type { User } from 'firebase/auth';
 
 interface AdminUser {
   uid: string;
@@ -43,16 +44,13 @@ export function useAdminAuth() {
     }
   }, []);
 
-  useEffect(() => {
-    void checkSession();
-  }, [checkSession]);
-
-  const login = useCallback(async (): Promise<boolean> => {
-    setError(null);
+  // Nyelesaiin login abis Firebase Auth-nya beneran sukses — dipanggil dari
+  // dua tempat: efek redirect-result di bawah (jalur NYATA yang kepake,
+  // karena signInWithGoogle() SELALU signInWithRedirect) dan `login()`
+  // sendiri (dijaga buat masa depan kalau alurnya pernah ganti balik ke
+  // popup, gak nyakitin biarin dobel).
+  const completeLogin = useCallback(async (firebaseUser: User): Promise<boolean> => {
     try {
-      const firebaseUser = await signInWithGoogle();
-      if (!firebaseUser) return false; // redirect flow kicked in, no result yet
-
       const idToken = await firebaseUser.getIdToken();
       const res = await fetch('/api/auth/session', {
         method: 'POST',
@@ -78,6 +76,43 @@ export function useAdminAuth() {
       return false;
     }
   }, []);
+
+  // `signInWithGoogle()` SELALU signInWithRedirect (full-page navigasi ke
+  // accounts.google.com) — begitu balik ke halaman ini, itu RELOAD PENUH
+  // (hook ini mount ulang dari nol), bukan lanjutan `login()` di bawah
+  // (yang udah kepotong browser-nya navigasi pergi duluan sebelum sempet
+  // jalan lebih jauh dari situ). Tanpa efek ini, gak ada apapun yang
+  // manggil getIdToken()/POST session abis balik dari Google — cookie
+  // session-nya gak pernah kebikin, checkSession() di atas selalu liat
+  // "belum login", dan halaman admin nyangkut di layar login SELAMANYA
+  // walau login Google-nya sendiri beneran sukses. Pola yang sama persis
+  // kayak fix login user biasa di LoginCard.tsx/providers.tsx.
+  useEffect(() => {
+    getAuthRedirectResult()
+      .then((result) => {
+        if (result?.user) return completeLogin(result.user);
+      })
+      .catch(() => {
+        setError('Gagal masuk. Coba lagi.');
+      });
+  }, [completeLogin]);
+
+  useEffect(() => {
+    void checkSession();
+  }, [checkSession]);
+
+  const login = useCallback(async (): Promise<boolean> => {
+    setError(null);
+    try {
+      const firebaseUser = await signInWithGoogle();
+      if (!firebaseUser) return false; // redirect flow kicked in, ditangani completeLogin abis balik
+
+      return await completeLogin(firebaseUser);
+    } catch {
+      setError('Gagal masuk. Coba lagi.');
+      return false;
+    }
+  }, [completeLogin]);
 
   const logout = useCallback(async () => {
     await signOutFirebase();

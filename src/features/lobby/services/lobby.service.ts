@@ -69,7 +69,9 @@ export async function getCurrentPlayers(
     uid: key,
     name: player.name || '',
     photoURL: player.photoURL,
-    joinedAt: new Date(player.joinedAt).toISOString(),
+    // `joinedAt` bisa null sesaat (echo lokal serverTimestamp() yang belum
+    // dikonfirmasi server — lihat komentar di RoomPlayer.joinedAt).
+    joinedAt: player.joinedAt ? player.joinedAt.toDate().toISOString() : new Date().toISOString(),
   }));
 }
 
@@ -143,15 +145,21 @@ export function listenToRoomPlayers(
     const data = snapshot.data();
     const playersMap = (data.players || {}) as Record<string, RoomPlayer>;
     // Diurutkan by joinedAt (bukan urutan field di object, yang gak dijamin
-    // stabil) — slot pertama = yang join paling duluan = host.
+    // stabil) — slot pertama = yang join paling duluan = host. `joinedAt`
+    // itu Firestore serverTimestamp() (bukan jam device client), biar host
+    // gak salah tentu gara-gara jam HP masing-masing pemain beda (lihat
+    // komentar RoomPlayer.joinedAt di types/firestore.ts). `?.toMillis() ??
+    // Infinity` nanganin echo lokal (`null`) punya tulisan sendiri yang
+    // belum di-confirm server — didudukin paling belakang, bukan dianggap
+    // paling duluan.
     const players = Object.entries(playersMap)
       .filter(([, p]) => p.isActive !== false)
-      .sort(([, a], [, b]) => a.joinedAt - b.joinedAt)
+      .sort(([, a], [, b]) => (a.joinedAt?.toMillis() ?? Infinity) - (b.joinedAt?.toMillis() ?? Infinity))
       .map(([uid, p]) => ({
         uid,
         name: p.name || '',
         photoURL: p.photoURL,
-        joinedAt: new Date(p.joinedAt).toISOString(),
+        joinedAt: p.joinedAt ? p.joinedAt.toDate().toISOString() : new Date().toISOString(),
         role: p.role,
       }));
     callback(players);

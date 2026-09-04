@@ -607,7 +607,10 @@
   }
 
   .game-modal-container:not(.game-modal-container--large) .game-modal-subtitle {
-    top: clamp(2.15rem, 13vw, 2.75rem);
+    /* Sebelumnya 2.75rem max — masih ketiban ujung lancip pita emas judul
+       (`.game-modal-title`), keliatan numpuk bukan bersih di bawahnya.
+       Didorong turun biar jatuh di area krem terbuka DI BAWAH pita. */
+    top: clamp(2.9rem, 17vw, 3.6rem);
     width: min(72%, 10rem);
     font-size: clamp(0.5rem, 3vw, 0.62rem);
   }
@@ -639,21 +642,23 @@
     flex-direction: row;
     justify-content: flex-start;
     text-align: left;
-    /* Dinaikin lagi (112px -> 124px) biar ikon game keliatan jelas, gak
-       kepotong/kekecilan di dalam tombol. */
-    min-height: 124px;
-    padding: 0.9rem 1.25rem;
-    gap: 1.1rem;
+    /* Dinaikin lagi (124px -> 148px) — kertas modal ini punya banyak ruang
+       kosong nganggur antara subjudul & tombol pertama, dan antara tombol
+       kedua & sulur bawah; tombol dibesarin biar keliatan "ngisi" popup-nya,
+       bukan dua tombol kecil ngambang di kertas yang gedean. */
+    min-height: 148px;
+    padding: 1.1rem 1.4rem;
+    gap: 1.25rem;
   }
 
   .game-option-icon-img {
-    width: 86px;
-    height: 86px;
+    width: 100px;
+    height: 100px;
     flex-shrink: 0;
   }
 
   .game-option-label {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
   }
 
   .game-modal-close {
@@ -704,6 +709,11 @@
     top: 1rem;
   }
 
+  .game-modal-container:not(.game-modal-container--large) .game-modal-subtitle {
+    top: 2.7rem;
+    font-size: 0.55rem;
+  }
+
   .game-option-card {
     min-height: 92px;
     padding: 0.7rem 1rem;
@@ -736,6 +746,12 @@
        lebar-pendek, bukan potrait-ish kayak desktop). Width sekarang ikut
        diturunin dari vh juga biar sebanding sama tinggi yang emang mepet. */
     max-width: min(88vw, 480px);
+    /* Bug ke-2 yang sama akarnya: base rule punya `min-height: 420px` yang
+       JUGA gak pernah ke-timpa di sini — di layar landscape pendek (mis.
+       375px tinggi), 420px lebih tinggi dari viewport-nya sendiri, container
+       kepaksa overflow ke ATAS (flex-center overlay-nya bikin overflow rata
+       ke dua sisi), motong tombol close (✕) yang nempel di pojok atasnya. */
+    min-height: 0;
   }
 
   /* Modal provinsi butuh clearance atas dikit lebih gede dari modal "Pilih
@@ -756,6 +772,15 @@
   .game-modal-header {
     margin-bottom: 0.3rem;
     padding-top: 0.1rem;
+  }
+
+  /* Bug nyata: subtitle provinsi (position:absolute, top:28%) numpuk sama
+     search bar — .game-modal-content ngalir normal langsung setelah header
+     yang tingginya nyaris nol (title/subtitle udah dilepas dari flow),
+     sementara subtitle sendiri "ngambang" independen di 28% tinggi
+     container. Push content flow turun secukupnya biar gak ketimpa. */
+  .game-modal-container--large .game-modal-content {
+    margin-top: clamp(0.9rem, 7vh, 1.3rem);
   }
 
   /* Landscape: `top` sebelumnya di-clamp pake VH (persentase TINGGI LAYAR),
@@ -790,7 +815,7 @@
   }
 
   .game-modal-container--large .game-modal-subtitle {
-    top: 28%;
+    top: 19%;
     width: min(60%, 12rem);
     font-size: clamp(0.56rem, 2.6vh, 0.7rem);
   }

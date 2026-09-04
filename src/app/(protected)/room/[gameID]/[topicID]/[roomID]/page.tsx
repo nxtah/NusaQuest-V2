@@ -76,6 +76,11 @@ export default function RoomPage() {
   const [hasJoined, setHasJoined] = useState(false);
   const [starting, setStarting] = useState(false);
   const [botBusy, setBotBusy] = useState(false);
+  // UID yang foto profilnya gagal ke-load (URL basi/rusak) — fallback ke
+  // inisial huruf. Cuma ngecek `photoURL` truthy gak cukup: URL-nya BISA
+  // ada tapi beneran gagal di-fetch browser (404, CORS, dll), <img> bakal
+  // nampilin ikon gambar-rusak alih-alih fallback kalau gak ditangani.
+  const [photoLoadErrors, setPhotoLoadErrors] = useState<Set<string>>(new Set());
   // true setelah checkAndResetAbandonedRoom selesai — gate buat subscribeToGameStart
   const [roomChecked, setRoomChecked] = useState(false);
   // Room udah 'playing' dan kita bukan salah satu pemain yang udah gabung —
@@ -286,6 +291,11 @@ export default function RoomPage() {
   const maxSlots = 4;
   const slotPlayers: (RoomPlayerOld | null)[] = [...players];
   while (slotPlayers.length < maxSlots) { slotPlayers.push(null); }
+  // Kartu "Kamu" — dedikasi ampil kamu sendiri, terpisah dari roster.
+  // Ambil dari entry player kamu sendiri di `players` (udah kesimpen dari
+  // join, termasuk photoURL) — bukan langsung dari `user` (useAuth), biar
+  // konsisten sama apa yang beneran kesimpen/ke-share ke pemain lain.
+  const myPlayer = players.find((p) => p.uid === playerUID) ?? null;
 
   if (loading) {
     return <Loader message="Memuat ruangan..." />;
@@ -336,30 +346,68 @@ export default function RoomPage() {
       <p className="room-subtitle">Pilih pemain yang siap bertanding</p>
       {joinError && <p className="room-join-error">{joinError}</p>}
 
-      {/* Meja arena */}
-      <div className="room-arena">
+      <div className="room-body">
+        {/* Kartu "Kamu" — profil kamu sendiri, dipisah & ditonjolin dari
+            roster (dulu cuma badge kecil "KAMU" nempel di avatar grid,
+            gampang keliatan "gak ada"). */}
+        {myPlayer && (
+          <div className="room-you-card">
+            <div className="room-you-avatar-ring">
+              <div className="room-you-avatar">
+                {myPlayer.photoURL && !photoLoadErrors.has(myPlayer.uid) ? (
+                  <img
+                    src={myPlayer.photoURL}
+                    alt=""
+                    className="room-player-img"
+                    onError={() => setPhotoLoadErrors((prev) => new Set(prev).add(myPlayer.uid))}
+                  />
+                ) : (
+                  <span className="room-player-initial">{(myPlayer.name || '?')[0]}</span>
+                )}
+              </div>
+              {isFirstPlayer && (
+                <span className="room-you-crown" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 19h14v2H5v-2zm.6-2.6L3 7l5.5 3L12 4l3.5 6L21 7l-2.6 9.4a1 1 0 0 1-1 .6H6.6a1 1 0 0 1-1-.6z"/></svg>
+                </span>
+              )}
+            </div>
+            <div className="room-you-info">
+              <span className="room-you-label">KAMU</span>
+              <span className="room-you-name">{myPlayer.name}</span>
+              {isFirstPlayer && <span className="room-you-host-tag">Host</span>}
+            </div>
+          </div>
+        )}
 
-        {/* Player slots di sekeliling meja */}
-        <div className="room-slots-container">
+        {/* Roster — daftar pemain vertikal gaya lobi MOBA, bukan grid medali
+            lagi. Host (slot pertama, udah keurut joinedAt di
+            listenToRoomPlayers) dapet mahkota kecil. */}
+        <div className="room-roster">
           {slotPlayers.map((player: RoomPlayerOld | null, idx) => {
             const isBot = player?.role === 'ai';
             const isMine = !!player && player.uid === playerUID;
+            const isHostRow = idx === 0 && !!player;
             const justJoined = !!player && justJoinedUids.has(player.uid);
-            const slotClassName = [
-              'room-player-slot',
+            const rowClassName = [
+              'room-roster-row',
               player ? 'filled' : 'empty',
               isMine ? 'mine' : '',
               justJoined ? 'just-joined' : '',
             ].filter(Boolean).join(' ');
             return (
-              <div key={idx} className={slotClassName}>
-                <div className="room-player-avatar-ring">
-                  <div className="room-player-avatar">
+              <div key={idx} className={rowClassName}>
+                <div className="room-roster-avatar-ring">
+                  <div className="room-roster-avatar">
                     {player ? (
-                      player.photoURL ? (
-                        <img src={player.photoURL} alt="" className="room-player-img" />
+                      player.photoURL && !photoLoadErrors.has(player.uid) ? (
+                        <img
+                          src={player.photoURL}
+                          alt=""
+                          className="room-player-img"
+                          onError={() => setPhotoLoadErrors((prev) => new Set(prev).add(player.uid))}
+                        />
                       ) : (
-                        <span className="room-player-initial">{(player.name || '?')[0]}</span>
+                        <span className="room-roster-initial">{(player.name || '?')[0]}</span>
                       )
                     ) : isFirstPlayer && isVsAiRoom ? (
                       <button
@@ -369,36 +417,41 @@ export default function RoomPage() {
                         disabled={botBusy}
                         aria-label="Tambah bot"
                       >
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                       </button>
                     ) : (
-                      <span className="room-player-icon">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      <span className="room-roster-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                       </span>
                     )}
                   </div>
-                  {player && player.uid === playerUID && <div className="room-player-owner-badge">KAMU</div>}
-                  {isBot && isFirstPlayer && isVsAiRoom && (
-                    <button
-                      type="button"
-                      className="room-remove-bot-btn"
-                      onClick={() => handleRemoveBot(player!.uid)}
-                      disabled={botBusy}
-                      aria-label="Hapus bot"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
-                    </button>
+                  {isHostRow && (
+                    <span className="room-roster-crown" aria-label="Host" role="img">
+                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 19h14v2H5v-2zm.6-2.6L3 7l5.5 3L12 4l3.5 6L21 7l-2.6 9.4a1 1 0 0 1-1 .6H6.6a1 1 0 0 1-1-.6z"/></svg>
+                    </span>
                   )}
                 </div>
-                <div className="room-player-nameplate">
+                <span className="room-roster-name">
                   {player ? (
-                    <span className="room-player-name">{player.name}{isBot ? ' 🤖' : ''}</span>
+                    <>{player.name}{isBot ? ' 🤖' : ''}</>
                   ) : isFirstPlayer && isVsAiRoom ? (
-                    <span className="room-player-name dim">Tambah Bot</span>
+                    <span className="dim">Tambah Bot</span>
                   ) : (
-                    <span className="room-player-name dim">Tersedia</span>
+                    <span className="dim">Tersedia</span>
                   )}
-                </div>
+                </span>
+                {isMine && <span className="room-roster-you-tag">KAMU</span>}
+                {isBot && isFirstPlayer && isVsAiRoom && (
+                  <button
+                    type="button"
+                    className="room-remove-bot-btn"
+                    onClick={() => handleRemoveBot(player!.uid)}
+                    disabled={botBusy}
+                    aria-label="Hapus bot"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                  </button>
+                )}
               </div>
             );
           })}

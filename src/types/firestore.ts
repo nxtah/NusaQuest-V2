@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 // ========================
 // Core Domain Types
 // ========================
@@ -91,7 +93,17 @@ export interface Achievement {
  * Player in a room
  */
 export interface RoomPlayer {
-  joinedAt: number;
+  // Firestore serverTimestamp() — bukan Date.now() client-side. Host
+  // ditentuin dari SIAPA YANG PALING KECIL joinedAt-nya (lihat
+  // rooms.service.ts isRoomHost() / lobby.service.ts listenToRoomPlayers).
+  // Kalau ini masih pake jam device masing-masing client, dua HP dengan jam
+  // yang beda (umum, apalagi HP jadul) bisa bikin host salah orang — yang
+  // BENERAN klik join duluan bisa kalah gara-gara jam device-nya lebih
+  // lambat dari device lain. `null` = tulisan sendiri yang belum
+  // dikonfirmasi server (echo lokal Firestore sebelum commit) — HARUS
+  // ditangani (jangan crash / anggap paling kecil) di semua tempat yang
+  // ngurutin field ini.
+  joinedAt: Timestamp | null;
   role: "host" | "player" | "ai";
   isActive: boolean; // false if eliminated
   finalPosition?: number; // null if still playing
