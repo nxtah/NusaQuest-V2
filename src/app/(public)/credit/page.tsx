@@ -144,6 +144,23 @@ export default function Page() {
               0 3px 0 #c6841a,
               0 5px 8px rgba(120, 72, 0, 0.35);
           }
+
+          /* Mobile landscape — sebelumnya cuma ada breakpoint LEBAR
+             (sm:/lg:), gak ada yang nyusutin buat kondisi tinggi mepet.
+             Halaman ini scrollable (bukan fixed-height kayak room/login),
+             jadi gak ada resiko konten "kepotong" — tapi tanpa ini,
+             judul/tombol/kartu-nya kerasa gedean banget dibanding layar
+             HP yang direbahin (persis keluhan "jangan kegedean"). Semua
+             ukuran di bawah diturunin proporsinya khusus buat kondisi ini. */
+          @media (max-height: 500px) and (orientation: landscape) {
+            .nq-credit-title { font-size: clamp(1.1rem, 6vh, 1.5rem) !important; }
+            .nq-credit-toggle-btn { padding: 0.3rem 0.9rem !important; font-size: 0.75rem !important; }
+            .nq-credit-frame { padding: 6px !important; }
+            .nq-credit-panel { padding: 0.6rem !important; }
+            .nq-credit-list-badge { margin-bottom: 0.5rem !important; padding: 2px 10px !important; font-size: 0.7rem !important; }
+            .nq-credit-section-label { font-size: 0.85rem !important; margin-bottom: 0.4rem !important; }
+            .nq-credit-grid { gap: 0.4rem !important; }
+          }
         `}</style>
 
         <div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6 lg:left-12 lg:top-12">
@@ -151,7 +168,7 @@ export default function Page() {
         </div>
 
         <header className="text-center text-white">
-          <h1 className={`${bauhaus.className} text-3xl tracking-normal drop-shadow-[0_3px_8px_rgba(0,0,0,0.4)] sm:text-4xl lg:text-5xl`}>
+          <h1 className={`nq-credit-title ${bauhaus.className} text-3xl tracking-normal drop-shadow-[0_3px_8px_rgba(0,0,0,0.4)] sm:text-4xl lg:text-5xl`}>
             Tim NusaQuest
           </h1>
 
@@ -161,7 +178,7 @@ export default function Page() {
                 key={version}
                 type="button"
                 onClick={() => setSelectedVersion(version)}
-                className={`rounded-full px-5 py-2 text-sm font-bold transition sm:text-base ${
+                className={`nq-credit-toggle-btn rounded-full px-5 py-2 text-sm font-bold transition sm:text-base ${
                   selectedVersion === version ? 'nq-credit-toggle-active' : 'nq-credit-toggle-inactive'
                 }`}
               >
@@ -185,10 +202,10 @@ export default function Page() {
               <div className="space-y-8">
                 {sectionGroups.map((group) => (
                   <div key={group.label}>
-                    <h2 className={`${bauhaus.className} mb-3 text-lg tracking-wide text-[#4a2a1a] sm:text-xl`}>
+                    <h2 className={`nq-credit-section-label ${bauhaus.className} mb-3 text-lg tracking-wide text-[#4a2a1a] sm:text-xl`}>
                       {group.label}
                     </h2>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
+                    <div className="nq-credit-grid grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
                       {group.members.map((member) => (
                         <CreditMemberCard
                           key={member.id}

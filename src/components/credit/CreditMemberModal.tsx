@@ -188,6 +188,74 @@ export default function CreditMemberModal({
           pointer-events: none;
           filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.25));
         }
+
+        /* Mobile landscape — sebelumnya cuma ada breakpoint LEBAR (sm:
+           640px), gak ada yang ngecilin buat TINGGI yang mepet. Di HP
+           landscape (mis. 667x375), lebar udah lolos 640px jadi tata
+           letak side-by-side-nya kepake, tapi ukuran teks/foto masih skala
+           DESKTOP PENUH (nama text-5xl, foto 340px, dll) — kartunya jadi
+           jauh lebih tinggi dari layar, numpuk butuh discroll banyak buat
+           liat tombol share. Semua ukuran di bawah diturunin drastis
+           khusus buat kondisi ini, !important biar pasti menang atas
+           utility Tailwind yang udah nempel di elemen yang sama. */
+        @media (max-height: 500px) and (orientation: landscape) {
+          .nq-credit-deco2 { display: none !important; }
+          .nq-credit-close2 {
+            width: 1.75rem !important;
+            height: 1.75rem !important;
+            font-size: 1rem !important;
+          }
+          .nq-credit-card-frame { padding: 0.5rem !important; }
+          .nq-credit-card-paper { padding: 0.75rem !important; }
+          /* Tailwind switch foto+info dari tumpuk ke sejajar itu berbasis
+             LEBAR (sm:flex-row, 640px) — HP landscape yang sempit (mis.
+             568x320, umum di HP lama/kecil) bisa lebih SEMPIT dari 640px
+             padahal orientasinya udah landscape, jadi ketimpa tetep
+             ke-stack vertikal (foto di atas, info di bawah) yang jauh
+             lebih tinggi dari layar. Dipaksa sejajar tanpa syarat lebar
+             di kondisi landscape-pendek ini. */
+          .nq-credit-modal-cols {
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 0.75rem !important;
+          }
+          .nq-credit-info-col {
+            align-items: flex-start !important;
+            text-align: left !important;
+            padding-top: 0 !important;
+          }
+          .nq-credit-photo-col { width: clamp(90px, 22vh, 130px) !important; }
+          .nq-credit-photo-ring { padding: 0.35rem !important; }
+          .nq-credit-version-tag {
+            padding: 2px 8px !important;
+            font-size: 0.55rem !important;
+            top: 0.35rem !important;
+            right: 0.35rem !important;
+          }
+          .nq-credit-nameplate-wrap { display: none !important; }
+          .nq-credit-name { font-size: clamp(1rem, 5vh, 1.4rem) !important; }
+          .nq-credit-role-chip {
+            margin-top: 0.35rem !important;
+            padding: 0.2rem 0.75rem !important;
+            font-size: 0.65rem !important;
+          }
+          .nq-credit-bio-inset {
+            margin-top: 0.5rem !important;
+            padding: 0.5rem !important;
+          }
+          .nq-credit-bio-label { font-size: 0.55rem !important; }
+          .nq-credit-bio-text {
+            margin-top: 0.15rem !important;
+            font-size: 0.7rem !important;
+            line-height: 1.3 !important;
+          }
+          .nq-credit-magic-btn2 {
+            margin-top: 0.5rem !important;
+            padding: 0.5rem 1rem !important;
+            font-size: 0.75rem !important;
+            gap: 0.3rem !important;
+          }
+        }
       `}</style>
 
       {/* Wrapper flex min-h-full — biar kartu tetep di tengah kalau muat,
@@ -237,9 +305,9 @@ export default function CreditMemberModal({
             foto di satu sisi, info di sisi lain. */}
         <div className="nq-credit-card-frame rounded-[30px] p-4">
           <div className="nq-credit-card-paper relative overflow-visible rounded-[24px] p-7">
-            <div className="flex flex-col items-center gap-9 sm:flex-row sm:items-center">
+            <div className="nq-credit-modal-cols flex flex-col items-center gap-9 sm:flex-row sm:items-center">
               {/* Foto besar — kolom kiri. */}
-              <div className="w-full shrink-0 sm:w-[340px]">
+              <div className="nq-credit-photo-col w-full shrink-0 sm:w-[340px]">
                 <div className="nq-credit-photo-ring relative mx-auto aspect-[4/5] w-full max-w-[340px] rounded-2xl p-2.5">
                   <div className="h-full w-full overflow-hidden rounded-xl bg-[#fdf6e3]">
                     {memberPhotoURL ? (
@@ -261,7 +329,7 @@ export default function CreditMemberModal({
                       (masih kebawahan) — baru bener-bener nempel di
                       permukaan kayunya. */}
                   {memberSection && (
-                    <div className="absolute -bottom-6 left-1/2 w-[84%] -translate-x-1/2">
+                    <div className="nq-credit-nameplate-wrap absolute -bottom-6 left-1/2 w-[84%] -translate-x-1/2">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={information.teratai}
@@ -287,16 +355,16 @@ export default function CreditMemberModal({
               </div>
 
               {/* Info — kolom kanan. */}
-              <div className="flex w-full flex-1 flex-col items-center pt-2 text-center sm:items-start sm:pt-3 sm:text-left">
-                <h3 className="font-bauhaus text-4xl tracking-wide text-[#3d2411] sm:text-5xl">{memberName}</h3>
+              <div className="nq-credit-info-col flex w-full flex-1 flex-col items-center pt-2 text-center sm:items-start sm:pt-3 sm:text-left">
+                <h3 className="nq-credit-name font-bauhaus text-4xl tracking-wide text-[#3d2411] sm:text-5xl">{memberName}</h3>
 
                 <span className="nq-credit-role-chip mt-4 inline-flex items-center justify-center rounded-full px-6 py-2.5 text-base font-bold leading-none">
                   {memberRole}
                 </span>
 
                 <div className="nq-credit-bio-inset mt-6 w-full rounded-xl p-6 text-left">
-                  <p className="text-xs font-black uppercase tracking-widest text-[#8b5e2a]">Tentang</p>
-                  <p className="mt-2 text-lg leading-relaxed text-[#4a2a1a]">{memberBio}</p>
+                  <p className="nq-credit-bio-label text-xs font-black uppercase tracking-widest text-[#8b5e2a]">Tentang</p>
+                  <p className="nq-credit-bio-text mt-2 text-lg leading-relaxed text-[#4a2a1a]">{memberBio}</p>
                 </div>
 
                 {memberPhotoURL && (
